@@ -8,7 +8,7 @@ Bicameral is being organized around a single coherent product boundary: a local 
 
 ## What belongs in Bicameral
 
-The planned open-source distribution brings together these product components, subject to source, security, and licensing review:
+The planned open-source distribution brings together these product components, subject to source-provenance, security, and publication review:
 
 | Component | Intended responsibility |
 | --- | --- |
@@ -50,9 +50,11 @@ Do not infer production readiness from repository creation or documentation alon
 
 ## Open-source transition and licensing
 
-The intended public product license is **Apache License 2.0**, as recorded in the Factory transition decision. That decision is **not a blanket license grant for source code still held in other repositories**. Each imported component must have proven provenance, contributor/copyright permissions, appropriate third-party notices and affirmative release clearance.
+**Apache License 2.0 is the authorized outbound license for the consolidated Bicameral product**, including Bot, Cloud, MCP and Integrations. The product owner has confirmed that the necessary copyright-holder permissions are already secured. Apache-2.0 is a settled direction, not an outstanding licensing choice.
 
-In particular, MCP and Integrations currently carry Business Source License terms. Their incorporation into an Apache-2.0 product requires copyright-holder agreement and a documented rights audit **before** changing their license text or importing them as Apache-licensed source. A repository-level `LICENSE` file will be introduced with the approved, rights-cleared source and publication package; this README by itself does not relicense anything.
+MCP and Integrations currently contain Business Source License text in their source repositories. Migration must apply the authorized Apache-2.0 license to the curated product sources, preserve applicable third-party notices and attribution, and document the approval and provenance in the migration record. This documentation step is **not a request to obtain copyright permissions again**. Previously published BSL releases are not retroactively changed by this README.
+
+The Apache-2.0 LICENSE and notices will accompany the cleared consolidated source; this README alone does not replace source license files or authorize a public release.
 
 Migration will use a **curated, auditable source snapshot**, not a wholesale merge of private Git histories. Sensitive incident records, customer data, secrets, internal compliance evidence and private operational configuration must not enter the public history. Source-to-destination provenance, exclusions and validation evidence must be tracked, with sensitive evidence retained privately.
 
@@ -75,7 +77,7 @@ The authoritative transition plan, decision register, rights/security gates and 
 - [Factory #969: Consolidate Bicameral into an auditable open-source product monorepo](https://github.com/BicameralAI/bicameral-factory/issues/969)
 - [Executive recommendation and workstream details](https://github.com/BicameralAI/bicameral-factory/issues/969#issuecomment-6198207047)
 
-Publication requires an auditable source and license inventory, verified exclusions, clean-history and secrets review, reproducible build/self-host checks, product release equivalence, safe contributor-workflow testing, and an **explicit exact-commit go/no-go** by the designated product, security and IP authorities. Until then, this repository remains private staging.
+Publication requires an auditable source inventory and record of the already-authorized license, verified exclusions, clean-history and secrets review, reproducible build/self-host checks, product release equivalence, safe contributor-workflow testing, and an **explicit exact-commit go/no-go** by the designated product, security and IP authorities. Until then, this repository remains private staging.
 
 ---
 
