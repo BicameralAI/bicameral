@@ -1,3 +1,6 @@
 # Normalize text to LF so generated outputs and the LICENSE bytes are identical on every platform.
 * text=auto eol=lf
 *.png binary
+
+# Stored byte-for-byte as in its source repository (Windows batch file with CRLF).
+installer/site/install-windows.cmd -text
