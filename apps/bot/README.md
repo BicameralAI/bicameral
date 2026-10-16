@@ -7,17 +7,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/BicameralAI/bicameral-bot">bot</a>&nbsp; • &nbsp;
-  <a href="https://github.com/BicameralAI/bicameral-mcp">mcp</a>&nbsp; • &nbsp;
-  <a href="https://github.com/BicameralAI/bicameral-integrations">integrations</a>&nbsp; • &nbsp;
-  <a href="https://github.com/BicameralAI/bicameral-cloud">cloud</a>
-</p>
-
-<p align="center">
-  <!-- CI / release posture -->
-  <a href="https://github.com/BicameralAI/bicameral-bot/actions/workflows/rust.yml"><img src="https://github.com/BicameralAI/bicameral-bot/actions/workflows/rust.yml/badge.svg" alt="Rust CI"></a>
-  <a href="https://github.com/BicameralAI/bicameral-bot/actions/workflows/factory-attestation.yml"><img src="https://github.com/BicameralAI/bicameral-bot/actions/workflows/factory-attestation.yml/badge.svg" alt="Factory Attestation"></a>
-  <a href="https://github.com/BicameralAI/bicameral-bot/actions/workflows/release.yml"><img src="https://github.com/BicameralAI/bicameral-bot/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="./">bot</a>&nbsp; • &nbsp;
+  <a href="../../packages/mcp/">mcp</a>&nbsp; • &nbsp;
+  <a href="../../packages/integrations/">integrations</a>&nbsp; • &nbsp;
+  <a href="../../services/cloud/">cloud</a>
 </p>
 
 <p align="center">
@@ -82,8 +75,8 @@ Governance decides what becomes canonical.
 - **Preflight** — surface relevant decisions to agents and developers before implementation goes too deep.
 - **Review routing & state** — drive candidates and decisions through accept/reject, signoff, and compliance transitions with idempotency and audit.
 - **Decision Ledger** — materialize reviewed authority through a pluggable event-store adapter (git / drive / in-memory), with deterministic replay.
-- **Gateway integrations** — accept typed objects from [`bicameral-integrations`](https://github.com/BicameralAI/bicameral-integrations), MCP sessions, and manual fixtures.
-- **Cloud advisory mode** *(planned)* — optionally query [Bicameral Cloud](https://github.com/BicameralAI/bicameral-cloud) for cross-branch, cross-repo, and historical code-graph intelligence.
+- **Gateway integrations** — accept typed objects from [`packages/integrations`](../../packages/integrations/), MCP sessions, and manual fixtures.
+- **Cloud advisory mode** — optionally query [Bicameral Cloud](../../services/cloud/) for cross-branch, cross-repo, and historical code-graph intelligence.
 
 ## Quick Start
 
@@ -91,7 +84,7 @@ Governance decides what becomes canonical.
 
 ### Public install
 
-The current alpha release path supports Linux and macOS. Windows packaging, self-update, and user-level service installation are not yet shipped.
+The current alpha release path, published from the original `bicameral-bot` repository, supports Linux and macOS; macOS builds are not yet verified from this repository. Windows packaging, self-update, and user-level service installation are not yet shipped.
 
 ```bash
 curl -fsSL https://install.bicameral-ai.com/install.sh | sh
@@ -132,12 +125,12 @@ use the developer install path below.
 Build from source (requires Rust 1.75+ and Node.js 22):
 
 ```bash
-git clone https://github.com/BicameralAI/bicameral-bot.git
-cd bicameral-bot
+git clone https://github.com/BicameralAI/bicameral.git
+cd bicameral/apps/bot
 cargo build --release --locked
 npm ci --prefix dashboard      # Cloud-vendored SPA source
 npm run build --prefix dashboard
-cargo test --workspace         # run the full test suite
+cargo test --workspace --locked  # run the full test suite
 ```
 
 The local Quickstart is an operator walkthrough, not release journey evidence.
@@ -226,21 +219,17 @@ WRITE_SCHEMAS=1 cargo test -p bicameral-gateway --test schema_gen
 
 ## CI Gates
 
-Every push and pull request to `dev` / `main` runs:
-
-- **Rust CI** (`.github/workflows/rust.yml`) — `cargo fmt --check`, `cargo build --workspace --locked`, `cargo test --workspace --locked`, and `cargo clippy --workspace -- -D warnings`.
-- **Bicameral factory attestation** (`.github/workflows/factory-attestation.yml`) — governance/provenance attestation on PRs.
-- **Release** (`.github/workflows/release.yml`) — builds and publishes signed release artifacts on `v*` tags.
+In this repository, pull requests that touch `apps/bot/` run the root workflows named `bot-*.yml` in [`.github/workflows/`](../../.github/workflows/). `bot-rust.yml` runs `cargo fmt --check`, `cargo build --workspace --locked`, `cargo test --workspace --locked`, `cargo clippy --workspace -- -D warnings` and the protocol contract checks. The release and Factory attestation workflows in `apps/bot/.github/workflows/` are not active here: GitHub runs only root workflows, and releasing from this repository is not yet authorized.
 
 Generic journey simulations are not required merge gates. A topology-applicable
 Release Unit binds its end-to-end claim to the exact assigned JourneyRevision
 and immutable topology receipt.
 
-## Related Repositories
+## Related Components
 
-- [`bicameral-mcp`](https://github.com/BicameralAI/bicameral-mcp) — agent-facing MCP tool surface; maps tool calls to canonical `ToolRequest` commands. Emits into the bot; holds no local authority.
-- [`bicameral-integrations`](https://github.com/BicameralAI/bicameral-integrations) — read-only source adapters and EM-safe mods. Emits candidates/evidence/signals into the gateway.
-- [`bicameral-cloud`](https://github.com/BicameralAI/bicameral-cloud) — private hosted services for code graph, conflict oracle, managed provider/API paths, plus lightweight hosted amenities such as encrypted rendezvous relay. Returns evidence/advisories and setup conveniences, not authority.
+- [`packages/mcp`](../../packages/mcp/) — agent-facing MCP tool surface; maps tool calls to canonical `ToolRequest` commands. Emits into the bot; holds no local authority.
+- [`packages/integrations`](../../packages/integrations/) — read-only source adapters and EM-safe mods. Emits candidates/evidence/signals into the gateway.
+- [`services/cloud`](../../services/cloud/) — optional hosted services for code graph, conflict oracle, managed provider/API paths, plus lightweight hosted amenities such as encrypted rendezvous relay. Returns evidence/advisories and setup conveniences, not authority.
 
 ## Documentation
 
@@ -259,13 +248,13 @@ and immutable topology receipt.
 
 > Local-process and sibling-tool artifacts (Qor-logic's S.H.I.E.L.D. set, research, plans, reviews, any sibling's scratch) stay local and gitignored by design — see `BOUNDARY.md`.
 
-## Governed by the Bicameral Factory
+## Governance
 
-This repository is part of the BicameralAI organization and is governed by the [Bicameral Factory](https://github.com/BicameralAI/bicameral-factory), the org's governance control plane. The factory aggregates each repo's declared governance facts (classification, visibility, required checks) into an org-wide governance dashboard. Governance is evidence-first: status is read from hard evidence such as CI runs, file presence, and branch protection, never inferred.
+This component is governed by the repository's [GOVERNANCE.md](../../GOVERNANCE.md).
 
 ## Trust & Compliance
 
-BicameralAI is pursuing SOC 2 Type II and ISO 27001. Framework-level status and evidence are available through our [Vanta Trust Center](https://app.vanta.com/bicameral-ai.com/trust/g4wnw551zp5l8jr88ig70); access to detailed reports is provided under a non-disclosure agreement. This summary is framework-level by design; detailed control and test posture is maintained internally and is not published here.
+See the [compliance posture](../../SECURITY.md#compliance-posture) in the repository's security policy.
 
 ## FAQ
 

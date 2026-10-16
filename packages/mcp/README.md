@@ -5,8 +5,6 @@
 
 ### The agent-facing MCP tool surface for the local Bicameral daemon
 
-[![SOC 2 Type II: in progress](https://img.shields.io/badge/SOC_2_Type_II-in_progress-f5a623)](#trust--compliance)
-[![Visibility: public](https://img.shields.io/badge/Visibility-public-2ea44f)](#)
 [![Protocol: ToolRequest v2](https://img.shields.io/badge/Protocol-ToolRequest_v2-8957e5)](#current-contract)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)](#development)
 
@@ -221,11 +219,11 @@ python -m build
 
 ## Trust & compliance
 
-BicameralAI is pursuing SOC 2 Type II and ISO 27001. Framework-level status is available through the Vanta Trust Center. Detailed reports and evidence are provided under appropriate access controls and are not embedded in this package.
+See the [compliance posture](../../SECURITY.md#compliance-posture) in the repository's security policy.
 
 ## Security
 
-Report security issues to **security@bicameral-ai.com**. Do not open a public issue for a suspected vulnerability. See `SECURITY.md` for the coordinated-disclosure policy and safe-harbor terms.
+Do not open a public issue for a suspected vulnerability. Report it as described in the repository's [security policy](../../SECURITY.md).
 
 ## License
 

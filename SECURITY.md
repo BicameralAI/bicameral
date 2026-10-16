@@ -2,7 +2,7 @@
 
 ## Status
 
-Bicameral is consolidating its components into this repository. No unified release has been published from this repository yet. Existing component security procedures remain applicable during migration.
+Bicameral's components are consolidated in this repository. No unified release has been published from it yet. This policy supersedes the `SECURITY.md` files inside component directories.
 
 ## Reporting a vulnerability
 
@@ -19,14 +19,14 @@ The following security-reporting and publication checks must be completed before
 - [ ] Enable GitHub **private vulnerability reporting** for this repository and document it here as the primary channel.
 - [ ] Publish a verified security contact and the disclosure process.
 - [ ] Enable secret scanning and push protection.
-- [ ] Complete the publication-safety review required by [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
+- [ ] Complete the publication-safety review tracked in [#22](https://github.com/BicameralAI/bicameral/issues/22).
 
 ## Controls in this repository
 
 What is actually in place here:
 
 - The root `governance` pull-request workflow uses `contents: read`, a SHA-pinned checkout with `persist-credentials: false`, and runs the in-repository governance checker without installing dependencies.
-- Other component verification workflows are mirrored at `.github/workflows/`. Their triggers, permission declarations, dependency installation, caches, and checkout credential behavior vary by workflow. Several install build/test dependencies; do not infer a uniform fork-safety or token policy from the governance workflow. These workflows must be assessed individually before accepting public fork contributions (see [Factory #971](https://github.com/BicameralAI/bicameral-factory/issues/971)).
+- Component verification workflows are mirrored at `.github/workflows/`. Every root workflow declares top-level `contents: read`, runs on GitHub-hosted runners, references no repository secrets, uses no `pull_request_target` or `workflow_run` trigger, and publishes or deploys nothing. `tools/governance/check_publication.py`, run by the `governance` check, fails a pull request that changes any of these properties. Several workflows install build and test dependencies, some actions are pinned by tag rather than commit, and most do not set `persist-credentials: false` (the token is read-only). Workflow files inside component directories (for example `services/cloud/.github/workflows/deploy-cloud-run.yml`) are inert source copies: GitHub runs only root workflows.
 - Release, deployment, publishing and public-contributor security hardening remain separate authorization/readiness steps. A successful component CI run is not evidence that a publication or release approval has been granted.
 - The governance check validates repository layout, code ownership and architecture records on every pull request.
 - [GOVERNANCE.md](GOVERNANCE.md) requires every change to `main` to arrive by pull request with an independent code-owner approval. A repository ruleset enforcing this (required `governance` check, code-owner review, approval of the latest push, stale-approval dismissal, no force pushes or deletion, no bypass) is pending setup by a repository administrator.

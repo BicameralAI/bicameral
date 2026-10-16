@@ -3,27 +3,25 @@
 
 # Bicameral Cloud
 
-### The private hosted optimization layer for Bicameral
+### The optional hosted optimization layer for Bicameral
 
 <p align="center">
   <strong>
     🏗️ <a href="#high-level-architecture">Architecture</a> ·
     ⚡ <a href="#local-setup">Setup</a> ·
     🧭 <a href="#boundary-rule">Boundary Rule</a> ·
-    🏛️ <a href="#governed-by-the-bicameral-factory">Governance</a> ·
+    🏛️ <a href="#governance">Governance</a> ·
     🛡️ <a href="#trust--compliance">Trust</a>
   </strong>
 </p>
 
-[![Governance: bicameral-factory](https://img.shields.io/badge/Governance-bicameral--factory-1f6feb)](https://github.com/BicameralAI/bicameral-factory)
-[![Classification: product-critical](https://img.shields.io/badge/Classification-product--critical-d1242f)](#governed-by-the-bicameral-factory)
+[![Classification: product-critical](https://img.shields.io/badge/Classification-product--critical-d1242f)](#governance)
 [![SOC 2 Type 1: in preparation](https://img.shields.io/badge/SOC_2_Type_1-in_preparation-f5a623)](#trust--compliance)
-[![Visibility: internal](https://img.shields.io/badge/Visibility-internal-6e7681)](#)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)](#local-setup)
 
 </div>
 
-**Bicameral Cloud** is the private hosted optimization layer for Bicameral: organization-scale code graph, conflict oracle, expensive indexing, and grounding optimization.
+**Bicameral Cloud** is the optional hosted optimization layer for Bicameral: organization-scale code graph, conflict oracle, expensive indexing, and grounding optimization.
 
 It is not the default control plane and not the canonical decision store. The public local bot owns local workflow, review, and materialization. Cloud returns evidence, signals, suggestions, and advisories.
 
@@ -36,7 +34,7 @@ It is not the default control plane and not the canonical decision store. The pu
 - [Related Repositories](#related-repositories)
 - [Boundary Rule](#boundary-rule)
 - [Validation](#validation)
-- [Governed by the Bicameral Factory](#governed-by-the-bicameral-factory)
+- [Governance](#governance)
 - [Trust & Compliance](#trust--compliance)
 - [Security](#security)
 
@@ -161,8 +159,12 @@ journeys:
 
 ```bash
 python scripts/run_real_process_hosted_topology.py \
-  --factory-commit "$(git -C ../bicameral-factory rev-parse HEAD)"
+  --bot-repo <bicameral-bot checkout> --mcp-repo <bicameral-mcp checkout> \
+  --factory-commit <Factory commit>
 ```
+
+> [!WARNING]
+> This journey does not currently pass against the pinned Bot release: the harness predates a Bot pairing-contract change. See [#21](https://github.com/BicameralAI/bicameral/issues/21) and the [verification ledger](../../migration/README.md#verification-ledger). The Bot and MCP checkouts must be full Git clones at the pinned commits, which are published only in the original repositories.
 
 The command requires Docker, Node/npm, recent stable Rust/Cargo (Cargo 1.85+),
 `uv`, Git, and loopback port access. It allocates isolated ports; starts
@@ -257,9 +259,9 @@ as a CI artifact by the `Hosted Project Creation Journey` workflow). This slice
 is deterministic and local; the terminal deployed-environment validation of the
 journey is tracked separately (cloud#115).
 
-## Governed by the Bicameral Factory
+## Governance
 
-This repository is part of the BicameralAI organization and is governed by the [Bicameral Factory](https://github.com/BicameralAI/bicameral-factory), the org's governance control plane. `bicameral-cloud` is classified **product-critical** because it is the org's largest attack surface (an internet-facing, hosted data plane), and is governed at an elevated standard. The factory aggregates each repo's declared governance facts into an org-wide governance dashboard; status is read from hard evidence, never inferred.
+This component is governed by the repository's [GOVERNANCE.md](../../GOVERNANCE.md). It is classified **product-critical** because it is the largest attack surface (an internet-facing, hosted data plane).
 
 ## Trust & Compliance
 

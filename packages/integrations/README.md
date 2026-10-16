@@ -2,13 +2,6 @@
 
 > **Read-only evidence adapters that turn the tools your team already uses — Jira, Linear, GitHub, Slack, Notion, Zendesk, Sentry, PagerDuty, and more — into provider-neutral, governed evidence. Built to be the safe, expressive edge of Bicameral: they observe, never act.**
 
-<!-- CI / security posture -->
-[![CI](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/ci.yml/badge.svg)](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/ci.yml)
-[![Governance Gate](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/governance-gate.yml/badge.svg)](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/governance-gate.yml)
-[![CodeQL](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/codeql.yml/badge.svg)](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/codeql.yml)
-[![Security Scan](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/security-scan.yml/badge.svg)](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/security-scan.yml)
-[![OpenSSF Scorecard](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/scorecard.yml/badge.svg)](https://github.com/BicameralAI/bicameral-integrations/actions/workflows/scorecard.yml)
-
 <!-- project signals -->
 [![Connectors: 26 Beta](https://img.shields.io/badge/connectors-26%20Beta-2ea44f.svg)](connectors/README.md)
 [![Runtime deps: 0 (stdlib)](https://img.shields.io/badge/runtime%20deps-0%20(stdlib%E2%80%91only)-2ea44f.svg)](#design-principles)
@@ -17,7 +10,6 @@
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-fe5196.svg)](https://www.conventionalcommits.org)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](../../LICENSE)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Security policy](https://img.shields.io/badge/security-policy-blue.svg)](SECURITY.md)
 
 **Bicameral Integrations** is the open-source library of **source adapters** and **EM-safe advisory mods** for [Bicameral](https://github.com/BicameralAI). Integrations are the expressive edge of the system: they understand Jira, Linear, Slack, Notion, GitHub, Zendesk, support email, meetings, and customer-specific workflows — and they translate that signal into typed, hash-chainable evidence. **They never own canonical state.**
@@ -31,7 +23,7 @@
 
 ## Design Principles
 
-- **Evidence, not authority.** Every connector is read-only; it emits observations and never writes canonical decisions or takes action (that boundary belongs to [`bicameral-mcp`](https://github.com/BicameralAI/bicameral-mcp)). See [ADR-0008](docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md).
+- **Evidence, not authority.** Every connector is read-only; it emits observations and never writes canonical decisions or takes action (that boundary belongs to [`packages/mcp`](../mcp/)). See [ADR-0008](docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md).
 - **Library, not a server.** Connectors are a pure parse surface; the operator's host owns the live HTTP/poll boundary via the thin [`runtime/`](runtime/README.md) layer ([ADR-0012](docs/adr/0012-connector-readiness-ladder-and-live-ingest-runtime.md)). Result: **zero runtime dependencies**.
 - **Config as a contract.** Each connector publishes a machine-readable descriptor (`connectors/<id>/config.json` + the aggregated `connectors/index.json`, schema-validated in CI) declaring its credentials, scopes, webhook receiver, and step-by-step setup; **each mod publishes the parallel descriptor** (`mods/<id>/config.json` + `mods/index.json`, schema `mods/_schema/mod-descriptor.schema.json`) declaring what it reads/emits and its EM-safe boundary. These are the single source the [`bicameral-mcp`](https://github.com/BicameralAI/bicameral-mcp) UI renders (see [`docs/UI_RENDERING_SPEC.md`](docs/UI_RENDERING_SPEC.md)). This repo ships the contract and never holds a secret value.
 - **Headless, not UI-blocked.** Connectors and mods run from a local file config via `python -m runtime.cli` (`list` / `run` / `run-mods`), so an operator can wire and test a source without waiting on any UI.
@@ -43,7 +35,7 @@
 
 - **Source adapters** – transform external tool payloads into typed Bicameral objects.
 - **EM-safe mods** – lightweight YAML/prompt/fixture packages for dependency risk, security mentions, routing hints, and review suggestions.
-- **Gateway compatibility** – every adapter targets `bicameral-bot/protocol/` contracts.
+- **Gateway compatibility** – every adapter targets the `apps/bot/protocol/` contracts.
 - **Source evidence preservation** – adapters preserve excerpts, refs, source type, timestamps, and prompt/manifest versions where relevant.
 - **Trust-tier configuration** – high-signal sources can auto-create candidates; noisy sources can require manual gating.
 
@@ -160,11 +152,11 @@ Like connectors, every mod ships a machine-readable **UI descriptor** (`mods/<id
 | [test_adequacy](mods/test_adequacy/) | Missing/weak tests around changed behavior, parsing, fixtures, gates |
 | [webhook_risk](mods/webhook_risk/) | Webhook safety: signature verification, replay, schema, idempotency, side effects |
 
-## Related Repositories
+## Related Components
 
-- [`bicameral-bot`](https://github.com/BicameralAI/bicameral-bot) – local daemon/gateway and embedded protocol contracts.
-- [`bicameral-mcp`](https://github.com/BicameralAI/bicameral-mcp) – agent-facing tool surface; not a source-adapter repo.
-- [`bicameral-cloud`](https://github.com/BicameralAI/bicameral-cloud) – hosted code graph/oracle; not the adapter host by default.
+- [`apps/bot`](../../apps/bot/) – local daemon/gateway and embedded protocol contracts.
+- [`packages/mcp`](../mcp/) – agent-facing tool surface; not a source-adapter package.
+- [`services/cloud`](../../services/cloud/) – hosted code graph/oracle; not the adapter host by default.
 
 ## Mod Safety Contract
 
@@ -173,7 +165,8 @@ Mods may emit candidates, evidence, hints, dependency signals, advisories, and s
 ## Testing
 
 ```bash
-pytest -q adapter/core/tests connectors scripts/tests
+pip install ruff==0.15.5 mypy pytest jsonschema==4.25.1
+pytest adapter/core/tests connectors runtime mods scripts/tests tests/redteam tests/redaction_evaluation -q
 ```
 
 Governance integrity (ledger hash-chain + feature-index test paths) is verified
@@ -185,13 +178,7 @@ python scripts/governance_gate.py
 
 ## CI Gates
 
-Every change runs through SHA-pinned GitHub Actions gates, several of which are
-also published as reusable `workflow_call` templates (`.github/workflows/_reusable-*.yml`)
-for the wider Bicameral ecosystem:
-
-- **lint + type + test** (ruff, mypy, pytest) · **Governance Gate** (ledger hash-chain + feature-index)
-- **CodeQL** · **Bandit** · **Security Scan** · **OpenSSF Scorecard** · **SBOM + attestation** · **dependency-review** · **secret scan** (TruffleHog)
-- **Quality** (workflow-YAML lint, codespell, SPDX headers) · **PR hygiene** (conventional title)
+In this repository, pull requests that touch `packages/integrations/` run the root workflows named `integrations-*.yml` in [`.github/workflows/`](../../.github/workflows/): lint + type + test (ruff, mypy, pytest), the governance gate and boundary checks, quality, red-team and release-provenance validation. The CodeQL, Bandit, Scorecard, SBOM, dependency-review and TruffleHog workflows in `packages/integrations/.github/workflows/` are not active here: GitHub runs only root workflows.
 
 Framework control mappings (OWASP, NIST AI RMF & SSDF, EU AI Act, SOC 2, GDPR/HIPAA)
 live in [`docs/compliance/`](docs/compliance/) — control alignment, not certification.
@@ -211,13 +198,13 @@ live in [`docs/compliance/`](docs/compliance/) — control alignment, not certif
 - [Security Policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
 
-## Governed by the Bicameral Factory
+## Governance
 
-This repository is part of the BicameralAI organization and is governed by the [Bicameral Factory](https://github.com/BicameralAI/bicameral-factory), the org's governance control plane. The factory aggregates each repo's declared governance facts (classification, visibility, required checks) into an org-wide governance dashboard. Governance is evidence-first: status is read from hard evidence such as CI runs, file presence, and branch protection, never inferred.
+This component is governed by the repository's [GOVERNANCE.md](../../GOVERNANCE.md).
 
 ## Trust & Compliance
 
-BicameralAI is pursuing SOC 2 Type II and ISO 27001. Framework-level status and evidence are available through our [Vanta Trust Center](https://app.vanta.com/bicameral-ai.com/trust/g4wnw551zp5l8jr88ig70); access to detailed reports is provided under a non-disclosure agreement. This summary is framework-level by design; detailed control and test posture is maintained internally and is not published here.
+See the [compliance posture](../../SECURITY.md#compliance-posture) in the repository's security policy.
 
 ## License
 

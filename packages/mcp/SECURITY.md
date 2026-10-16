@@ -1,5 +1,7 @@
 # Security & Privacy
 
+> **Reporting vulnerabilities:** follow the repository's [security policy](../../SECURITY.md). It supersedes the reporting channels below, which date from this component's own repository.
+
 ## Privacy posture
 
 Bicameral MCP is a local MCP client for the `bicameral-bot` daemon. MCP forwards

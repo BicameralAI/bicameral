@@ -1,5 +1,7 @@
 # Security Policy
 
+> **Reporting vulnerabilities:** follow the repository's [security policy](../../SECURITY.md). It supersedes the reporting channels below, which date from this component's own repository.
+
 ## Reporting a Vulnerability
 
 Please report security vulnerabilities to security@bicameral-ai.com. Do not disclose
