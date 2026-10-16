@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0126-bot-app-settings-ui-shell-brands",
+  "label": "Bot /app Settings UI shell density + brand logos (PR #1116)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1116",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.26",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-13T19:32:00Z",
+  "proposal_digest": "sha256:013fc41cd73ef35ba2b7376416c783277f2a4e08a9d90003b8d28be0b76ce810"
+}

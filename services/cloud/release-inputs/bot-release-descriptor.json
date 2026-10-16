@@ -1,0 +1,15 @@
+{
+  "artifacts": {
+    "daemon": "sha256:e60bf56ace6ed6ca8478b209ee8ef172e29e9df1c29a8a944a1e1521cacb4203",
+    "hosted_spa": "sha256:05d2608ed8a5f64cf4a0d0dbf7c2ddaec0e9f7714dfac834df35296ad9d0ed94"
+  },
+  "commit": "4deb00470346a571d611ef6fe2d0a36cc9138e66",
+  "component": "bot",
+  "descriptor_digest": "sha256:2c843afb719235d0d1aa5012d1376b93cc16e02f0da61651e9616d4b273b70f0",
+  "interfaces": {
+    "hosted_bridge": "sha256:6e6f6d85c605ca30e9a40dc8afbbfce82a90410c1e748228d0ac867f132e8463",
+    "integration_ingress": "sha256:39ae6dfafaf6be34fd5b00f2c1796bea308187d1ba1cefee1b9d18cd5715cae4",
+    "mcp_tool_request": "sha256:3deceb7109503c15c16a0ab5c21aad966851a515384ca3882d51afe9665c6dfa"
+  },
+  "schema_version": 1
+}

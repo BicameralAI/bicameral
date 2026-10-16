@@ -1,0 +1,65 @@
+name: Candidate Disposition Contract
+
+# Soft-disabled as a PR gate (Phase 1 collapse).
+# Tests remain covered by rust.yml `cargo test --workspace` (required check: rust-workspace).
+# Branch protection does not require this workflow name.
+# Kept as workflow_dispatch for manual archaeology / re-run during a transition window.
+# Job steps preserved; former path filters lived under on.pull_request (see git history).
+
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-disposition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+          components: rustfmt,clippy
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Check affected crates
+        run: |
+          set -o pipefail
+          mkdir -p test-artifacts/candidate-disposition
+          {
+            cargo check -p bicameral-api --locked
+            cargo check -p bicameral-gateway --locked
+            cargo check -p bicameral-runtime --locked
+          } 2>&1 | tee test-artifacts/candidate-disposition/check.log
+      - name: Run candidate disposition tests
+        run: |
+          set -o pipefail
+          cargo test -p bicameral-gateway --test candidate_disposition_working_state --locked -- --nocapture \
+            2>&1 | tee test-artifacts/candidate-disposition/tests.log
+      - name: Check authorization conformance
+        run: |
+          set -o pipefail
+          cargo test -p bicameral-runtime --test action_authorization_conformance --locked -- --nocapture \
+            2>&1 | tee test-artifacts/candidate-disposition/authorization.log
+      - name: Check committed schemas
+        run: |
+          set -o pipefail
+          cargo test -p bicameral-gateway --test schema_gen --locked -- --nocapture \
+            2>&1 | tee test-artifacts/candidate-disposition/schema.log
+      - name: Clippy affected production libraries
+        run: |
+          set -o pipefail
+          cargo clippy -p bicameral-api -p bicameral-gateway -p bicameral-runtime --lib --locked -- -D warnings \
+            2>&1 | tee test-artifacts/candidate-disposition/clippy.log
+      - name: Retain diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: candidate-disposition-diagnostics
+          path: test-artifacts/candidate-disposition/
+          if-no-files-found: ignore
+          retention-days: 14

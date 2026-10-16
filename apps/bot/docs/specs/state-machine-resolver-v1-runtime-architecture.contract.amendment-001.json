@@ -1,0 +1,80 @@
+{
+  "amendment_id": "state-machine-resolver-v1-runtime-architecture-amendment-001",
+  "amendment_version": 1,
+  "base_contract_id": "state-machine-resolver-v1-runtime-architecture",
+  "base_contract_version": 1,
+  "effective_contract_version": "1.0.1",
+  "issue": 937,
+  "contract_pr": 942,
+  "owner_bundle_comment_id": 5095866461,
+  "disposition": "AMEND",
+  "normative": true,
+  "authorizes_implementation": false,
+  "authorizes_release": false,
+  "amendments": [
+    {
+      "id": "A15",
+      "target": "confirmation_protocol_v2",
+      "operation": "add_required_v1_superset_field",
+      "field": "requested_outcome",
+      "reason": "The shipped v1 ChallengeBinding binds requested_outcome and returns OutcomeMismatch. Omitting it would allow the reviewed disposition to change without invalidating the v2 binding."
+    },
+    {
+      "id": "A16",
+      "target_json_pointer": "/confirmation_protocol/schema",
+      "operation": "replace",
+      "from": "confirmation-challenge-v2.schema.json",
+      "to": "confirmation-binding.v2.schema.json",
+      "reason": "The former name does not identify an existing protocol artifact."
+    }
+  ],
+  "confirmation_protocol_v2": {
+    "effective_schema": "protocol/smr-claim-acceptance/schemas/confirmation-binding.v2.schema.json",
+    "required_field": "requested_outcome",
+    "wire_enum_source": "crates/bicameral-api/src/recall.rs::PromotionOutcome",
+    "wire_enum": [
+      "new_constraint",
+      "supersedes_existing_decision",
+      "keeps_both_with_scope",
+      "needs_signoff_review",
+      "dismissed_as_noise"
+    ],
+    "action_pairing": {
+      "promote_smr_claim_set": [
+        "new_constraint",
+        "supersedes_existing_decision",
+        "keeps_both_with_scope",
+        "needs_signoff_review"
+      ],
+      "reject_smr_claim_set": ["dismissed_as_noise"]
+    },
+    "mismatch_result": "OutcomeMismatch",
+    "failure_semantics": {
+      "missing": "fail_closed_no_append",
+      "unknown": "fail_closed_no_append",
+      "action_incompatible": "fail_closed_no_append",
+      "changed_from_bound_value": "OutcomeMismatch"
+    },
+    "binding_digest": {
+      "digest_profile_version": 1,
+      "artifact_name": "confirmation-binding",
+      "includes": ["requested_outcome", "display_summary_digest"],
+      "excludes": ["display_summary", "confirmation_binding_digest"],
+      "construction": "sha256: || lowerhex(SHA-256(UTF8(bicameral/confirmation-binding/v1) || 0x00 || JCS(normalized_binding)))"
+    }
+  },
+  "conformance_obligations": [
+    {
+      "id": "CONF-SMR-CHALLENGE-OUTCOME-SUPERSET-01",
+      "requirement": "ConfirmationChallengeV2 requires requested_outcome with the exact shipped PromotionOutcome wire enum and action-compatible semantics."
+    },
+    {
+      "id": "CONF-SMR-CONFIRMATION-SCHEMA-REF-01",
+      "requirement": "The effective companion contract schema reference resolves to confirmation-binding.v2.schema.json."
+    },
+    {
+      "id": "CONF-SMR-CONFIRMATION-DIGEST-01",
+      "requirement": "confirmation_binding_digest includes requested_outcome and display_summary_digest while excluding display_summary and itself."
+    }
+  ]
+}

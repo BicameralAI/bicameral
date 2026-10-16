@@ -1,0 +1,22 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Advisory until the repo's Dependency Graph is enabled (admin setting) and
+  # real dependency manifests exist; runtime is stdlib-only today (BACKLOG B4).
+  dependency-review:
+    uses: ./.github/workflows/_reusable-dependency-review.yml
+    with:
+      fail-on-severity: moderate
+      advisory: true

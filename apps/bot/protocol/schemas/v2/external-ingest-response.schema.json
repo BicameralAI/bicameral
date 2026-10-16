@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExternalIngestResponse",
+  "description": "Response from a successful external adapter ingest.",
+  "type": "object",
+  "required": [
+    "advisory_results",
+    "candidate_ids",
+    "evidence_ids",
+    "source_id"
+  ],
+  "properties": {
+    "advisory_results": {
+      "description": "Advisory governance results — never blocking, never authoritative.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ExternalIngestAdvisoryResult"
+      }
+    },
+    "candidate_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "projection_outcome": {
+      "description": "Alpha projection outcome label from daemon-owned reasoning.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "projection_request_id": {
+      "description": "Daemon-local projection request identity for retry and diagnostics.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "snapshot_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_id": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "CandidateState": {
+      "description": "Candidate lifecycle state (spec §2.2 candidate_state).",
+      "type": "string",
+      "enum": [
+        "proposed",
+        "rejected",
+        "promoted"
+      ]
+    },
+    "ExternalIngestAdvisoryResult": {
+      "description": "Advisory governance result for an external ingest candidate.\n\nExternal ingest can only produce advisory results. It cannot emit blocking governance verdicts, acceptance decisions, or enforcement actions.",
+      "type": "object",
+      "required": [
+        "action",
+        "candidate_id",
+        "candidate_state",
+        "reason",
+        "review_state"
+      ],
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "candidate_id": {
+          "type": "string"
+        },
+        "candidate_state": {
+          "$ref": "#/definitions/CandidateState"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "review_state": {
+          "$ref": "#/definitions/ReviewLifecycleState"
+        }
+      }
+    },
+    "ReviewLifecycleState": {
+      "description": "Review lifecycle state from MCP v0.2 spec §2.2.\n\nTracks where a candidate or decision is in the governance pipeline.",
+      "type": "string",
+      "enum": [
+        "advisory",
+        "proposed",
+        "needs_signoff_review",
+        "needs_grounding_review",
+        "needs_compliance_review",
+        "collision_pending",
+        "stale_source_pending",
+        "ready_to_materialize",
+        "materialized"
+      ]
+    }
+  }
+}

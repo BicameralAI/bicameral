@@ -1,0 +1,23 @@
+{
+  "authority_repository": "BicameralAI/bicameral-bot",
+  "capability_fields": {
+    "daemon_build_version": {
+      "compatibility_key": false,
+      "type": "string"
+    },
+    "hosted_bridge_protocol_version": {
+      "compatibility_key": true,
+      "type": "integer"
+    }
+  },
+  "contract_id": "hosted-bridge.capability.v1",
+  "hosted_bridge_protocol_version": 4,
+  "legacy_cloud_envelope": {
+    "current_minor": 2,
+    "major": 1,
+    "minimum_supported_minor": 1
+  },
+  "minimum_supported_protocol_version": 3,
+  "pending_pairing_minimum_protocol_version": 4,
+  "schema_version": 1
+}

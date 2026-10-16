@@ -1,0 +1,17 @@
+{
+  "_comment": "INVALID: ProviderItemEnvelope must not carry local actor/session authority.",
+  "_expected_behavior": "rejected — provider items are facts, not local authority; they cannot carry AuthorityContext",
+  "_violation": "authority field attempts to inject local actor identity and session scope through a provider item envelope",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "item_id": "issue-42",
+  "item_type": "issue",
+  "content": "Fix the widget alignment bug",
+  "fetched_at": "2026-01-15T10:05:00Z",
+  "authority": {
+    "actor_id": "user-attacker-001",
+    "auth_method": "mcp_session",
+    "session_id": "sess-hijack-999",
+    "workspace": "/home/user/repos/target"
+  }
+}

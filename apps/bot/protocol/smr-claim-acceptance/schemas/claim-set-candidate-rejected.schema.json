@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/smr-claim-acceptance/v1/claim-set-candidate-rejected.schema.json",
+  "title": "ClaimSetCandidateRejectedV1",
+  "description": "Payload of the canonical, self-contained, NON-claim-bearing claim_set_candidate_rejected event. Rejection appends no accepted claim-bearing event: it advances canonical_event_log_digest and leaves claim_projection_digest unchanged. Replay rebuilds a local rejection-tombstone index from these events. The event is never deleted or rewritten. See docs/specs/state-machine-resolver-v1-runtime-architecture.md section 5.4.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_schema_version",
+    "digest_profile_version",
+    "operation_id",
+    "routing",
+    "candidate",
+    "claim_set_digest",
+    "rejection_fingerprint",
+    "artifact_binding_digest",
+    "claim_scope_digest",
+    "reason_code",
+    "actor_id",
+    "confirmation_binding_digest",
+    "rejected_at"
+  ],
+  "properties": {
+    "event_schema_version": { "const": 1 },
+    "digest_profile_version": { "const": 1 },
+    "operation_id": { "$ref": "#/definitions/Uuid" },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product_id", "event_stream_id"],
+      "properties": {
+        "product_id": { "type": "string", "minLength": 1 },
+        "event_stream_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "generation", "kind"],
+      "properties": {
+        "candidate_id": { "$ref": "#/definitions/Uuid" },
+        "generation": { "type": "integer", "minimum": 0 },
+        "kind": { "const": "smr_claim_set_v1" }
+      }
+    },
+    "claim_set_digest": { "$ref": "#/definitions/Digest" },
+    "rejection_fingerprint": {
+      "$ref": "#/definitions/Digest",
+      "description": "Hashes normalized semantic Claim content plus Product and semantic scope. Excludes source location, provider identity, timestamp, and candidate ID, so the tombstone survives SQLite deletion and restart. Changed semantics produce a new fingerprint and surface normally. Automatic ingest must never silently resurface an exact match."
+    },
+    "artifact_binding_digest": { "$ref": "#/definitions/Digest" },
+    "claim_scope_digest": { "$ref": "#/definitions/Digest" },
+    "reason_code": {
+      "enum": [
+        "not_supported_by_artifact",
+        "semantically_incorrect",
+        "out_of_scope",
+        "duplicate_of_accepted",
+        "insufficient_evidence",
+        "superseded_by_newer_generation",
+        "policy_prohibited"
+      ],
+      "description": "Closed. An unknown reason fails closed rather than being stored as free text."
+    },
+    "actor_id": { "type": "string", "minLength": 1 },
+    "confirmation_binding_digest": { "$ref": "#/definitions/Digest" },
+    "rejected_at": { "type": "string", "format": "date-time" },
+    "reconsideration_of": {
+      "$ref": "#/definitions/Uuid",
+      "description": "Optional. Set when an explicit human reconsideration creates a new generation referencing a prior rejection event."
+    }
+  },
+  "definitions": {
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

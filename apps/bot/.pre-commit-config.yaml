@@ -1,0 +1,13 @@
+repos:
+  - repo: local
+    hooks:
+      - id: bicameral-secret-scan
+        name: Bicameral secret scan
+        entry: python scripts/secret_scan.py
+        language: system
+        pass_filenames: false
+      - id: bicameral-governance-boundary
+        name: Bicameral governance boundary
+        entry: python scripts/validate_governance_boundary.py
+        language: system
+        pass_filenames: false

@@ -1,0 +1,42 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+.tmp/
+supabase/.temp/
+
+# Browser UserJourney failure evidence (trace/screenshot/summary, issue #114)
+test-artifacts/
+
+# Python virtualenvs
+.venv/
+venv/
+
+# Sibling tools — local process/AI tooling (see docs/governance/SIBLINGS.md).
+# Never tracked, never referenced.
+.qor/
+.failsafe/
+.bicameral/
+!.bicameral/
+.bicameral/*
+!.bicameral/factory-attestations/
+!.bicameral/factory-attestations/*.json
+!.bicameral/spec-governance/
+!.bicameral/spec-governance/*.json
+!.bicameral/repo-governance.yaml
+.agent/
+.agents/
+.claude/
+.cursor/
+.windsurf/
+CLAUDE.md
+GEMINI.md
+COPILOT.md
+CURSOR.md
+plan-*.md
+RUN_SUMMARY.md
+.pytest_cache/
+__pycache__/
+*.egg-info/

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0133-bot-product-commit-proof-producer",
+  "label": "Bot ProductCreationCommitProof v2 producer + Cargo anchor v0.1.33 (successor-plan re-entry)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1087",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.33",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:Knapp-Kevin",
+  "proposed_at": "2026-09-15T18:52:21Z",
+  "proposal_digest": "sha256:b5cfe35c60e1339d30a37667e87e52f57abc470cfe38b3bef879b4a53ae26bdb"
+}

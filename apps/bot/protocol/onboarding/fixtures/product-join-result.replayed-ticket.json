@@ -1,0 +1,14 @@
+{
+  "cloud_account_id": "acct_01HZX8DANA",
+  "decided_at": "2026-07-12T09:14:00Z",
+  "failure": {
+    "code": "replayed_ticket",
+    "message": "Ticket nonce/JTI was already consumed; single-use tickets cannot be replayed."
+  },
+  "granted_role": null,
+  "membership_event_ref": null,
+  "outcome": "rejected",
+  "product_id": "prd_01HZX8CHECKOUT",
+  "receipt_id": null,
+  "request_id": "jrq_01HZX8REPLAY"
+}

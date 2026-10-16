@@ -1,0 +1,11 @@
+{
+  "cloud_account_id": "acct_01HZX8DANA",
+  "decided_at": "2026-07-12T09:01:02Z",
+  "failure": null,
+  "granted_role": "Product Member",
+  "membership_event_ref": "evt_01HZX8JOIN_MEMBER",
+  "outcome": "granted",
+  "product_id": "prd_01HZX8CHECKOUT",
+  "receipt_id": "rcpt_01HZX8JOIN",
+  "request_id": "jrq_01HZX8DANA"
+}

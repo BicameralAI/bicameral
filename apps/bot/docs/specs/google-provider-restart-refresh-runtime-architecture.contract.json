@@ -1,0 +1,1375 @@
+{
+  "$schema": "https://github.com/BicameralAI/bicameral-factory/schemas/runtime-architecture-contract.schema.json",
+  "schema_version": 1,
+  "spec_id": "RUNTIME-SPEC-GOOGLE-PROVIDER-RESTART-REFRESH",
+  "title": "Runtime Architecture: Google Provider Restart-Refresh Continuity",
+  "components": [
+    {
+      "id": "ELM-OPERATOR",
+      "c4_kind": "person",
+      "name": "Operator",
+      "responsibility": "Start Google Drive provider connection from the local SPA, complete Google consent in the browser, and rely on daemon-authored connection truth after reconnect or daemon restart.",
+      "process_boundary": "Human interaction with Bot SPA and Google consent UI; never a token custody or ConnectionRegistry writer.",
+      "repository_runtime": "External person.",
+      "deployment_location": "Operator workstation and browser.",
+      "authority_role": "Sole human consent authority for Google OAuth; not ConnectionRegistry, keyring, or Cloud app-config authority.",
+      "inputs": [
+        "SPA connect affordance",
+        "Google consent screen",
+        "daemon connection status projection"
+      ],
+      "outputs": [
+        "Google consent grant or denial",
+        "operator expectation that Drive remains usable after daemon restart"
+      ],
+      "state_ids": [
+        "STATE-OAUTH-IN-FLIGHT",
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-CONNECTION-ACTION-NEEDED",
+        "STATE-DRIVE-READY"
+      ],
+      "multiplicity": "One human operator per local daemon product home.",
+      "prohibited_authority": [
+        "Author ConnectionRegistry connected without daemon durable secret write",
+        "Inject production Google user tokens into Cloud",
+        "Treat hosted Supabase Continue with Google as Drive provider auth",
+        "Treat pairing session_token as Google OAuth grant"
+      ]
+    },
+    {
+      "id": "ELM-CLOUD-APP-CONFIG",
+      "c4_kind": "container",
+      "name": "Cloud Google provider-app-config publisher",
+      "responsibility": "Publish the non-secret GoogleNativeAppConfigV1 payload at GET /api/v1/provider-app-config/google for the active Bicameral environment, including rotation and disablement.",
+      "process_boundary": "Cloud HTTPS route and deploy-time BICAMERAL_GOOGLE_OAUTH_* settings only.",
+      "repository_runtime": "BicameralAI/bicameral-cloud provider_app_config route and settings.",
+      "deployment_location": "Hosted Cloud origin (app/staging); Enforced producer requires main + live HTTP 200.",
+      "authority_role": "Sole authority for Bicameral Google OAuth application identity/configuration; never user-token or ConnectionRegistry authority.",
+      "inputs": [
+        "deploy-provisioned BICAMERAL_GOOGLE_OAUTH_CLIENT_ID and related non-secret settings",
+        "environment / config_version / scope_set_version"
+      ],
+      "outputs": [
+        "GoogleNativeAppConfigV1 JSON",
+        "503 when unset",
+        "410 when disabled"
+      ],
+      "state_ids": [
+        "STATE-APP-CONFIG-PUBLIC"
+      ],
+      "multiplicity": "One active published config per Cloud environment.",
+      "prohibited_authority": [
+        "Mint receive persist refresh or interpret user Google access or refresh tokens",
+        "Accept authorization codes or PKCE verifiers",
+        "Author ConnectionRegistry connected or action_needed",
+        "Require Cloud as proxy for normal Drive API calls",
+        "Serve hosted Supabase Continue with Google as this hop",
+        "Include the Desktop client credential in this route's payload"
+      ]
+    },
+    {
+      "id": "ELM-CLOUD-CREDENTIAL-DISTRIBUTOR",
+      "c4_kind": "container",
+      "name": "Cloud Google Desktop client-credential distributor (amendment, bot#1211 / cloud#309)",
+      "responsibility": "Serve the provider-required Google Desktop client credential only to requests authenticated with the signed-in operator's transient Cloud bearer (presented by the local daemon for this fetch), distinct from and never merged into the public GoogleNativeAppConfigV1 route.",
+      "process_boundary": "Cloud authenticated HTTPS route, gated by the signed-in operator's existing transient Cloud bearer handed to the local daemon for this credential fetch and then discarded; orthogonal to row-12 pairing / daemon-identity enrollment; separate handler and response schema from ELM-CLOUD-APP-CONFIG.",
+      "repository_runtime": "BicameralAI/bicameral-cloud credential-distribution route (new, cloud#309 lineage).",
+      "deployment_location": "Hosted Cloud origin (app/staging); requires signed-in operator Cloud bearer presented by the local daemon (not row-12 daemon-identity enrollment).",
+      "authority_role": "Sole authority for distributing the Desktop client credential value; never Connection truth, never user-token authority, never merged with app-config authority.",
+      "inputs": [
+        "signed-in operator transient Cloud bearer (handed to local daemon for this credential fetch, then discarded; does not require row-12 enrollment)",
+        "governed Desktop client credential provisioned by Kevin via Google Cloud Console into the approved secret/release boundary",
+        "config_version binding to the credential's owning client_id"
+      ],
+      "outputs": [
+        "GoogleClientCredentialEnvelopeV1 JSON (credential + bound client_id + config_version), authenticated responses only",
+        "401/403 for unauthenticated callers",
+        "explicit rotation/version-mismatch signal, never silent substitution"
+      ],
+      "state_ids": [
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE"
+      ],
+      "multiplicity": "One active credential per Cloud environment, bound to the app-config client_id for that environment.",
+      "prohibited_authority": [
+        "Publish the credential through the unauthenticated app-config route or any other public surface",
+        "Accept or store Google authorization codes, PKCE verifiers, or user access/refresh tokens",
+        "Author ConnectionRegistry connected or action_needed",
+        "Silently serve a rotated credential without a distinguishable version signal"
+      ]
+    },
+    {
+      "id": "ELM-DAEMON-GATEWAY",
+      "c4_kind": "software_system",
+      "name": "Local daemon connection gateway",
+      "responsibility": "Resolve Cloud-first Google app config for new OAuth, resolve the Desktop client credential via the authenticated credential-distribution boundary, run PKCE/loopback Google OAuth including the credential on exchange, persist OAuthTokenEnvelopeV1 and GoogleClientCredentialEnvelopeV1 before ConnectionRegistry connected, project credential-backed status, and refresh existing grants (token and client-credential) after real process restart.",
+      "process_boundary": "Local bicameral-gateway connection routes and Google app-config resolver.",
+      "repository_runtime": "BicameralAI/bicameral-bot crates/bicameral-gateway, bicameral-api, bicameral-config.",
+      "deployment_location": "Operator workstation loopback daemon OS process.",
+      "authority_role": "Sole authority for user Google token custody, refresh, ConnectionCompletionOutcome, and ConnectionRegistry truth.",
+      "inputs": [
+        "Cloud GoogleNativeAppConfigV1",
+        "optional still-valid local app-config cache",
+        "explicit opt-in legacy BICAMERAL_GOOGLE_CLIENT_* for interim lab only",
+        "GoogleClientCredentialEnvelopeV1 from ELM-CLOUD-CREDENTIAL-DISTRIBUTOR (amendment)",
+        "cached GoogleClientCredentialEnvelopeV1 from OS keyring, used only when its bound client_id/config_version still matches (amendment)",
+        "Google authorization code via loopback",
+        "OS keyring envelope",
+        "connections.yaml metadata"
+      ],
+      "outputs": [
+        "ConnectionStartOutcome / ConnectionCompletionOutcome without secrets",
+        "durable keyring write (token envelope and, when required, client-credential envelope) then registry connected",
+        "credential-backed action_needed projection (missing token or missing/mismatched client credential)",
+        "Drive readiness after refresh"
+      ],
+      "state_ids": [
+        "STATE-APP-CONFIG-PUBLIC",
+        "STATE-APP-CONFIG-CACHE",
+        "STATE-OAUTH-IN-FLIGHT",
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE",
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-CONNECTION-ACTION-NEEDED",
+        "STATE-DRIVE-READY"
+      ],
+      "multiplicity": "One active daemon OS process identity per operator product home.",
+      "prohibited_authority": [
+        "Mark connected before durable secret write succeeds",
+        "Silently fall back to in-memory secrets in production",
+        "Require live Cloud GET to refresh an existing envelope-recorded grant",
+        "Share pairing_id or pairing store with Google OAuth artifacts",
+        "Treat InMemorySecretsStore reconstruction alone as restart-refresh-envelope success",
+        "Use a keyring-cached client credential whose bound client_id/config_version disagrees with current configuration instead of re-fetching or failing to action_needed (amendment)",
+        "Treat presence of the client credential as proof of confidential-client status or a reason to skip PKCE (amendment)"
+      ]
+    },
+    {
+      "id": "ELM-OS-KEYRING",
+      "c4_kind": "datastore",
+      "name": "OS keyring OAuth token and client-credential envelope store",
+      "responsibility": "Durably store OAuthTokenEnvelopeV1 (access, refresh, expires_at, non-secret client_id) and GoogleClientCredentialEnvelopeV1 (Desktop client credential, bound client_id, bound config_version) across real daemon OS process death.",
+      "process_boundary": "OS credential store accessed through OsKeyringSecretsStore only in production.",
+      "repository_runtime": "BicameralAI/bicameral-bot OS keyring SecretsStore implementation.",
+      "deployment_location": "Operator OS keyring (macOS Keychain / Windows Credential Manager / Linux Secret Service).",
+      "authority_role": "Persistence owner for Google user token envelopes and the Desktop client-credential envelope; writers remain the daemon gateway.",
+      "inputs": [
+        "connection.google oauth_token envelope writes",
+        "rotated envelope after refresh",
+        "connection.google client_secret envelope writes (amendment)",
+        "re-fetched client_secret envelope after rotation/mismatch (amendment)"
+      ],
+      "outputs": [
+        "readable OAuthTokenEnvelopeV1 after process restart",
+        "readable GoogleClientCredentialEnvelopeV1 after process restart (amendment)",
+        "explicit failure when keyring unavailable"
+      ],
+      "state_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE"
+      ],
+      "multiplicity": "One envelope record per connection.google oauth_token key; one envelope record per connection.google client_secret key.",
+      "prohibited_authority": [
+        "Silent fallback to volatile in-memory storage in production",
+        "Expose envelope contents through ConnectionCompletionOutcome",
+        "Store pairing session_token or enrollment grants",
+        "Replicate user tokens into Cloud",
+        "Replicate the client credential into Cloud (amendment)"
+      ]
+    },
+    {
+      "id": "ELM-CONNECTION-REGISTRY",
+      "c4_kind": "datastore",
+      "name": "ConnectionRegistry metadata file",
+      "responsibility": "Persist non-secret connection metadata such as status, account_label, capabilities, auth_method, and updated_at under ~/.bicameral/connections.yaml.",
+      "process_boundary": "Daemon-owned local YAML registry file; never secret storage.",
+      "repository_runtime": "BicameralAI/bicameral-bot ConnectionRegistry persistence.",
+      "deployment_location": "Operator filesystem ~/.bicameral/connections.yaml.",
+      "authority_role": "Persistence owner for non-secret connection metadata; connected may be written only after durable envelope write.",
+      "inputs": [
+        "daemon upsert after successful durable secret write",
+        "daemon updates on reconnect or revoke paths"
+      ],
+      "outputs": [
+        "connected or other metadata rows",
+        "inputs to credential-backed projection"
+      ],
+      "state_ids": [
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-CONNECTION-ACTION-NEEDED"
+      ],
+      "multiplicity": "One metadata row per provider connection id.",
+      "prohibited_authority": [
+        "Store access_token refresh_token or PKCE material",
+        "Manufacture effective connected without readable usable credential",
+        "Act as Google app-config authority",
+        "Share storage with pairing_id relationships"
+      ]
+    },
+    {
+      "id": "ELM-DRIVE-TRANSPORT",
+      "c4_kind": "component",
+      "name": "Google Drive API transport and refresh",
+      "responsibility": "Refresh near-expiry or expired access tokens using the envelope refresh_token plus envelope-recorded non-secret client_id and, when the provider requires it, the keyring-cached Desktop client credential, re-persist the rotated envelope(s), and perform Drive API calls.",
+      "process_boundary": "Daemon-local Drive transport within the gateway/runtime process.",
+      "repository_runtime": "BicameralAI/bicameral-bot crates/bicameral-runtime drive_api_transport.",
+      "deployment_location": "Inside the local daemon OS process.",
+      "authority_role": "Executor of refresh and Drive I/O; not ConnectionRegistry writer for initial connected and not Cloud app-config publisher.",
+      "inputs": [
+        "OAuthTokenEnvelopeV1 from OS keyring",
+        "GoogleClientCredentialEnvelopeV1 from OS keyring, when the cached client_id/config_version still matches (amendment)",
+        "optional injected GoogleOAuthConfig",
+        "Drive API requests"
+      ],
+      "outputs": [
+        "rotated OAuthTokenEnvelopeV1",
+        "Drive API responses",
+        "refresh failures that force action_needed / re-auth (including missing/mismatched client credential, amendment)"
+      ],
+      "state_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE",
+        "STATE-DRIVE-READY",
+        "STATE-CONNECTION-ACTION-NEEDED"
+      ],
+      "multiplicity": "One transport path per daemon using the google connection envelope.",
+      "prohibited_authority": [
+        "Require live Cloud GET to refresh an existing grant that already records client_id",
+        "Send user tokens to Cloud",
+        "Treat stub InMemorySecretsStore restart tests as real process-kill evidence",
+        "Use a mismatched or expired client-credential envelope instead of failing to action_needed (amendment)"
+      ]
+    },
+    {
+      "id": "ELM-SPA-COURIER",
+      "c4_kind": "container",
+      "name": "Bot SPA connection courier",
+      "responsibility": "Present connect UI and talk only to local daemon connection APIs; never call Cloud provider-app-config and never handle Google user tokens.",
+      "process_boundary": "Bot dashboard SPA running in the operator browser against the local daemon.",
+      "repository_runtime": "BicameralAI/bicameral-bot dashboard connection courier.",
+      "deployment_location": "Operator browser against local daemon origin.",
+      "authority_role": "UI courier only; never ConnectionRegistry, keyring, or Cloud app-config authority.",
+      "inputs": [
+        "daemon ConnectionStartOutcome and ConnectionCompletionOutcome",
+        "operator connect clicks"
+      ],
+      "outputs": [
+        "connect/start and status requests to daemon",
+        "operator-visible connected or action_needed projection"
+      ],
+      "state_ids": [
+        "STATE-OAUTH-IN-FLIGHT",
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-CONNECTION-ACTION-NEEDED",
+        "STATE-DRIVE-READY"
+      ],
+      "multiplicity": "Zero or more browser tabs; none holds Google user token authority.",
+      "prohibited_authority": [
+        "GET Cloud /api/v1/provider-app-config/google directly for this hop",
+        "Persist or display Google access or refresh tokens",
+        "Author connected in ConnectionRegistry",
+        "Couple Google OAuth to pairing_id approve semantics"
+      ]
+    },
+    {
+      "id": "ELM-GOOGLE-OAUTH",
+      "c4_kind": "software_system",
+      "name": "Google OAuth and Drive IdP/API",
+      "responsibility": "External identity provider and Drive API that issues authorization codes and tokens and serves Drive resources for the granted scopes.",
+      "process_boundary": "Google-hosted OAuth and Drive endpoints outside Bicameral process boundaries.",
+      "repository_runtime": "External Google systems.",
+      "deployment_location": "Google cloud.",
+      "authority_role": "External token issuer and Drive resource authority; not Bicameral ConnectionRegistry authority.",
+      "inputs": [
+        "authorization requests with Cloud-published or envelope-recorded client_id",
+        "authorization code exchange",
+        "refresh_token grant",
+        "Drive API calls with access token"
+      ],
+      "outputs": [
+        "authorization codes",
+        "access and refresh tokens",
+        "Drive API data or errors"
+      ],
+      "state_ids": [
+        "STATE-OAUTH-IN-FLIGHT",
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-DRIVE-READY"
+      ],
+      "multiplicity": "One external Google tenant/app registration consumed per Bicameral environment client_id.",
+      "prohibited_authority": [
+        "Write Bicameral ConnectionRegistry",
+        "Publish Bicameral Cloud app-config",
+        "Authorize pairing session_token mint"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL-OPERATOR-SPA",
+      "source_id": "ELM-OPERATOR",
+      "destination_id": "ELM-SPA-COURIER",
+      "interaction": "Operator starts or inspects Google Drive connection through the SPA.",
+      "medium": "Browser UI events.",
+      "handoff": "Operator intent becomes daemon connection API calls via the SPA courier.",
+      "state_ids": [
+        "STATE-OAUTH-IN-FLIGHT",
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-CONNECTION-ACTION-NEEDED"
+      ],
+      "payloads": [
+        "connect click",
+        "visible connection status"
+      ],
+      "authority_boundaries": [
+        "SPA never becomes token custody.",
+        "Operator consent does not itself write ConnectionRegistry."
+      ]
+    },
+    {
+      "id": "REL-SPA-DAEMON",
+      "source_id": "ELM-SPA-COURIER",
+      "destination_id": "ELM-DAEMON-GATEWAY",
+      "interaction": "SPA calls only local daemon connection start/status/callback-completion surfaces.",
+      "medium": "Loopback HTTPS/HTTP to daemon gateway.",
+      "handoff": "Daemon returns no-secret ConnectionStartOutcome / ConnectionCompletionOutcome.",
+      "state_ids": [
+        "STATE-OAUTH-IN-FLIGHT",
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-CONNECTION-ACTION-NEEDED",
+        "STATE-DRIVE-READY"
+      ],
+      "payloads": [
+        "POST /connections/google/start",
+        "GET /connections",
+        "no-secret completion outcomes"
+      ],
+      "authority_boundaries": [
+        "SPA must not call Cloud provider-app-config for this hop.",
+        "Outcomes never include tokens or codes."
+      ]
+    },
+    {
+      "id": "REL-DAEMON-CLOUD-APP-CONFIG",
+      "source_id": "ELM-DAEMON-GATEWAY",
+      "destination_id": "ELM-CLOUD-APP-CONFIG",
+      "interaction": "New OAuth bootstrap fetches non-secret GoogleNativeAppConfigV1 Cloud-first.",
+      "medium": "HTTPS GET /api/v1/provider-app-config/google.",
+      "handoff": "Daemon validates V1 payload; rejected config never mutates ConnectionRegistry.",
+      "state_ids": [
+        "STATE-APP-CONFIG-PUBLIC",
+        "STATE-APP-CONFIG-CACHE"
+      ],
+      "payloads": [
+        "GoogleNativeAppConfigV1",
+        "503 missing config",
+        "410 disabled config"
+      ],
+      "authority_boundaries": [
+        "Cloud returns only non-secret app config.",
+        "No user tokens codes or PKCE material cross this relationship.",
+        "Existing-grant refresh may skip this GET when envelope client_id is present.",
+        "The Desktop client credential never travels this relationship (amendment)."
+      ]
+    },
+    {
+      "id": "REL-DAEMON-CLOUD-CREDENTIAL",
+      "source_id": "ELM-DAEMON-GATEWAY",
+      "destination_id": "ELM-CLOUD-CREDENTIAL-DISTRIBUTOR",
+      "interaction": "Daemon fetches the Desktop client credential from the authenticated distribution boundary when no still-valid matching keyring envelope exists (new OAuth, or cached envelope's client_id/config_version no longer matches), presenting the signed-in operator's transient Cloud bearer for this fetch only.",
+      "medium": "Authenticated HTTPS GET using the signed-in operator's transient Cloud bearer (handed to the local daemon, then discarded); distinct route from GET /api/v1/provider-app-config/google; does not require row-12 pairing / daemon-identity enrollment.",
+      "handoff": "Daemon persists the returned GoogleClientCredentialEnvelopeV1 to OS keyring; a rejected/failed fetch surfaces as action_needed, never a manufactured credential.",
+      "state_ids": [
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE"
+      ],
+      "payloads": [
+        "GoogleClientCredentialEnvelopeV1 (client_secret, bound client_id, bound config_version)",
+        "401/403 unauthenticated",
+        "explicit rotation/version-mismatch signal"
+      ],
+      "authority_boundaries": [
+        "This relationship never carries authorization codes, PKCE verifiers, or Google user tokens.",
+        "Caller authority is the signed-in operator's transient Cloud bearer only; row 5 remains orthogonal to pairing / daemon-identity enrollment (row 12).",
+        "Restart/refresh for an existing grant uses the keyring-cached envelope and does not require this GET unless client_id/config_version has changed.",
+        "The credential returned here is provider-required request material, never proof of confidential-client status."
+      ]
+    },
+    {
+      "id": "REL-DAEMON-GOOGLE-OAUTH",
+      "source_id": "ELM-DAEMON-GATEWAY",
+      "destination_id": "ELM-GOOGLE-OAUTH",
+      "interaction": "Daemon runs PKCE + loopback authorization-code exchange with Google, including the Desktop client credential in the exchange/refresh request when the provider requires it.",
+      "medium": "Browser redirect to Google plus loopback callback and token endpoint HTTPS.",
+      "handoff": "Daemon receives tokens locally and never forwards them to Cloud.",
+      "state_ids": [
+        "STATE-OAUTH-IN-FLIGHT",
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE"
+      ],
+      "payloads": [
+        "authorization URL with client_id scopes state PKCE",
+        "authorization code",
+        "token-exchange request: client_id, code, redirect_uri, grant_type, code_verifier, and client_secret when configured (amendment)",
+        "access_token refresh_token expires_in"
+      ],
+      "authority_boundaries": [
+        "Code exchange is daemon-local.",
+        "Cloud is not an OAuth broker on this path.",
+        "PKCE code_verifier is always present regardless of whether client_secret is also sent (amendment)."
+      ]
+    },
+    {
+      "id": "REL-DAEMON-KEYRING",
+      "source_id": "ELM-DAEMON-GATEWAY",
+      "destination_id": "ELM-OS-KEYRING",
+      "interaction": "Daemon writes and reads OAuthTokenEnvelopeV1 including non-secret client_id under connection.google/oauth_token, and GoogleClientCredentialEnvelopeV1 under connection.google/client_secret (amendment).",
+      "medium": "OS keyring API via OsKeyringSecretsStore.",
+      "handoff": "Durable envelope(s) must succeed before registry connected; production keyring failure is explicit.",
+      "state_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE"
+      ],
+      "payloads": [
+        "OAuthTokenEnvelopeV1 JSON",
+        "rotated envelope after refresh",
+        "GoogleClientCredentialEnvelopeV1 JSON (amendment)"
+      ],
+      "authority_boundaries": [
+        "Production uses OS keyring only.",
+        "No silent in-memory fallback.",
+        "InMemorySecretsStore is test-only."
+      ]
+    },
+    {
+      "id": "REL-DAEMON-REGISTRY",
+      "source_id": "ELM-DAEMON-GATEWAY",
+      "destination_id": "ELM-CONNECTION-REGISTRY",
+      "interaction": "Daemon upserts non-secret connection metadata only after durable envelope write on connected paths, and projects action_needed when credentials are missing.",
+      "medium": "Local filesystem write/read of ~/.bicameral/connections.yaml.",
+      "handoff": "Registry metadata and readable credential must agree before effective connected is projected.",
+      "state_ids": [
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-CONNECTION-ACTION-NEEDED"
+      ],
+      "payloads": [
+        "status connected metadata",
+        "account_label capabilities auth_method updated_at"
+      ],
+      "authority_boundaries": [
+        "Registry never stores secrets.",
+        "GET projection must not mutate durable registry to invent connected."
+      ]
+    },
+    {
+      "id": "REL-DRIVE-REFRESH-GOOGLE",
+      "source_id": "ELM-DRIVE-TRANSPORT",
+      "destination_id": "ELM-GOOGLE-OAUTH",
+      "interaction": "Drive transport refreshes access tokens and calls Drive APIs.",
+      "medium": "HTTPS token endpoint and Drive API.",
+      "handoff": "Refresh uses refresh_token + envelope-recorded client_id, plus the keyring-cached client_secret when the provider requires it, for existing grants; success re-persists envelope(s) then continues Drive I/O.",
+      "state_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE",
+        "STATE-DRIVE-READY",
+        "STATE-CONNECTION-ACTION-NEEDED"
+      ],
+      "payloads": [
+        "refresh_token grant with client_id",
+        "client_secret when a matching cached envelope exists (amendment)",
+        "rotated access_token",
+        "Drive API requests/responses"
+      ],
+      "authority_boundaries": [
+        "Existing-grant refresh does not require live Cloud GET.",
+        "User tokens never enter Cloud.",
+        "A missing or mismatched client-credential envelope forces action_needed rather than a refresh attempt without it (amendment)."
+      ]
+    },
+    {
+      "id": "REL-DRIVE-KEYRING",
+      "source_id": "ELM-DRIVE-TRANSPORT",
+      "destination_id": "ELM-OS-KEYRING",
+      "interaction": "Drive transport loads envelope after restart and re-persists rotated envelope after refresh.",
+      "medium": "OS keyring read/write through SecretsStore.",
+      "handoff": "Post-restart Drive usability depends on keyring survival across real OS process kill.",
+      "state_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-DRIVE-READY"
+      ],
+      "payloads": [
+        "OAuthTokenEnvelopeV1",
+        "client_id field for refresh config"
+      ],
+      "authority_boundaries": [
+        "Envelope client_id is non-secret application identity, not user proof.",
+        "Keyring unavailability fails closed."
+      ]
+    },
+    {
+      "id": "REL-DAEMON-DRIVE-TRANSPORT",
+      "source_id": "ELM-DAEMON-GATEWAY",
+      "destination_id": "ELM-DRIVE-TRANSPORT",
+      "interaction": "Daemon connection and Drive readiness paths invoke transport refresh/I/O using registry + keyring state.",
+      "medium": "In-process daemon runtime call.",
+      "handoff": "Transport reports readiness or forces re-auth/action_needed on refresh failure.",
+      "state_ids": [
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-DRIVE-READY",
+        "STATE-CONNECTION-ACTION-NEEDED"
+      ],
+      "payloads": [
+        "health/readiness operation",
+        "Drive I/O request"
+      ],
+      "authority_boundaries": [
+        "restart-refresh-envelope success requires real process kill continuity, not in-process reconstruction alone."
+      ]
+    }
+  ],
+  "states": [
+    {
+      "id": "STATE-APP-CONFIG-PUBLIC",
+      "artifact": "GoogleNativeAppConfigV1 published by Cloud GET /api/v1/provider-app-config/google",
+      "classification": "canonical_state",
+      "authoritative_writer_ids": [
+        "ELM-CLOUD-APP-CONFIG"
+      ],
+      "persistence_owner_ids": [
+        "ELM-CLOUD-APP-CONFIG"
+      ],
+      "persistence_location": "Cloud deploy settings / published HTTPS route response",
+      "reader_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "routing_key": "environment + provider=google + client_type=native",
+      "mutation_path": "Cloud deploy/config rotation publishes or disables the non-secret payload; daemon never authors it.",
+      "lifecycle": "Active until expires_at, disabled (410), or rotated; required live HTTP 200 on main for Enforced producer.",
+      "prohibited_fallbacks": [
+        "Embedding client_secret authorization_code or user tokens in the payload",
+        "Treating unpublished origin/dev-only route as Enforced producer",
+        "Using hosted Supabase Continue with Google as this artifact"
+      ]
+    },
+    {
+      "id": "STATE-APP-CONFIG-CACHE",
+      "artifact": "Daemon-local still-valid cached copy of GoogleNativeAppConfigV1 bounded by expires_at",
+      "classification": "cache",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_location": "Daemon-local app-config cache only",
+      "reader_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "routing_key": "cached config_version + environment",
+      "mutation_path": "Written only after successful Cloud validation; expired or disabled cache must re-bootstrap and fail closed for new OAuth.",
+      "lifecycle": "Transient helper for new OAuth during temporary Cloud unavailability while expires_at still valid; not Connection truth and not user credential storage.",
+      "prohibited_fallbacks": [
+        "Using expired cache to start new OAuth",
+        "Treating cache as proof of user Google authorization",
+        "Using cache to skip real process-kill envelope continuity claims"
+      ]
+    },
+    {
+      "id": "STATE-OAUTH-IN-FLIGHT",
+      "artifact": "Transient Google OAuth session (PKCE verifier, state, loopback listener)",
+      "classification": "local_scratch",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_location": "Daemon process memory for the auth session only",
+      "reader_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-SPA-COURIER"
+      ],
+      "routing_key": "opaque OAuth state / auth_session_id",
+      "mutation_path": "Created at start; consumed on successful callback/code exchange or terminal failure; not durable across process death as Connection truth.",
+      "lifecycle": "Short-lived until connected, denied, expired, or provider_unavailable.",
+      "prohibited_fallbacks": [
+        "Persisting PKCE verifier into Cloud",
+        "Reflecting codes or tokens into the loopback success page",
+        "Equating in-flight OAuth with ConnectionRegistry connected"
+      ]
+    },
+    {
+      "id": "STATE-TOKEN-ENVELOPE",
+      "artifact": "OAuthTokenEnvelopeV1 in OS keyring (access_token, refresh_token, expires_at, non-secret client_id)",
+      "classification": "canonical_state",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-DRIVE-TRANSPORT"
+      ],
+      "persistence_owner_ids": [
+        "ELM-OS-KEYRING"
+      ],
+      "persistence_location": "OS keyring service bicameral.connection.google account oauth_token",
+      "reader_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-DRIVE-TRANSPORT"
+      ],
+      "routing_key": "source_id=connection.google key=oauth_token",
+      "mutation_path": "Written on successful OAuth before registry connected; rewritten on refresh rotation; must survive real OS process kill.",
+      "lifecycle": "Durable until revoke, refresh failure requiring re-auth, or explicit disconnect.",
+      "prohibited_fallbacks": [
+        "Silent production in-memory envelope storage",
+        "Cloud custody of the envelope",
+        "Treating InMemorySecretsStore preload as restart-refresh-envelope proof"
+      ]
+    },
+    {
+      "id": "STATE-CLIENT-CREDENTIAL-ENVELOPE",
+      "artifact": "GoogleClientCredentialEnvelopeV1 in OS keyring (Desktop client_secret, bound client_id, bound config_version, obtained_at) — amendment 2026-09-03",
+      "classification": "canonical_state",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-OS-KEYRING"
+      ],
+      "persistence_location": "OS keyring service bicameral.connection.google account client_secret",
+      "reader_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-DRIVE-TRANSPORT"
+      ],
+      "routing_key": "source_id=connection.google key=client_secret",
+      "mutation_path": "Written after a successful authenticated fetch from ELM-CLOUD-CREDENTIAL-DISTRIBUTOR; read on exchange/refresh only when its bound client_id and config_version still match current daemon configuration; a mismatch invalidates the cached envelope and forces re-fetch, never silent reuse.",
+      "lifecycle": "Durable until rotation/mismatch invalidates it, credential-boundary distribution is revoked, or explicit disconnect. Distinct lifecycle from STATE-TOKEN-ENVELOPE: this envelope tracks Bicameral's application identity material, not the operator's Google grant.",
+      "prohibited_fallbacks": [
+        "Silent production in-memory envelope storage",
+        "Cloud custody in the reverse direction (this store never sends the credential back to Cloud)",
+        "Publishing this artifact through the unauthenticated app-config route",
+        "Using a stale envelope whose client_id/config_version no longer matches instead of failing to action_needed",
+        "Treating this artifact's presence as proof of confidential-client status"
+      ]
+    },
+    {
+      "id": "STATE-CONNECTION-CONNECTED",
+      "artifact": "ConnectionRegistry metadata status=connected for google",
+      "classification": "canonical_state",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-CONNECTION-REGISTRY"
+      ],
+      "persistence_location": "~/.bicameral/connections.yaml",
+      "reader_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-SPA-COURIER",
+        "ELM-DRIVE-TRANSPORT"
+      ],
+      "routing_key": "provider=google connection id",
+      "mutation_path": "Upserted only after durable OAuthTokenEnvelopeV1 write succeeds; never authored by Cloud or SPA.",
+      "lifecycle": "Durable metadata across daemon restart; effective projection remains credential-backed.",
+      "prohibited_fallbacks": [
+        "Writing connected before keyring write succeeds",
+        "Storing secrets in the registry file",
+        "Cloud or SPA forging connected"
+      ]
+    },
+    {
+      "id": "STATE-CONNECTION-ACTION-NEEDED",
+      "artifact": "Credential-backed projection of action_needed when registry connected lacks usable readable credential",
+      "classification": "derived_projection_or_read_model",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_location": "Derived at read/start time; must not mutate durable registry on GET projection",
+      "reader_ids": [
+        "ELM-SPA-COURIER",
+        "ELM-OPERATOR"
+      ],
+      "routing_key": "provider=google effective status projection",
+      "mutation_path": "Projected when metadata says connected but envelope missing/unusable; routes operator into re-auth without inventing credentials.",
+      "lifecycle": "Ephemeral projection until re-auth restores durable envelope agreement or registry is explicitly updated by a write path.",
+      "prohibited_fallbacks": [
+        "Mutating durable registry on GET to clear connected",
+        "Manufacturing effective connected without readable credential",
+        "Sending the operator to Cloud for user-token repair"
+      ]
+    },
+    {
+      "id": "STATE-DRIVE-READY",
+      "artifact": "Drive usable after registry+envelope load and any needed refresh following real daemon restart",
+      "classification": "derived_projection_or_read_model",
+      "authoritative_writer_ids": [
+        "ELM-DRIVE-TRANSPORT",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-OS-KEYRING",
+        "ELM-CONNECTION-REGISTRY"
+      ],
+      "persistence_location": "Derived from surviving OS keyring envelope + registry metadata + successful refresh/Drive I/O",
+      "reader_ids": [
+        "ELM-SPA-COURIER",
+        "ELM-OPERATOR",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "routing_key": "google drive readiness / restart-refresh-envelope observation",
+      "mutation_path": "After real OS process kill and new daemon process, load envelope+registry, refresh via envelope client_id if needed, then succeed Drive I/O.",
+      "lifecycle": "Holds while credential-backed connected remains usable; lost on revoke, refresh failure, or missing keyring continuity.",
+      "prohibited_fallbacks": [
+        "Counting in-process InMemorySecretsStore reconstruction as readiness proof",
+        "Requiring live Cloud GET for existing-grant refresh",
+        "Equating pairing reattach with Drive readiness"
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "TRANS-APP-CONFIG-FETCHED",
+      "trigger": "Daemon Cloud-first GET of provider-app-config/google for new OAuth bootstrap validates GoogleNativeAppConfigV1.",
+      "actor_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CLOUD-APP-CONFIG"
+      ],
+      "source_state_id": null,
+      "destination_state_id": "STATE-APP-CONFIG-PUBLIC",
+      "relationship_ids": [
+        "REL-DAEMON-CLOUD-APP-CONFIG"
+      ],
+      "persistence_effect": "May also write STATE-APP-CONFIG-CACHE bounded by expires_at; never writes user tokens or ConnectionRegistry connected."
+    },
+    {
+      "id": "TRANS-OAUTH-STARTED",
+      "trigger": "Operator starts Google connect; daemon creates PKCE/state and opens Google authorization using Cloud-published client_id.",
+      "actor_ids": [
+        "ELM-OPERATOR",
+        "ELM-SPA-COURIER",
+        "ELM-DAEMON-GATEWAY",
+        "ELM-GOOGLE-OAUTH"
+      ],
+      "source_state_id": "STATE-APP-CONFIG-PUBLIC",
+      "destination_state_id": "STATE-OAUTH-IN-FLIGHT",
+      "relationship_ids": [
+        "REL-OPERATOR-SPA",
+        "REL-SPA-DAEMON",
+        "REL-DAEMON-GOOGLE-OAUTH"
+      ],
+      "persistence_effect": "Creates transient auth session only; ConnectionRegistry unchanged."
+    },
+    {
+      "id": "TRANS-PERSIST-ENVELOPE",
+      "trigger": "Daemon completes local code exchange and durably writes OAuthTokenEnvelopeV1 including non-secret client_id to OS keyring.",
+      "actor_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-OS-KEYRING"
+      ],
+      "source_state_id": "STATE-OAUTH-IN-FLIGHT",
+      "destination_state_id": "STATE-TOKEN-ENVELOPE",
+      "relationship_ids": [
+        "REL-DAEMON-GOOGLE-OAUTH",
+        "REL-DAEMON-KEYRING"
+      ],
+      "persistence_effect": "Keyring write must succeed; failure fails closed before any connected registry upsert."
+    },
+    {
+      "id": "TRANS-MARK-CONNECTED",
+      "trigger": "After durable envelope write succeeds, daemon upserts ConnectionRegistry status=connected metadata.",
+      "actor_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CONNECTION-REGISTRY"
+      ],
+      "source_state_id": "STATE-TOKEN-ENVELOPE",
+      "destination_state_id": "STATE-CONNECTION-CONNECTED",
+      "relationship_ids": [
+        "REL-DAEMON-REGISTRY"
+      ],
+      "persistence_effect": "Writes non-secret metadata only; connected is illegal without prior durable secret write."
+    },
+    {
+      "id": "TRANS-PROJECT-ACTION-NEEDED",
+      "trigger": "GET /connections or start path finds registry connected without readable usable envelope.",
+      "actor_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "source_state_id": "STATE-CONNECTION-CONNECTED",
+      "destination_state_id": "STATE-CONNECTION-ACTION-NEEDED",
+      "relationship_ids": [
+        "REL-DAEMON-REGISTRY",
+        "REL-DAEMON-KEYRING",
+        "REL-SPA-DAEMON"
+      ],
+      "persistence_effect": "Projection only; GET must not mutate durable registry to invent or clear connected."
+    },
+    {
+      "id": "TRANS-REAL-PROCESS-RESTART",
+      "trigger": "Real OS process kill ends the daemon; a new daemon process starts and reloads OS keyring envelope plus ConnectionRegistry metadata.",
+      "actor_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-OS-KEYRING",
+        "ELM-CONNECTION-REGISTRY"
+      ],
+      "source_state_id": "STATE-CONNECTION-CONNECTED",
+      "destination_state_id": "STATE-TOKEN-ENVELOPE",
+      "relationship_ids": [
+        "REL-DAEMON-KEYRING",
+        "REL-DAEMON-REGISTRY"
+      ],
+      "persistence_effect": "No new OAuth required when envelope and registry survive; in-process InMemory reconstruction alone is non-conformant for restart-refresh-envelope."
+    },
+    {
+      "id": "TRANS-ENVELOPE-REFRESH",
+      "trigger": "After restart or near expiry, Drive transport refreshes using refresh_token + envelope-recorded client_id without live Cloud GET.",
+      "actor_ids": [
+        "ELM-DRIVE-TRANSPORT",
+        "ELM-GOOGLE-OAUTH",
+        "ELM-OS-KEYRING"
+      ],
+      "source_state_id": "STATE-TOKEN-ENVELOPE",
+      "destination_state_id": "STATE-TOKEN-ENVELOPE",
+      "relationship_ids": [
+        "REL-DRIVE-REFRESH-GOOGLE",
+        "REL-DRIVE-KEYRING"
+      ],
+      "persistence_effect": "Re-persists rotated OAuthTokenEnvelopeV1 retaining client_id for subsequent restarts."
+    },
+    {
+      "id": "TRANS-DRIVE-READY",
+      "trigger": "Credential-backed connected path completes any needed refresh and succeeds Drive I/O after real process restart.",
+      "actor_ids": [
+        "ELM-DRIVE-TRANSPORT",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "source_state_id": "STATE-TOKEN-ENVELOPE",
+      "destination_state_id": "STATE-DRIVE-READY",
+      "relationship_ids": [
+        "REL-DAEMON-DRIVE-TRANSPORT",
+        "REL-DRIVE-REFRESH-GOOGLE",
+        "REL-DRIVE-KEYRING"
+      ],
+      "persistence_effect": "Observes restart-refresh-envelope topology fact: new daemon process + keyring + registry keep Drive usable."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "SCN-NEW-OAUTH-CLOUD-FIRST",
+      "name": "New Google OAuth is Cloud-first app-config then local PKCE",
+      "trigger": "Operator connects Google Drive with no usable existing grant.",
+      "participant_ids": [
+        "ELM-OPERATOR",
+        "ELM-SPA-COURIER",
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CLOUD-APP-CONFIG",
+        "ELM-GOOGLE-OAUTH",
+        "ELM-OS-KEYRING",
+        "ELM-CONNECTION-REGISTRY"
+      ],
+      "relationship_ids": [
+        "REL-OPERATOR-SPA",
+        "REL-SPA-DAEMON",
+        "REL-DAEMON-CLOUD-APP-CONFIG",
+        "REL-DAEMON-GOOGLE-OAUTH",
+        "REL-DAEMON-KEYRING",
+        "REL-DAEMON-REGISTRY"
+      ],
+      "state_read_ids": [
+        "STATE-APP-CONFIG-PUBLIC"
+      ],
+      "state_write_ids": [
+        "STATE-APP-CONFIG-CACHE",
+        "STATE-OAUTH-IN-FLIGHT",
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CONNECTION-CONNECTED"
+      ],
+      "transition_ids": [
+        "TRANS-APP-CONFIG-FETCHED",
+        "TRANS-OAUTH-STARTED",
+        "TRANS-PERSIST-ENVELOPE",
+        "TRANS-MARK-CONNECTED"
+      ],
+      "authority_boundaries": [
+        "New OAuth requires Cloud-first GET /api/v1/provider-app-config/google (or still-valid cache); legacy BICAMERAL_GOOGLE_CLIENT_* only with explicit opt-in for interim lab notes.",
+        "Cloud never receives user tokens.",
+        "connected only after durable keyring write."
+      ],
+      "expected_result": "OS keyring holds OAuthTokenEnvelopeV1 with client_id and ConnectionRegistry is connected.",
+      "failure_behavior": "Missing/malformed/disabled/expired app-config or keyring write failure fails closed without connected."
+    },
+    {
+      "id": "SCN-RESTART-REFRESH-ENVELOPE",
+      "name": "Real OS process kill then Drive still usable",
+      "trigger": "Operator or harness kills the daemon OS process and starts a new daemon process after a completed Google connection.",
+      "participant_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-OS-KEYRING",
+        "ELM-CONNECTION-REGISTRY",
+        "ELM-DRIVE-TRANSPORT",
+        "ELM-GOOGLE-OAUTH"
+      ],
+      "relationship_ids": [
+        "REL-DAEMON-KEYRING",
+        "REL-DAEMON-REGISTRY",
+        "REL-DAEMON-DRIVE-TRANSPORT",
+        "REL-DRIVE-KEYRING",
+        "REL-DRIVE-REFRESH-GOOGLE"
+      ],
+      "state_read_ids": [
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-TOKEN-ENVELOPE"
+      ],
+      "state_write_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-DRIVE-READY"
+      ],
+      "transition_ids": [
+        "TRANS-REAL-PROCESS-RESTART",
+        "TRANS-ENVELOPE-REFRESH",
+        "TRANS-DRIVE-READY"
+      ],
+      "authority_boundaries": [
+        "Passing restart-refresh-envelope means real OS process kill \u2192 new daemon process \u2192 Drive still usable from OS keyring + ConnectionRegistry.",
+        "In-process InMemorySecretsStore reconstruction alone is insufficient evidence."
+      ],
+      "expected_result": "New daemon process loads envelope + registry, refreshes if needed, and Drive remains usable without new OAuth.",
+      "failure_behavior": "Missing keyring continuity, refresh failure, or registry/credential disagreement yields action_needed / re-auth rather than false connected."
+    },
+    {
+      "id": "SCN-EXISTING-GRANT-ENVELOPE-REFRESH",
+      "name": "Existing grant refreshes from envelope client_id without live Cloud GET",
+      "trigger": "Access token near expiry or expired after restart while envelope still holds refresh_token and client_id.",
+      "participant_ids": [
+        "ELM-DRIVE-TRANSPORT",
+        "ELM-OS-KEYRING",
+        "ELM-GOOGLE-OAUTH",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "relationship_ids": [
+        "REL-DRIVE-KEYRING",
+        "REL-DRIVE-REFRESH-GOOGLE",
+        "REL-DAEMON-DRIVE-TRANSPORT"
+      ],
+      "state_read_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CONNECTION-CONNECTED"
+      ],
+      "state_write_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-DRIVE-READY"
+      ],
+      "transition_ids": [
+        "TRANS-ENVELOPE-REFRESH",
+        "TRANS-DRIVE-READY"
+      ],
+      "authority_boundaries": [
+        "Existing-grant refresh may use envelope-recorded non-secret client_id without live Cloud GET.",
+        "New OAuth remains Cloud-first and is out of this scenario's refresh path."
+      ],
+      "expected_result": "Rotated envelope is re-persisted and Drive I/O succeeds without contacting provider-app-config.",
+      "failure_behavior": "Refresh error or missing client_id/refresh_token fails closed into re-auth / action_needed."
+    },
+    {
+      "id": "SCN-NO-CLOUD-USER-TOKENS",
+      "name": "Cloud never holds user Google tokens",
+      "trigger": "Any new OAuth, refresh, or restart continuity path executes.",
+      "participant_ids": [
+        "ELM-CLOUD-APP-CONFIG",
+        "ELM-DAEMON-GATEWAY",
+        "ELM-OS-KEYRING",
+        "ELM-GOOGLE-OAUTH"
+      ],
+      "relationship_ids": [
+        "REL-DAEMON-CLOUD-APP-CONFIG",
+        "REL-DAEMON-GOOGLE-OAUTH",
+        "REL-DAEMON-KEYRING",
+        "REL-DRIVE-REFRESH-GOOGLE"
+      ],
+      "state_read_ids": [
+        "STATE-APP-CONFIG-PUBLIC",
+        "STATE-TOKEN-ENVELOPE"
+      ],
+      "state_write_ids": [
+        "STATE-TOKEN-ENVELOPE"
+      ],
+      "transition_ids": [
+        "TRANS-APP-CONFIG-FETCHED",
+        "TRANS-PERSIST-ENVELOPE",
+        "TRANS-ENVELOPE-REFRESH"
+      ],
+      "authority_boundaries": [
+        "Cloud publishes only non-secret app config.",
+        "User Google tokens remain daemon/OS-keyring local.",
+        "Hosted Supabase Continue with Google is out of scope for this hop."
+      ],
+      "expected_result": "No user Google access_token, refresh_token, authorization code, or PKCE verifier is accepted or stored by Cloud.",
+      "failure_behavior": "Any Cloud user-token custody path is a cut-point invariant failure for this contract."
+    },
+    {
+      "id": "SCN-NO-PAIRING-COUPLING",
+      "name": "OAuth/Drive continuity is orthogonal to pairing",
+      "trigger": "Operator has or obtains Google Drive connection independently of hosted-device pairing.",
+      "participant_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-OS-KEYRING",
+        "ELM-CONNECTION-REGISTRY",
+        "ELM-SPA-COURIER"
+      ],
+      "relationship_ids": [
+        "REL-DAEMON-KEYRING",
+        "REL-DAEMON-REGISTRY",
+        "REL-SPA-DAEMON"
+      ],
+      "state_read_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-DRIVE-READY"
+      ],
+      "state_write_ids": [],
+      "transition_ids": [
+        "TRANS-MARK-CONNECTED",
+        "TRANS-DRIVE-READY"
+      ],
+      "authority_boundaries": [
+        "Citation only vs pairing (#1198\u2013#1200 / row 3): durable vs transient vocabulary.",
+        "No shared pairing_id with Google OAuth artifacts.",
+        "OAuth is orthogonal to pairing."
+      ],
+      "expected_result": "Google envelope and ConnectionRegistry continuity do not require or mint pairing_id; pairing session_token does not author Drive connected.",
+      "failure_behavior": "Shared mint/store that manufactures Drive connected from bridge pairing fails this scenario."
+    },
+    {
+      "id": "SCN-LEGACY-ENV-OPT-IN-ONLY",
+      "name": "Legacy BICAMERAL_GOOGLE_CLIENT_* is explicit opt-in lab only",
+      "trigger": "Daemon resolves Google application identity for new OAuth.",
+      "participant_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CLOUD-APP-CONFIG"
+      ],
+      "relationship_ids": [
+        "REL-DAEMON-CLOUD-APP-CONFIG"
+      ],
+      "state_read_ids": [
+        "STATE-APP-CONFIG-PUBLIC",
+        "STATE-APP-CONFIG-CACHE"
+      ],
+      "state_write_ids": [
+        "STATE-OAUTH-IN-FLIGHT"
+      ],
+      "transition_ids": [
+        "TRANS-APP-CONFIG-FETCHED",
+        "TRANS-OAUTH-STARTED"
+      ],
+      "authority_boundaries": [
+        "Production path is Cloud-published app config on main + live HTTP 200.",
+        "Legacy BICAMERAL_GOOGLE_CLIENT_* is explicit opt-in for interim lab notes only, never the silent production path."
+      ],
+      "expected_result": "Without explicit opt-in, missing Cloud config fails closed rather than silently using legacy env as production authority.",
+      "failure_behavior": "Silent legacy-env production bootstrap is non-conformant for Enforced producer/consumer claims."
+    },
+    {
+      "id": "SCN-NO-SILENT-INMEMORY-FALLBACK",
+      "name": "Production secrets are OS keyring only",
+      "trigger": "Daemon persists or reloads Google OAuth secrets in production topology.",
+      "participant_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-OS-KEYRING"
+      ],
+      "relationship_ids": [
+        "REL-DAEMON-KEYRING",
+        "REL-DRIVE-KEYRING"
+      ],
+      "state_read_ids": [
+        "STATE-TOKEN-ENVELOPE"
+      ],
+      "state_write_ids": [
+        "STATE-TOKEN-ENVELOPE",
+        "STATE-CONNECTION-ACTION-NEEDED"
+      ],
+      "transition_ids": [
+        "TRANS-PERSIST-ENVELOPE",
+        "TRANS-REAL-PROCESS-RESTART",
+        "TRANS-PROJECT-ACTION-NEEDED"
+      ],
+      "authority_boundaries": [
+        "Production SecretsStore is OsKeyringSecretsStore only.",
+        "Keyring unavailability is an explicit failure.",
+        "InMemorySecretsStore remains test-only."
+      ],
+      "expected_result": "Envelope survives only via OS keyring across real process death; no silent in-memory production fallback.",
+      "failure_behavior": "Keyring failure blocks connected and cannot be papered over with volatile memory."
+    }
+  ],
+  "conformance": [
+    {
+      "id": "CONF-CLOUD-APP-CONFIG-PUBLISH",
+      "status": "partial",
+      "source_ids": [
+        "ELM-CLOUD-APP-CONFIG",
+        "STATE-APP-CONFIG-PUBLIC",
+        "REL-DAEMON-CLOUD-APP-CONFIG",
+        "SCN-NEW-OAUTH-CLOUD-FIRST",
+        "SCN-LEGACY-ENV-OPT-IN-ONLY"
+      ],
+      "owner_module_or_seam": "bicameral-cloud GET /api/v1/provider-app-config/google on main + live",
+      "required_behavior": "Enforced producer publishes non-secret GoogleNativeAppConfigV1 on main and live with HTTP 200 for the active environment.",
+      "prohibited_fallback": "Treat a failed/unavailable live route as Enforced producer; silent legacy env as production publisher; freeze obsolete pre-#304 live-404 evidence as current state.",
+      "validation_obligation": {
+        "kind": "topology",
+        "description": "Probe production and staging GET /api/v1/provider-app-config/google for HTTP 200 and valid V1 payload; confirm route exists on origin/main."
+      },
+      "implementation_evidence": [
+        "Cloud #304 shipped the provider app-config route; production GET is live HTTP 200 (owner-stated 2026-09-03)",
+        "Freeze-era probes (2026-09-02) that reported live 404 / not-on-main are obsolete and must not be frozen by this amendment",
+        "cloud#263 terminal e2e evidence still OPEN; full row-5 Enforced lock still needs remaining conformance"
+      ]
+    },
+    {
+      "id": "CONF-NO-CLOUD-USER-TOKENS",
+      "status": "partial",
+      "source_ids": [
+        "ELM-CLOUD-APP-CONFIG",
+        "ELM-OS-KEYRING",
+        "STATE-TOKEN-ENVELOPE",
+        "SCN-NO-CLOUD-USER-TOKENS",
+        "REL-DAEMON-CLOUD-APP-CONFIG"
+      ],
+      "owner_module_or_seam": "Cloud provider-app-config payload + daemon local token exchange",
+      "required_behavior": "Cloud must never mint, receive, persist, refresh, or interpret user Google access/refresh tokens or authorization codes; daemon owns user-token custody.",
+      "prohibited_fallback": "Cloud OAuth broker or Cloud-stored user Google tokens; treating Supabase Continue with Google as this hop.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Assert Cloud app-config schema/route admits only non-secret fields and daemon token exchange never posts user tokens to Cloud."
+      },
+      "implementation_evidence": [
+        "docs/specs/google-native-oauth-app-config.md accepted owner split",
+        "GoogleNativeAppConfigV1 deny_unknown_fields excludes secrets",
+        "Designed/proven as architecture; live producer still missing so overall status remains partial"
+      ]
+    },
+    {
+      "id": "CONF-PERSIST-BEFORE-CONNECTED",
+      "status": "partial",
+      "source_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-OS-KEYRING",
+        "ELM-CONNECTION-REGISTRY",
+        "TRANS-PERSIST-ENVELOPE",
+        "TRANS-MARK-CONNECTED",
+        "SCN-NEW-OAUTH-CLOUD-FIRST"
+      ],
+      "owner_module_or_seam": "bicameral-gateway Google connection completion path",
+      "required_behavior": "connected is written to ConnectionRegistry only after durable OAuthTokenEnvelopeV1 keyring write succeeds.",
+      "prohibited_fallback": "Registry connected before or without durable secret write; secrets in ConnectionCompletionOutcome.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Fail keyring write and assert completion does not upsert connected; success path writes envelope then registry."
+      },
+      "implementation_evidence": [
+        "oauth-and-integration-connections.md persist-before-connected semantics",
+        "gateway routes persist connection.google oauth_token including client_id then registry upsert on origin/dev",
+        "Not yet proven under real OS keyring + live Cloud producer topology"
+      ]
+    },
+    {
+      "id": "CONF-CREDENTIAL-BACKED-PROJECTION",
+      "status": "partial",
+      "source_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "STATE-CONNECTION-CONNECTED",
+        "STATE-CONNECTION-ACTION-NEEDED",
+        "TRANS-PROJECT-ACTION-NEEDED",
+        "REL-DAEMON-REGISTRY"
+      ],
+      "owner_module_or_seam": "GET /connections and connected-branch start projection (#1083)",
+      "required_behavior": "When registry metadata says connected but no usable readable credential exists, project action_needed without mutating durable registry on GET.",
+      "prohibited_fallback": "Manufacturing effective connected without credentials; GET that rewrites registry to hide disagreement.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Seed connected metadata without secret and assert action_needed projection with unchanged registry file."
+      },
+      "implementation_evidence": [
+        "Credential-backed projection tests on origin/dev",
+        "Still partial pending real keyring/process-kill topology evidence"
+      ]
+    },
+    {
+      "id": "CONF-ENVELOPE-REFRESH-AFTER-RESTART",
+      "status": "partial",
+      "source_ids": [
+        "ELM-DRIVE-TRANSPORT",
+        "STATE-TOKEN-ENVELOPE",
+        "TRANS-ENVELOPE-REFRESH",
+        "SCN-EXISTING-GRANT-ENVELOPE-REFRESH",
+        "REL-DRIVE-REFRESH-GOOGLE"
+      ],
+      "owner_module_or_seam": "drive_api_transport effective_refresh_config + envelope re-persist",
+      "required_behavior": "After restart, refresh of an existing grant may use envelope-recorded non-secret client_id without live Cloud GET; rotated envelope is re-persisted.",
+      "prohibited_fallback": "Requiring live Cloud GET for every existing-grant refresh; dropping client_id so post-restart refresh cannot proceed.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Prove refresh uses envelope client_id when no injected config is present and re-persists rotated envelope."
+      },
+      "implementation_evidence": [
+        "drive_api_transport.rs envelope client_id refresh path on origin/dev",
+        "drive_api_transport_stub.rs restart_health_operation_refreshes_envelope uses InMemorySecretsStore",
+        "Code path exists; real e2e missing"
+      ]
+    },
+    {
+      "id": "CONF-REAL-PROCESS-KILL-E2E",
+      "status": "missing",
+      "source_ids": [
+        "SCN-RESTART-REFRESH-ENVELOPE",
+        "TRANS-REAL-PROCESS-RESTART",
+        "TRANS-DRIVE-READY",
+        "STATE-DRIVE-READY",
+        "ELM-OS-KEYRING",
+        "ELM-CONNECTION-REGISTRY"
+      ],
+      "owner_module_or_seam": "restart-refresh-envelope topology observation / cloud#263 terminal evidence",
+      "required_behavior": "Passing restart-refresh-envelope means real OS process kill \u2192 new daemon process \u2192 Drive still usable from OS keyring + ConnectionRegistry, not in-process InMemory reconstruction alone.",
+      "prohibited_fallback": "Counting InMemorySecretsStore preload or ignored keyring unit tests as the checklist topology receipt.",
+      "validation_obligation": {
+        "kind": "restart_replay",
+        "description": "Kill the real daemon OS process, restart it, refresh from OS keyring envelope if needed, and prove Drive I/O still succeeds."
+      },
+      "implementation_evidence": [
+        "No gateway integration receipt for real process-kill Google refresh",
+        "os_keyring round-trip test is #[ignore]",
+        "cloud#263 OPEN"
+      ]
+    },
+    {
+      "id": "CONF-NO-SILENT-INMEMORY-FALLBACK",
+      "status": "partial",
+      "source_ids": [
+        "ELM-OS-KEYRING",
+        "ELM-DAEMON-GATEWAY",
+        "SCN-NO-SILENT-INMEMORY-FALLBACK",
+        "REL-DAEMON-KEYRING",
+        "STATE-TOKEN-ENVELOPE"
+      ],
+      "owner_module_or_seam": "daemon production SecretsStore construction (OsKeyringSecretsStore)",
+      "required_behavior": "Production secrets use OS keyring only; keyring unavailability is an explicit failure with no silent in-memory fallback.",
+      "prohibited_fallback": "Silent production fallback to InMemorySecretsStore when keyring is unavailable.",
+      "validation_obligation": {
+        "kind": "topology",
+        "description": "Assert production daemon constructors wire OsKeyringSecretsStore only and fail closed when keyring is unavailable."
+      },
+      "implementation_evidence": [
+        "Production OsKeyringSecretsStore wiring on origin/dev",
+        "InMemorySecretsStore retained for deterministic tests only",
+        "Partial until real process-kill keyring e2e is green"
+      ]
+    },
+    {
+      "id": "CONF-NO-PAIRING-COUPLING",
+      "status": "partial",
+      "source_ids": [
+        "SCN-NO-PAIRING-COUPLING",
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CONNECTION-REGISTRY",
+        "ELM-OS-KEYRING",
+        "STATE-CONNECTION-CONNECTED"
+      ],
+      "owner_module_or_seam": "Google connection stores vs hosted-bridge pairing stores",
+      "required_behavior": "vs pairing (#1198\u2013#1200 / row 3): citation only for durable vs transient vocabulary; no shared pairing_id; OAuth is orthogonal to pairing.",
+      "prohibited_fallback": "Shared pairing_id or store that authors Drive connected from bridge session_token, or OAuth that mints pairing approval.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Show Google envelope/registry artifacts and pairing artifacts use distinct ids/stores with no authority handoff either way."
+      },
+      "implementation_evidence": [
+        "Separate connection.google keyring keys and connections.yaml from hosted-bridge pairing session memory",
+        "Row 3 pairing contract cites row 5 as orthogonal",
+        "Partial while pairing durable-id RFCs remain open documentation context"
+      ]
+    },
+    {
+      "id": "CONF-LEGACY-ENV-OPT-IN-ONLY",
+      "status": "partial",
+      "source_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CLOUD-APP-CONFIG",
+        "SCN-LEGACY-ENV-OPT-IN-ONLY",
+        "REL-DAEMON-CLOUD-APP-CONFIG",
+        "TRANS-APP-CONFIG-FETCHED"
+      ],
+      "owner_module_or_seam": "google_app_config resolver precedence",
+      "required_behavior": "Cloud-first app-config is the production path; explicit opt-in legacy BICAMERAL_GOOGLE_CLIENT_* is interim lab notes only, not the production path.",
+      "prohibited_fallback": "Silent legacy env outranking valid Cloud app config in production; claiming Enforced producer while relying on legacy env instead of the live Cloud publisher.",
+      "validation_obligation": {
+        "kind": "unit",
+        "description": "Resolver tests assert Cloud-first order, cache-on-transient-failure, explicit opt-in for legacy env, and fail-closed on 410/missing without opt-in."
+      },
+      "implementation_evidence": [
+        "google_app_config.rs resolve order on origin/dev: live Cloud \u2192 still-valid cache \u2192 legacy env only if opted in",
+        "Cloud #304 shipped the live producer (production GET HTTP 200, owner-stated 2026-09-03); remaining partiality is resolver/e2e lock, not route publication"
+      ]
+    },
+    {
+      "id": "CONF-DESKTOP-CREDENTIAL-PROVIDER-REQUIRED",
+      "status": "missing",
+      "source_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-DRIVE-TRANSPORT",
+        "ELM-GOOGLE-OAUTH",
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE",
+        "REL-DAEMON-GOOGLE-OAUTH",
+        "REL-DRIVE-REFRESH-GOOGLE"
+      ],
+      "owner_module_or_seam": "bicameral-bot Google token-exchange and refresh request construction (amendment, bot#1211)",
+      "required_behavior": "Initial authorization-code exchange and refresh include the Desktop client credential when a valid matching envelope exists, always alongside PKCE code_verifier; the daemon's public-client classification and PKCE requirement are unchanged.",
+      "prohibited_fallback": "Conditioning away or weakening PKCE because a client credential is present; treating the credential as confidential-client proof.",
+      "validation_obligation": {
+        "kind": "unit",
+        "description": "Deterministic test asserts the token-exchange and refresh request bodies include client_secret when a valid credential envelope is present, and always include code_verifier / refresh_token grant fields regardless."
+      },
+      "implementation_evidence": [
+        "cloud#309 live-failure reproduction: invalid_request client_secret is missing",
+        "GoogleOAuthConfig.client_secret field exists in crates/bicameral-config/src/connections.rs but is currently unwrap_or_default() from env only \u2014 gap this amendment closes",
+        "Not yet implemented"
+      ]
+    },
+    {
+      "id": "CONF-CREDENTIAL-DISTRIBUTION-AUTHENTICATED-ONLY",
+      "status": "missing",
+      "source_ids": [
+        "ELM-CLOUD-CREDENTIAL-DISTRIBUTOR",
+        "ELM-CLOUD-APP-CONFIG",
+        "REL-DAEMON-CLOUD-CREDENTIAL",
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE"
+      ],
+      "owner_module_or_seam": "bicameral-cloud credential-distribution route (new, amendment, cloud#309) vs bicameral-cloud provider_app_config route",
+      "required_behavior": "The Desktop client credential is served only from a new authenticated Cloud route, distinct in handler and schema from the public GoogleNativeAppConfigV1 route; authentication is the signed-in operator's transient Cloud bearer presented by the local daemon for this fetch (then discarded), and does not require row-12 pairing / daemon-identity enrollment; GoogleNativeAppConfigV1 schema v1 is never extended to carry it.",
+      "prohibited_fallback": "Adding client_secret to GET /api/v1/provider-app-config/google; serving the credential to an unauthenticated caller; gating this route on row-12 daemon-identity enrollment.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Schema/route test asserts GoogleNativeAppConfigV1 has no credential field, the new credential route rejects unauthenticated requests, and auth is operator Cloud bearer rather than row-12 daemon identity."
+      },
+      "implementation_evidence": [
+        "Not yet implemented; cloud#309 direction section names this as the required distribution seam"
+      ]
+    },
+    {
+      "id": "CONF-CREDENTIAL-ROTATION-FAIL-CLOSED",
+      "status": "missing",
+      "source_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-OS-KEYRING",
+        "STATE-CLIENT-CREDENTIAL-ENVELOPE",
+        "REL-DAEMON-KEYRING"
+      ],
+      "owner_module_or_seam": "bicameral-config GoogleClientCredentialEnvelopeV1 read path (amendment, bot#1211)",
+      "required_behavior": "A keyring-cached credential envelope is used only when its bound client_id and config_version match current daemon configuration; on mismatch the daemon treats it as absent, re-fetches from ELM-CLOUD-CREDENTIAL-DISTRIBUTOR, and never silently reuses stale material.",
+      "prohibited_fallback": "Using a cached credential whose client_id/config_version disagrees with current configuration; adopting a rotated or wrong-application credential silently.",
+      "validation_obligation": {
+        "kind": "unit",
+        "description": "Deterministic tests cover: matching envelope is reused without a Cloud GET; mismatched client_id forces re-fetch; mismatched config_version forces re-fetch; missing envelope after restart produces action_needed rather than a token-exchange attempt with an empty credential."
+      },
+      "implementation_evidence": [
+        "OAuthTokenEnvelopeV1 (crates/bicameral-config/src/connections.rs) establishes the versioned-envelope pattern this reuses for the credential",
+        "Not yet implemented"
+      ]
+    }
+  ]
+}

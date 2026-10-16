@@ -1,0 +1,20 @@
+{
+  "_comment": "Golden ProviderResourceDescriptor exercising the action-needed branch (#523): a Google Drive folder the connection cannot yet read because the OAuth grant is missing a required scope. Carries a typed action_needed reason.",
+  "_expected_behavior": "accepted — describes a discoverable resource whose permission is action_needed; the descriptor reports the reason but grants no authority and does not block any Bicameral lifecycle transition by itself",
+  "_authority_boundary": "Provisional alpha provider-fact handoff object. permission=action_needed and action_needed=missing_scope are advisory provider facts. They are NOT a SourceBinding decision, setup completion, Decision Ledger state, signoff, or compliance verdict.",
+  "provider": "google_drive",
+  "resource_id": "folder-restricted",
+  "display_name": "Finance (restricted)",
+  "resource_type": "folder",
+  "uri": "https://drive.google.com/drive/folders/restricted",
+  "capabilities": ["list"],
+  "permission": "action_needed",
+  "action_needed": "missing_scope",
+  "freshness": {
+    "last_modified": "2026-05-20T11:30:00Z"
+  },
+  "provider_metadata": {
+    "mime_type": "application/vnd.google-apps.folder"
+  },
+  "captured_at": "2026-06-15T12:00:00Z"
+}

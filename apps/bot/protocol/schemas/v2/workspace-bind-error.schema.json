@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkspaceBindErrorResponse",
+  "description": "`workspace.bind` error response.",
+  "type": "object",
+  "required": [
+    "error",
+    "message",
+    "project_id",
+    "retry_after_repair",
+    "state"
+  ],
+  "properties": {
+    "error": {
+      "description": "Error classification.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/WorkspaceBindErrorKind"
+        }
+      ]
+    },
+    "message": {
+      "description": "Human-readable error message.",
+      "type": "string"
+    },
+    "project_id": {
+      "description": "The project the request targeted.",
+      "type": "string"
+    },
+    "retry_after_repair": {
+      "description": "Whether the caller may retry after local repair/confirmation.",
+      "type": "boolean"
+    },
+    "state": {
+      "description": "Durable state the daemon reports for the project after the failed attempt. Never mutated by a rejected request.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/WorkspaceBindingState"
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "WorkspaceBindErrorKind": {
+      "description": "Typed `workspace.bind` failure classifications.",
+      "oneOf": [
+        {
+          "description": "The proposal targets a project other than the one in session scope.",
+          "type": "string",
+          "enum": [
+            "wrong_project"
+          ]
+        },
+        {
+          "description": "The target project is not registered locally.",
+          "type": "string",
+          "enum": [
+            "unregistered_project"
+          ]
+        },
+        {
+          "description": "The candidate path failed the daemon's local safety policy.",
+          "type": "string",
+          "enum": [
+            "unsafe_path"
+          ]
+        },
+        {
+          "description": "The project already has a materialized workspace binding.",
+          "type": "string",
+          "enum": [
+            "already_bound"
+          ]
+        },
+        {
+          "description": "Explicit operator confirmation was missing.",
+          "type": "string",
+          "enum": [
+            "confirmation_missing"
+          ]
+        },
+        {
+          "description": "The daemon does not advertise the required workspace-binding capability.",
+          "type": "string",
+          "enum": [
+            "daemon_capability_mismatch"
+          ]
+        },
+        {
+          "description": "The project binding is broken and must be repaired before binding.",
+          "type": "string",
+          "enum": [
+            "repair_required"
+          ]
+        }
+      ]
+    },
+    "WorkspaceBindingState": {
+      "description": "Durable local workspace binding lifecycle state.\n\nThese are the only durable workspace states. `WorkspaceBindingProposal` is a transient protocol object, not a state in this enum.",
+      "oneOf": [
+        {
+          "description": "Project is registered but has no local workspace binding yet.",
+          "type": "string",
+          "enum": [
+            "local_workspace_unbound"
+          ]
+        },
+        {
+          "description": "Project has a materialized local workspace binding.",
+          "type": "string",
+          "enum": [
+            "local_workspace_bound"
+          ]
+        },
+        {
+          "description": "A previously usable binding is broken and must be repaired before use.",
+          "type": "string",
+          "enum": [
+            "local_workspace_repair_required"
+          ]
+        }
+      ]
+    }
+  }
+}

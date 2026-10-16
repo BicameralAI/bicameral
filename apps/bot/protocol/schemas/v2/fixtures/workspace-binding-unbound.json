@@ -1,0 +1,33 @@
+{
+  "scenario": "unbound",
+  "description": "Registered project with no local workspace binding yet. MCP has authored a proposal; the daemon has not materialized a binding. The hosted-safe readiness view reports local_workspace_unbound and offers the bind flow. No local absolute path appears in the hosted-safe view.",
+  "local": {
+    "request": {
+      "proposal": {
+        "project_id": "proj_ada",
+        "display": {
+          "display_name": "Ada Service",
+          "project_slug": "ada-service",
+          "candidate_label": "ada-service"
+        },
+        "candidate_path": "/home/alex/code/ada-service",
+        "source_surface": "mcp",
+        "reason": "Open editor workspace matches the registered project.",
+        "confidence": 0.82
+      },
+      "confirmed": false,
+      "expected_current_state": "local_workspace_unbound"
+    }
+  },
+  "hosted_safe_view": {
+    "project_id": "proj_ada",
+    "state": "local_workspace_unbound",
+    "display": {
+      "display_name": "Ada Service",
+      "project_slug": "ada-service",
+      "candidate_label": "ada-service"
+    },
+    "bind_available": true,
+    "status_message": "No local workspace binding for this project. Bind a folder to enable grounding and preflight."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "plan_id": "bot-v0.1.12-retroactive-simulation",
+  "repository": "BicameralAI/bicameral-bot",
+  "target_branch": "dev",
+  "version": "0.1.12",
+  "status": "frozen",
+  "mode": "enforced",
+  "bot_anchor": {
+    "cargo_manifest": "Cargo.toml"
+  },
+  "release_units": [
+    "desktop_hosted_key_pairing",
+    "installer_updater"
+  ],
+  "closure_policy_digest": "sha256:ad821c4d31e0207143afadeaeff07ac389a7e66302ab252edbecc6567a88af2d",
+  "created_by": "simulation:delivery-manager:jinhongkuan",
+  "created_at": "2026-07-22T14:00:00Z"
+}

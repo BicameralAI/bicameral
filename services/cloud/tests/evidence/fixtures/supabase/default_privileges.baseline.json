@@ -1,0 +1,3 @@
+[
+  {"default_acl": "postgres:r:service_role=r/postgres"}
+]

@@ -1,0 +1,68 @@
+# Build artifacts
+/target/
+**/*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local env (Confidential per Data Management Policy — never commit)
+.env
+.env.*
+!.env.example
+*.env
+__pycache__/
+*.pyc
+
+# Bicameral local-only
+.bicameral/factory-context.local.json
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
+dashboard/evidence/
+dashboard/test-results/
+dashboard/playwright-report/
+
+# Agent scratch (do not commit)
+.agents/
+.agent/
+.claude/
+.failsafe/
+.qor/
+.cursor/
+.windsurf/
+CLAUDE.md
+GEMINI.md
+COPILOT.md
+CURSOR.md
+plan-*.md
+.bicameral/factory-skills/
+RUN_SUMMARY.md
+# qor:seed -- do not edit between markers
+.qor/session/
+# qor:seed/end
+
+# Governance documents — local only, never tracked
+# (Qor-logic artifacts: core S.H.I.E.L.D. set, research, plans, reviews.
+#  docs/adr/ and docs/specs/ stay TRACKED as public, citable records.)
+docs/META_LEDGER.md
+docs/CONCEPT.md
+docs/ARCHITECTURE_PLAN.md
+docs/SHADOW_GENOME.md
+docs/BACKLOG.md
+docs/FEATURE_INDEX.md
+docs/SYSTEM_STATE.md
+docs/GOVERNANCE_INDEX.md
+docs/research-brief-*.md
+docs/research/
+docs/plans/
+docs/reviews/
+.gstack/
+release-dashboard/

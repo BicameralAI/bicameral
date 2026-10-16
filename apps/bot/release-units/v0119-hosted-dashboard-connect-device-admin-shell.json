@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0119-hosted-dashboard-connect-device-admin-shell",
+  "label": "Hosted dashboard connect-device + admin shell promote (#1030)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1030",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.19",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-04T12:16:55Z",
+  "proposal_digest": "sha256:486a8ef212677548c054f037f387ef24d4ffbb67e42c50edec1513e47970cb43"
+}

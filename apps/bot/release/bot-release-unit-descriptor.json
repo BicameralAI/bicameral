@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "component": "bot",
+  "classification_default": "conservative_all",
+  "release_units": {
+    "bot_daemon": {
+      "owned_surfaces": [
+        "daemon_binary",
+        "hosted_bridge_api",
+        "release_provenance"
+      ]
+    },
+    "hosted_dashboard": {
+      "owned_surfaces": [
+        "dashboard_spa_bundle",
+        "hosted_bridge_client"
+      ]
+    },
+    "integration_connectors": {
+      "owned_surfaces": [
+        "integration_ingress_contract"
+      ]
+    },
+    "mcp_surface": {
+      "owned_surfaces": [
+        "toolrequest_contract"
+      ]
+    }
+  }
+}

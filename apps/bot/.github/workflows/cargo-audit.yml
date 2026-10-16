@@ -1,0 +1,71 @@
+name: Cargo Audit
+
+# RustSec advisory-database scan for the Cargo dependency tree (#658, SOC2
+# Third-Party Management: "confirm a vulnerability scan path exists").
+#
+# The security control is the RustSec audit itself, not a particular GitHub
+# Action wrapper. Keep this workflow compatible with the organization
+# selected-Actions policy and minimize CI friction by downloading the official
+# pinned RustSec binary, verifying its published SHA-256, and executing it
+# directly.
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - ".github/workflows/cargo-audit.yml"
+  pull_request:
+    paths:
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - ".github/workflows/cargo-audit.yml"
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-audit:
+    name: cargo-audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CARGO_AUDIT_VERSION: "0.22.2"
+      CARGO_AUDIT_SHA256: "ab28a1bdb54db4d5d8ad5981cf1f959410370b3d28250dbd35f6a44248620e39"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install pinned cargo-audit
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          archive="cargo-audit-x86_64-unknown-linux-gnu-v${CARGO_AUDIT_VERSION}.tgz"
+          url="https://github.com/rustsec/rustsec/releases/download/cargo-audit/v${CARGO_AUDIT_VERSION}/${archive}"
+          download_path="${RUNNER_TEMP}/${archive}"
+          extract_dir="${RUNNER_TEMP}/cargo-audit-${CARGO_AUDIT_VERSION}"
+          bin_dir="${RUNNER_TEMP}/cargo-audit-bin"
+
+          curl --fail --location --silent --show-error "${url}" --output "${download_path}"
+          echo "${CARGO_AUDIT_SHA256}  ${download_path}" | sha256sum --check --strict
+
+          mkdir -p "${extract_dir}" "${bin_dir}"
+          tar -xzf "${download_path}" -C "${extract_dir}"
+
+          audit_binary="$(find "${extract_dir}" -type f -name cargo-audit -print -quit)"
+          test -n "${audit_binary}"
+          install -m 0755 "${audit_binary}" "${bin_dir}/cargo-audit"
+          echo "${bin_dir}" >> "${GITHUB_PATH}"
+
+      - name: Verify cargo-audit version
+        shell: bash
+        run: cargo-audit --version | grep -F "cargo-audit ${CARGO_AUDIT_VERSION}"
+
+      - name: RustSec advisory scan
+        shell: bash
+        run: cargo audit --file Cargo.lock

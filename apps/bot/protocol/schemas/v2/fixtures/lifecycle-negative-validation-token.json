@@ -1,0 +1,30 @@
+{
+  "_comment": "Negative fixture: binding.create with validation_token — daemon must reject with validation_token_unsupported (ADR-0017)",
+  "_expected_response": "Rejected: validation_token_unsupported — token acceptance is deferred until signing/expiry/integrity/revocation are specified",
+  "tool_request": {
+    "request_id": "f0000003-0000-4000-8000-000000000003",
+    "command": {
+      "name": "binding.create",
+      "params": {
+        "decision_or_candidate_id": "DEC-999",
+        "bindings": [
+          {
+            "file": "src/main.rs"
+          }
+        ],
+        "validation_token": "unsigned-token-abc"
+      }
+    },
+    "authority": {
+      "actor_id": "agent-001",
+      "auth_method": "mcp_session",
+      "session_id": "sess-neg-002",
+      "workspace": "/repo",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp"
+      }
+    },
+    "issued_at": "2026-06-10T10:22:00Z"
+  }
+}

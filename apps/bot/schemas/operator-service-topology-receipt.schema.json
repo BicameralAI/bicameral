@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BicameralAI/bicameral-bot/schemas/operator-service-topology-receipt.schema.json",
+  "title": "Operator Service Topology Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "platform_lane",
+    "journey_revision",
+    "artifact_provenance",
+    "process_provenance",
+    "service_observations",
+    "product_observations",
+    "observed_check_ids",
+    "teardown",
+    "sanitization",
+    "outcome",
+    "authority",
+    "authorizes_merge",
+    "observed_at"
+  ],
+  "properties": {
+    "$schema": {"type": "string", "minLength": 1},
+    "schema_version": {"const": 1},
+    "profile_id": {"const": "operator-service-environment-v1"},
+    "platform_lane": {
+      "enum": ["macos-launchd-user-v1", "linux-systemd-user-v1"]
+    },
+    "journey_revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_unit_id",
+        "journey_id",
+        "journey_digest",
+        "environment_ids"
+      ],
+      "properties": {
+        "release_unit_id": {"type": "string", "minLength": 1},
+        "journey_id": {"type": "string", "minLength": 1},
+        "journey_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "environment_ids": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "artifact_provenance": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "process_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "host_root_pid", "observed_process_pid"],
+      "properties": {
+        "method": {"const": "controller-event-log"},
+        "host_root_pid": {"type": "integer", "minimum": 1},
+        "observed_process_pid": {"type": "integer", "minimum": 1}
+      }
+    },
+    "service_observations": {"type": "object"},
+    "product_observations": {"type": "object"},
+    "observed_check_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "teardown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_stopped",
+        "service_uninstalled",
+        "operator_home_removed",
+        "port_closed"
+      ],
+      "properties": {
+        "service_stopped": {"type": "boolean"},
+        "service_uninstalled": {"type": "boolean"},
+        "operator_home_removed": {"type": "boolean"},
+        "port_closed": {"type": "boolean"}
+      }
+    },
+    "sanitization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "browser_payloads_scanned",
+        "process_logs_scanned",
+        "raw_credentials_recorded",
+        "host_paths_recorded"
+      ],
+      "properties": {
+        "browser_payloads_scanned": {"const": true},
+        "process_logs_scanned": {"type": "boolean"},
+        "raw_credentials_recorded": {"const": false},
+        "host_paths_recorded": {"const": false}
+      }
+    },
+    "outcome": {"enum": ["passed", "failed", "preparation_failed"]},
+    "authority": {
+      "enum": ["diagnostic_only", "topology_execution_request"]
+    },
+    "authorizes_merge": {"type": "boolean"},
+    "topology_request": {"type": ["object", "null"]},
+    "observed_at": {"type": "string", "format": "date-time"}
+  }
+}

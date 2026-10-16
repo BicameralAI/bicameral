@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0116-join-recovery-copy",
+  "label": "Honest Product Join SPA recovery mapping (bot#1013)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1013",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.16",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-01T21:00:00Z",
+  "proposal_digest": "sha256:97ac56c80f3c04ddee7db85ea030e196b952829588b57a3e08820fcc9e4bc0b8"
+}

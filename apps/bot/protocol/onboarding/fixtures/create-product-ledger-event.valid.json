@@ -1,0 +1,29 @@
+{
+  "actor": "actor-hosted-1",
+  "event_type": "create_product",
+  "governance_result_id": null,
+  "id": "0198d2b4-8a5c-7f22-9e31-9bb014cc8200",
+  "payload": {
+    "created_at": "2026-07-12T08:59:00Z",
+    "creator_cloud_account_id": "acct_01HZX8PRIYA",
+    "creator_roles": [
+      "Policy Owner",
+      "Product Owner"
+    ],
+    "event_store_hint": {
+      "provider": "google",
+      "substrate": "drive_folder"
+    },
+    "governance_policy_version": "gpv_1",
+    "idempotency_key": "create-attempt-1",
+    "product_display_name": "Checkout",
+    "product_id": "prd_01HZX8CHECKOUT",
+    "receipt_id": "rcpt_01HZX8CREATE",
+    "required_connection": {
+      "provider": "google"
+    },
+    "team_display_name": "Acme",
+    "verified_domain": "acme.example"
+  },
+  "timestamp": "2026-07-12T08:59:00Z"
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0124-bot-cargo-anchor",
+  "label": "Advance Bot Cargo workspace version to 0.1.24",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1023",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.24",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-11T20:15:19Z",
+  "proposal_digest": "sha256:309bf15539e44a26cda308249bb5973c0c72524633c1dce52f66ffc3bba175fd"
+}

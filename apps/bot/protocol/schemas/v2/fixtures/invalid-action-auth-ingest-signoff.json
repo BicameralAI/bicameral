@@ -1,0 +1,21 @@
+{
+  "_comment": "INVALID: External ingest attempting to carry signoff approval. Per action-authorization-policy.md, ExternalIngestEnvelope cannot carry actor authority, signoff, or approval-class actions.",
+  "_expected_behavior": "rejected — ingest cannot carry signoff approval",
+  "_spec_ref": "docs/specs/action-authorization-policy.md § Submit source evidence → Forbidden shortcut",
+  "source_system": "linear",
+  "source_uri": "https://linear.app/team/issue/PROJ-200",
+  "content": "Decision DEC-500 looks good. Signing off.",
+  "evidence": [
+    {
+      "excerpt": "Decision DEC-500 looks good",
+      "span_start": 0,
+      "span_end": 27,
+      "confidence": 0.88
+    }
+  ],
+  "signoff_approval": {
+    "target_id": "DEC-500",
+    "actor_id": "user-owner-03",
+    "approved": true
+  }
+}

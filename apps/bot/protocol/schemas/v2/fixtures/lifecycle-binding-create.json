@@ -1,0 +1,42 @@
+{
+  "_comment": "Bot-MCP lifecycle: accepted binding.create with graph snapshot and multiple targets",
+  "_expected_response": "Ok — verified binding evidence if accepted; typed unsupported/stale/ambiguous/snapshot_mismatch otherwise",
+  "mcp_tool": "bicameral.binding",
+  "tool_request": {
+    "request_id": "a0000003-0000-4000-8000-000000000003",
+    "command": {
+      "name": "binding.create",
+      "params": {
+        "decision_or_candidate_id": "DEC-101",
+        "bindings": [
+          {
+            "file": "src/routes/healthz.rs",
+            "range": "10:1-25:1",
+            "symbol": "HealthCheckHandler::handle"
+          },
+          {
+            "file": "src/db/pool.rs",
+            "range": null,
+            "symbol": "ConnectionPool::is_healthy"
+          }
+        ],
+        "commit_sha": "abc123def456",
+        "ref_name": "feature/healthz",
+        "graph_snapshot_id": "snap-001",
+        "validation_token": null
+      }
+    },
+    "authority": {
+      "actor_id": "agent-mcp-001",
+      "auth_method": "mcp_session",
+      "session_id": "sess-lifecycle-003",
+      "workspace": "/home/user/project",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp",
+        "mcp_tool": "bicameral.binding"
+      }
+    },
+    "issued_at": "2026-06-10T10:02:00Z"
+  }
+}

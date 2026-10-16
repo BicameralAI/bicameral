@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0114-cloud-migration-delivery",
+  "label": "Make Cloud database migrations manifest-bound delivery state",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "Cloud issue #213 first-class migration delivery controller and receipts",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.14",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-07-29T18:24:10Z",
+  "proposal_digest": "sha256:8ac520c4603c0dd79ca77cd2454e3d3cf8658d461deca9c87884878850243085"
+}

@@ -1,0 +1,50 @@
+name: Python Floor Smoke Test
+
+# Prevention gate for the #491 bug class: `pyproject.toml`'s
+# `requires-python` floor drifting from code that actually uses a
+# newer-version-only API. The lint gate (`ruff --target-version=py311`) catches most of
+# these statically; this runtime gate installs the package against the
+# declared floor and imports it end-to-end through the same path real
+# users hit (`bicameral-mcp --version`).
+#
+# Cheap by design: one Ubuntu job, single Python version, no test
+# suite. ~30 seconds on a warm runner.
+
+on:
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  install-and-import:
+    name: Install + import against declared Python floor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      # The declared floor in pyproject.toml is `requires-python = ">=3.11"`.
+      # If that floor moves, bump this version pin in the same PR — the
+      # contract is "CI runs against the lowest declared-supported Python."
+      - name: Set up Python 3.11 (declared floor)
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.11'
+
+      - name: Install locked dependencies
+        run: python -m pip install --require-hashes -r requirements-ci.lock
+
+      - name: Install package without resolving dependencies
+        # Build dependencies and runtime deps are installed from the hash-pinned
+        # lock above; --no-build-isolation prevents pip from resolving hatchling
+        # outside that lock.
+        run: |
+          python -m pip install --no-build-isolation --no-deps .
+
+      - name: Import smoke test (`bicameral-mcp --version`)
+        # `--version` is the smallest invocation that exercises the
+        # thin-client server.py top-level import chain. Run from outside
+        # the source tree so the installed package is exercised, not the
+        # in-tree files.
+        run: |
+          cd /tmp
+          bicameral-mcp --version

@@ -1,0 +1,88 @@
+{
+  "trace_id": "TRACE-checkout-retry",
+  "source_binding": {
+    "artifact_id": "plan.md",
+    "version": "git:abc123",
+    "content_digest": "sha256:plan"
+  },
+  "accepted_model_base": {
+    "model_id": "candidate-promotion",
+    "version": "7",
+    "content_digest": "sha256:model"
+  },
+  "extraction_profile": {
+    "profile_id": "smr-claim-trace-alpha-v1",
+    "placement": "local",
+    "provider_id": "test-provider",
+    "model_id": "test-model",
+    "prompt_template_id": "smr-claim-trace-alpha-v1",
+    "output_schema_id": "ClaimSemanticTraceV1",
+    "decoding_profile_id": "strict-structured-output-v1",
+    "provider_config_digest": "sha256:provider"
+  },
+  "occurrences": [
+    {
+      "occurrence_id": "STATE-failed",
+      "kind": "state",
+      "source_unit_refs": ["UNIT-1"],
+      "atom_binding": {
+        "kind": "proposed_identity",
+        "normalized_identity": "failed"
+      },
+      "unknown_dimensions": []
+    },
+    {
+      "occurrence_id": "STATE-retry-queued",
+      "kind": "state",
+      "source_unit_refs": ["UNIT-2"],
+      "atom_binding": {
+        "kind": "proposed_identity",
+        "normalized_identity": "retry_queued"
+      },
+      "unknown_dimensions": []
+    },
+    {
+      "occurrence_id": "ACTION-retry",
+      "kind": "action",
+      "source_unit_refs": ["UNIT-2"],
+      "atom_binding": {
+        "kind": "proposed_identity",
+        "normalized_identity": "retry"
+      },
+      "unknown_dimensions": []
+    }
+  ],
+  "assertions": [
+    {
+      "assertion_id": "ASSERT-retry-transition",
+      "source_unit_refs": ["UNIT-1", "UNIT-2"],
+      "action_occurrence_id": "ACTION-retry",
+      "binding_mode": "exact_tuple",
+      "modality": "permitted",
+      "polarity": "positive",
+      "quantifier": "one",
+      "pre_state_occurrence_id": "STATE-failed",
+      "post_state_occurrence_id": "STATE-retry-queued",
+      "guard_occurrence_ids": [],
+      "effect_occurrence_ids": [],
+      "exception_assertion_ids": [],
+      "unknown_dimensions": []
+    }
+  ],
+  "edges": [],
+  "semantic_relations": [
+    {
+      "relation_id": "REL-failed-is-not-queued",
+      "left_occurrence_id": "STATE-failed",
+      "right_occurrence_id": "STATE-retry-queued",
+      "relation": "distinct_from",
+      "source_unit_refs": ["UNIT-1", "UNIT-2"]
+    }
+  ],
+  "coverage": {
+    "status": "complete",
+    "source_unit_refs": ["UNIT-1", "UNIT-2"],
+    "unknown_dimensions": []
+  },
+  "result_digest": ""
+}

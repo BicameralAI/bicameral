@@ -1,0 +1,71 @@
+{
+  "amendment_id": "state-machine-resolver-v1-runtime-architecture-amendment-002",
+  "amendment_version": 2,
+  "base_contract_id": "state-machine-resolver-v1-runtime-architecture",
+  "base_contract_version": 1,
+  "effective_contract_version": "1.0.2",
+  "issue": 937,
+  "contract_pr": 942,
+  "disposition": "AMEND",
+  "normative": true,
+  "authorizes_implementation": false,
+  "authorizes_release": false,
+  "amendments": [
+    {
+      "id": "A17",
+      "target": "candidate_terminal_disposition",
+      "operation": "add_temporal_invariant"
+    },
+    {
+      "id": "A18",
+      "target": "append_time_authorization",
+      "operation": "add_temporal_invariant"
+    },
+    {
+      "id": "A19",
+      "target": "base_snapshot_freshness",
+      "operation": "add_temporal_invariant"
+    },
+    {
+      "id": "A20",
+      "target": "projection_read_freshness",
+      "operation": "add_temporal_invariant"
+    },
+    {
+      "id": "A21",
+      "target": "replay_totality",
+      "operation": "add_temporal_invariant"
+    },
+    {
+      "id": "A22",
+      "target": "model_atom_identity",
+      "operation": "add_semantic_identity_invariant"
+    },
+    {
+      "id": "A23",
+      "target": "decision_signoff_lifecycle",
+      "operation": "complete_authority_and_projection_semantics"
+    },
+    {
+      "id": "A24",
+      "target": "codegraph_boundary",
+      "operation": "replace_with_optional_recall_only"
+    }
+  ],
+  "conformance_obligations": [
+    "CONF-SMR-TERMINAL-DISPOSITION-01",
+    "CONF-SMR-APPEND-AUTHORITY-01",
+    "CONF-SMR-BASE-FRESHNESS-01",
+    "CONF-SMR-PROJECTION-CATCHUP-01",
+    "CONF-SMR-REPLAY-TOTALITY-01",
+    "CONF-SMR-MODEL-ATOM-IDENTITY-01",
+    "CONF-SMR-DECISION-AUTHORITY-01",
+    "CONF-SMR-CODEGRAPH-RECALL-ONLY-01"
+  ],
+  "journey_boundary_review": {
+    "journey_id": "developer_host_mcp_smr_claim_acceptance_v1",
+    "status": "passed_for_specification_boundary",
+    "catalog_and_terminal_execution": "delegated_to_issue_943",
+    "terminal_readiness_from_component_tests": false
+  }
+}

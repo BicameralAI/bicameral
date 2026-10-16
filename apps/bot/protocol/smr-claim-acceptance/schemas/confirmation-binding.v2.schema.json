@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/smr-claim-acceptance/v1/confirmation-binding.v2.schema.json",
+  "title": "ConfirmationChallengeV2",
+  "description": "Daemon-issued confirmation challenge, protocol version 2. Short-lived and daemon-memory-only; the operation result is durable in canonical event history. The challenge is authorization scratch, never Product state. The binding is a STRICT SUPERSET of the shipped v1 ChallengeBinding (crates/bicameral-api/src/confirmation_challenge.rs:123): workspace, session_id, packet_id, requested_outcome, and request_id are retained because they carry shipped typed fail-closed outcomes. Those fields are authorization scope, which is a separate concern from Product routing identity. TTL is 300 seconds, matching the shipped CONFIRMATION_CHALLENGE_TTL_SECONDS. See docs/specs/state-machine-resolver-v1-runtime-architecture.md section 7 and amendment 001.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "digest_profile_version",
+    "challenge_id",
+    "operation_id",
+    "request_id",
+    "action",
+    "actor_id",
+    "workspace",
+    "session_id",
+    "packet_id",
+    "product_id",
+    "candidate_id",
+    "candidate_generation",
+    "candidate_kind",
+    "requested_outcome",
+    "proposal_identity",
+    "issued_at",
+    "expires_at",
+    "display_summary",
+    "display_summary_digest",
+    "confirmation_binding_digest"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": 2,
+      "description": "A v1 challenge presented for an smr_claim_set_v1 candidate, or a v2 challenge presented for a decision_v1 candidate, fails closed with unsupported_contract_version."
+    },
+    "digest_profile_version": { "const": 1 },
+    "challenge_id": {
+      "$ref": "#/definitions/Uuid",
+      "description": "Cryptographically random. Single-use, actor-bound, and invalid after daemon restart."
+    },
+    "operation_id": {
+      "$ref": "#/definitions/Uuid",
+      "description": "Caller-supplied durable idempotency identity, unique per (product_id, actor_id). Caller supply is required: a daemon-minted identifier the caller never observed could not be retried after a lost response, which would defeat restart-safe idempotency."
+    },
+    "request_id": {
+      "$ref": "#/definitions/Uuid",
+      "description": "Retained from v1. Per-request audit correlation from the existing ToolRequest contract. Distinct from operation_id and never aliased to it."
+    },
+    "action": {
+      "enum": ["promote_smr_claim_set", "reject_smr_claim_set"]
+    },
+    "actor_id": { "type": "string", "minLength": 1 },
+    "workspace": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Retained from v1. Authorization scope, not Product routing identity. A mismatch fails closed as WorkspaceMismatch."
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Retained from v1. Agent session the request originated from. A mismatch fails closed as Unauthorized."
+    },
+    "packet_id": {
+      "$ref": "#/definitions/Uuid",
+      "description": "Retained from v1. RecallPacket the candidate was surfaced in. A mismatch fails closed as PacketMismatch."
+    },
+    "product_id": { "type": "string", "minLength": 1 },
+    "candidate_id": { "$ref": "#/definitions/Uuid" },
+    "candidate_generation": { "type": "integer", "minimum": 0 },
+    "candidate_kind": { "const": "smr_claim_set_v1" },
+    "requested_outcome": {
+      "enum": [
+        "new_constraint",
+        "supersedes_existing_decision",
+        "keeps_both_with_scope",
+        "needs_signoff_review",
+        "dismissed_as_noise"
+      ],
+      "description": "Retained from the shipped v1 ChallengeBinding. A mismatch fails closed as OutcomeMismatch. promote_smr_claim_set permits every value except dismissed_as_noise; reject_smr_claim_set requires dismissed_as_noise. Amendment 001 makes this action pairing normative and validator-enforced."
+    },
+    "proposal_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_set_digest",
+        "artifact_binding_digest",
+        "smr_base_snapshot_digest",
+        "base_event_position",
+        "claim_scope_digest",
+        "evidence_bundle_digest"
+      ],
+      "description": "Any mismatch invalidates the challenge, appends nothing, and returns a typed proposal_identity_mismatch naming the mismatched field. The daemon must not silently rehash, rewrite the proposal, substitute a newer candidate generation, or retry against a new snapshot.",
+      "properties": {
+        "claim_set_digest": { "$ref": "#/definitions/Digest" },
+        "artifact_binding_digest": { "$ref": "#/definitions/Digest" },
+        "smr_base_snapshot_digest": { "$ref": "#/definitions/Digest" },
+        "base_event_position": { "type": "integer", "minimum": 0 },
+        "claim_scope_digest": { "$ref": "#/definitions/Digest" },
+        "evidence_bundle_digest": { "$ref": "#/definitions/Digest" }
+      }
+    },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "issued_at plus exactly 300 seconds. The owner bundle proposed 600; that doubles the window in which a stale or confused-deputy confirmation can be replayed against a human gesture and diverges from the constant already enforced and tested in the runtime."
+    },
+    "display_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192,
+      "description": "Daemon-authored human-readable exact effect. MCP renders this verbatim and never authors it. Excluded from confirmation_binding_digest and from every semantic digest; bound indirectly through display_summary_digest so a cosmetic wording change cannot alter Claim identity."
+    },
+    "display_summary_digest": {
+      "$ref": "#/definitions/Digest",
+      "description": "Digest of display_summary. Included in confirmation_binding_digest so the human's confirmation provably covers the exact text they inspected."
+    },
+    "confirmation_binding_digest": {
+      "$ref": "#/definitions/Digest",
+      "description": "Domain-separated digest using artifact name confirmation-binding over every field in this object except display_summary and confirmation_binding_digest itself. requested_outcome is included."
+    }
+  },
+  "definitions": {
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

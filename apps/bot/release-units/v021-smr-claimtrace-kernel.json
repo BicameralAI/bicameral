@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v021-smr-claimtrace-kernel",
+  "label": "v0.2.1 deterministic ClaimTrace SMR kernel",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#941",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.2.1",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:Knapp-Kevin",
+  "proposed_at": "2026-07-29T16:34:00Z",
+  "proposal_digest": "sha256:fd92c5d285c9cb314d7e8db790d0fca83d0bd9191d0e216c4daec271b72063b8"
+}

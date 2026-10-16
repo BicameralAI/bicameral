@@ -1,0 +1,21 @@
+{
+  "_comment": "INVALID: External ingest attempting to carry a policy grant. Per action-authorization-policy.md, ExternalIngestEnvelope cannot carry policy grants or capability assignments.",
+  "_expected_behavior": "rejected — ingest cannot carry policy grants",
+  "_spec_ref": "docs/specs/action-authorization-policy.md § Submit source evidence → Forbidden shortcut",
+  "source_system": "jira",
+  "source_uri": "https://jira.example.com/ADMIN-001",
+  "content": "Grant review:signoff capability to user-dev-01",
+  "evidence": [
+    {
+      "excerpt": "Grant review:signoff capability to user-dev-01",
+      "span_start": 0,
+      "span_end": 47,
+      "confidence": 0.93
+    }
+  ],
+  "policy_grant": {
+    "actor_id": "user-dev-01",
+    "capability": "review:signoff",
+    "scope": "workspace"
+  }
+}

@@ -1,0 +1,82 @@
+name: UI Evidence
+
+# Headed browser evidence for the hosted dashboard SPA.
+#
+# Frontend PRs in this repo are routinely deterministic-green but cannot leave
+# draft, because "it renders correctly for a real operator, at desktop and at
+# phone width" is not something jsdom component tests can show. This workflow
+# runs the shared harness in `dashboard/tests/ui-evidence` against the real
+# built bundle in a real Chromium window and publishes the screenshots, traces,
+# and the SHA-bound evidence manifest as one artifact a PR can cite.
+#
+# Cost control: path-filtered to dashboard changes, one concurrent run per ref.
+
+on:
+  pull_request:
+    paths:
+      - "dashboard/**"
+      - ".github/workflows/ui-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  headed-ui-evidence:
+    name: headed-ui-evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      # Evidence must bind to the PR head, not the ephemeral merge commit, so
+      # the artifact can be cited against an exact reviewable SHA.
+      - name: Check out exact evidence head
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Resolve evidence identity
+        id: identity
+        run: |
+          SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          REF="${{ github.event.pull_request.head.ref || github.ref_name }}"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "artifact=ui-evidence-${SHA:0:12}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Install Chromium and system dependencies
+        working-directory: dashboard
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture headed UI evidence
+        working-directory: dashboard
+        env:
+          UI_EVIDENCE_HEADED: "1"
+          UI_EVIDENCE_SHA: ${{ steps.identity.outputs.sha }}
+          UI_EVIDENCE_REF: ${{ steps.identity.outputs.ref }}
+          UI_EVIDENCE_ARTIFACT: ${{ steps.identity.outputs.artifact }}
+        # A real windowed Chromium under Xvfb, not the headless shell.
+        run: xvfb-run -a npm run evidence:ui
+
+      - name: Publish evidence artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.identity.outputs.artifact }}
+          path: dashboard/evidence/ui
+          if-no-files-found: error
+          retention-days: 14

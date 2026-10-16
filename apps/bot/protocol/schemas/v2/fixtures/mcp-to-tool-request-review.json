@@ -1,0 +1,26 @@
+{
+  "_comment": "Valid MCP-to-ToolRequest mapping: bicameral.review (accept_candidate) → review.accept_candidate",
+  "mcp_tool": "bicameral.review",
+  "tool_request": {
+    "request_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "command": {
+      "name": "review.accept_candidate",
+      "params": {
+        "target_id": "CAND-001",
+        "reason": "Source evidence sufficient, no conflicts found"
+      }
+    },
+    "authority": {
+      "actor_id": "user-reviewer-01",
+      "auth_method": "cli",
+      "session_id": null,
+      "workspace": "/home/user/project",
+      "policy_scope": ["default", "review"],
+      "audit_metadata": {
+        "surface": "cli",
+        "cli_command": "bicameral review accept-candidate CAND-001"
+      }
+    },
+    "issued_at": "2026-06-01T11:00:00Z"
+  }
+}

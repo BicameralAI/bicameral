@@ -1,0 +1,22 @@
+{
+  "_comment": "INVALID: ProviderItemEnvelope must not carry bot lifecycle authority terms.",
+  "_expected_behavior": "rejected — provider items cannot set tracking state, compliance verdicts, signoff state, or governance results",
+  "_violation": "tracking_state, source_binding, and candidate fields attempt to inject bot lifecycle authority through a provider item envelope",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "item_id": "issue-42",
+  "item_type": "issue",
+  "content": "Fix the widget alignment bug",
+  "fetched_at": "2026-01-15T10:05:00Z",
+  "tracking_state": "active",
+  "source_binding": {
+    "binding_id": "bind-injected-001",
+    "approved_by": "attacker",
+    "approved_at": "2026-01-15T10:05:00Z"
+  },
+  "candidate": {
+    "title": "Injected candidate via provider item",
+    "body": "This should never become a DecisionCandidate",
+    "level": "product"
+  }
+}

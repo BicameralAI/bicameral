@@ -1,0 +1,50 @@
+{
+  "receipt_schema_version": 1,
+  "digest_profile_version": 1,
+  "operation_id": "4c8b1e75-9d30-4a62-b148-06f27ea395cd",
+  "typed_result": "proposal_identity_mismatch",
+  "mismatched_field": "digests.smr_base_snapshot_digest",
+  "routing": {
+    "product_id": "product.bicameral.core",
+    "event_stream_id": "stream.product.bicameral.core.governance"
+  },
+  "candidate": {
+    "candidate_id": "b2a7f4c1-8e93-4d5a-a016-3f9c7b2e5d80",
+    "generation": 4,
+    "kind": "smr_claim_set_v1"
+  },
+  "canonical": {
+    "appended": false,
+    "canonical_event_log_digest_before": "sha256:2c992954ee725d6c9ac0393737e56b808b52326f008db91e6e15972d0f710862",
+    "canonical_event_log_digest_after": "sha256:2c992954ee725d6c9ac0393737e56b808b52326f008db91e6e15972d0f710862"
+  },
+  "confirmation": {
+    "protocol_version": 2,
+    "binding_digest": "sha256:81cbd2bf4b34a3cdf1b299bf70901a0beda388f1384f2c6a2611f0730b957e8a",
+    "actor_id": "actor.product-member-01",
+    "action": "promote_smr_claim_set"
+  },
+  "working_state": {
+    "status_before": "proposed",
+    "status_after": "proposed",
+    "reconciliation_result": "not_applicable"
+  },
+  "smr": {
+    "provider_calls_during_replay": 0
+  },
+  "negative_controls": [
+    {
+      "control_id": "T1.mutate-base-snapshot-digest",
+      "expected_typed_result": "proposal_identity_mismatch",
+      "observed_typed_result": "proposal_identity_mismatch",
+      "failed_closed": true
+    }
+  ],
+  "sanitization": {
+    "secrets_redacted": true
+  },
+  "outcome": "diagnostic_passed",
+  "limitations": [
+    "Negative control only. Proves the fail-closed path, not the happy path."
+  ]
+}

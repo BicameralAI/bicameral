@@ -1,0 +1,18 @@
+{
+  "_comment": "INVALID: ProviderResourceDescriptor must not carry local actor/session authority (AuthorityContext).",
+  "_expected_behavior": "rejected — provider-fact objects are not ToolRequest and cannot carry local authority",
+  "_violation": "authority field attempts to inject local actor identity, session scope, and policy — these belong to ToolRequest only",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "display_name": "Hello World",
+  "resource_type": "repository",
+  "capabilities": ["list", "read"],
+  "captured_at": "2026-01-15T10:00:00Z",
+  "authority": {
+    "actor_id": "user-attacker-001",
+    "auth_method": "local_daemon",
+    "session_id": "sess-hijack-999",
+    "workspace": "/home/user/repos/target",
+    "policy_scope": ["admin", "governance_write"]
+  }
+}

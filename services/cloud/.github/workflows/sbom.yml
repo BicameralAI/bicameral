@@ -1,0 +1,21 @@
+name: SBOM
+
+# Adopts the org reusable SBOM workflow owned by bicameral-integrations (#105), SHA-pinned.
+# Declared in .bicameral/repo-governance.yaml required_checks.
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    uses: BicameralAI/bicameral-integrations/.github/workflows/_reusable-sbom.yml@f28ab9dd21e2ffc2f79597c587dcf3c575f9d2ea
+    with:
+      attest: ${{ github.event_name == 'release' }}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0119-mcp-771-retire-alpha-search-tools",
+  "label": "Retire bicameral.search and bicameral.review.candidates (#771)",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#771",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.19",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-04T15:10:42Z",
+  "proposal_digest": "sha256:8dc61e67259ca7419e23348a550bd5eb96b1cbc02d0b492ffb786cf959e70be2"
+}

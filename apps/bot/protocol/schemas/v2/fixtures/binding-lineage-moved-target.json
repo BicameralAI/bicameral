@@ -1,0 +1,42 @@
+{
+  "_comment": "Conformance fixture: moved target accepted as same lineage with verified identity continuity (ADR-0010 §Binding Lineage)",
+  "_acceptance_criteria": "issue #101 criterion 3",
+  "scenario": "moved_target_identity_continuity",
+  "description": "When a target moves (file rename, refactor), the graph layer may call it the same lineage only with verified evidence at the later snapshot plus identity continuity (structural hash, symbol name, resolver metadata).",
+  "initial_binding": {
+    "decision_id": "d3000000-0000-0000-0000-000000000001",
+    "binding_id": "b3000000-0000-0000-0000-000000000001",
+    "binding_type": "code_region",
+    "target": "src/old_path.rs:10-20",
+    "graph_snapshot_id": "gs-v1",
+    "validated_sha": "v1_sha_40chars_0000000000000000000000000",
+    "evidence_state": "verified"
+  },
+  "revalidation_event": {
+    "event_type": "revalidate_binding",
+    "binding_id": "b3000000-0000-0000-0000-000000000001",
+    "root_binding_id": "b3000000-0000-0000-0000-000000000001",
+    "original_graph_snapshot_id": "gs-v1",
+    "original_validated_sha": "v1_sha_40chars_0000000000000000000000000",
+    "current_graph_snapshot_id": "gs-v2",
+    "current_validated_sha": "v2_sha_40chars_0000000000000000000000000",
+    "evidence_state": "verified",
+    "outcome": "replaced",
+    "replacement_binding_id": "b3000000-0000-0000-0000-000000000002",
+    "symbol_identity": {
+      "symbol_name": "process_data",
+      "qualified_name": "crate::handlers::process_data",
+      "structural_hash": "sha256:struct-abc123",
+      "resolver_identity": "tree-sitter-rust@0.21",
+      "parser_metadata": "rust-1.75"
+    }
+  },
+  "expected_behavior": {
+    "original_binding_preserved": true,
+    "outcome": "replaced",
+    "replacement_binding_id_present": true,
+    "symbol_identity_required": true,
+    "structural_hash_proves_continuity": true,
+    "explanation": "Moved target is same lineage because structural_hash matches across snapshots and verified evidence exists at the later snapshot. Without symbol_identity, outcome would be inconclusive."
+  }
+}

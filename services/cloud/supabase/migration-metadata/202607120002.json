@@ -1,0 +1,8 @@
+{
+  "application_rollback_safe": true,
+  "compatibility": "expand",
+  "description": "Add Product join-ticket eligibility control.",
+  "execution_policy": "automatic",
+  "schema_version": 1,
+  "version": "202607120002"
+}

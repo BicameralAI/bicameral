@@ -1,0 +1,31 @@
+{
+  "canonical": false,
+  "canonical_creation_receipt_ref": "rcpt_01HZX8CREATE",
+  "creator_cloud_account_id": "acct_01HZX8PRIYA",
+  "event_store_hint": {
+    "provider": "google",
+    "substrate": "drive_folder"
+  },
+  "first_event_commit_proof": {
+    "attempt_id": "create-attempt-1",
+    "confirmed_at": "2026-07-26T06:00:00Z",
+    "durability": "provider_confirmed_remote",
+    "event_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "event_id": "0198d2b4-8a5c-7f22-9e31-9bb014cc8200",
+    "product_id": "prd_01hzx8checkout",
+    "proof_digest": "sha256:feca626260ecba8cc1d1dde5e32e36b911f2802c3e4358b9e59e512b394f07c7",
+    "provider_revision": "provider-revision-abc123",
+    "resource_fingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "schema_version": 2,
+    "signature": "rlOuOYNyJObt9uIAyzlY6aO4dIKzyCzlaZFjlqRwm8qa3Wz0sDVLrvII8+tKNEJNNQwdzXWQGJ8lrqZuQaErDw==",
+    "signature_algorithm": "ed25519",
+    "signer_key_id": "sha256:65b60673d6ed884bf01c2c222d82ada0740f29ac3355d6a925c81f17f47a27b8",
+    "substrate": "drive_folder"
+  },
+  "idempotency_key": "prd_01hzx8checkout:publish",
+  "product_id": "prd_01hzx8checkout",
+  "publication_id": "pub_01HZX8PROOF",
+  "published_at": "2026-07-26T06:00:30Z",
+  "team_display_name": "Acme",
+  "verified_domain": "acme.example"
+}

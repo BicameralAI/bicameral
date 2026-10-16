@@ -1,0 +1,33 @@
+name: Lint & Type Check
+
+on:
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  lint:
+    name: ruff + mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r requirements-ci.lock
+          python -m pip install --no-build-isolation --no-deps .
+      - name: Ruff check
+        run: ruff check .
+      - name: Ruff format check
+        run: ruff format --check .
+      - name: Mypy
+        run: mypy .
+      - name: Dependency audit
+        # PYSEC-2026-3721 (pip 26.1.2, fixed in 26.2) is pinned by the
+        # hash-locked requirements-ci.lock; the exemption is temporary and
+        # falls away with the next lock regeneration. CI-runner-only tool.
+        run: pip-audit --requirement requirements-ci.lock --ignore-vuln PYSEC-2026-3721

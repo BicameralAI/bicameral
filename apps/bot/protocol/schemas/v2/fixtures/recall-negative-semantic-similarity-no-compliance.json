@@ -1,0 +1,19 @@
+{
+  "_comment": "Negative fixture: semantic similarity cannot assert compliance",
+  "_invariant": "Semantic similarity over reviewed corpus text may rank and explain, but must not assert compliance, no-conflict, or binding validity. Compliance requires deterministic verification through the governed binding path.",
+  "_expected": "A recall result driven by semantic similarity alone must carry advisory authority labels only. It must not carry human_ratified labels, compliance_state, or enforcement fields.",
+  "_must_fail_if": "semantic similarity asserts compliance",
+  "scenario": {
+    "route": "semantic_textual_search",
+    "similarity_score": 0.95,
+    "corpus_match_count": 2
+  },
+  "required_authority_label": "advisory",
+  "forbidden_authority_labels": ["human_ratified"],
+  "forbidden_fields": [
+    "compliance_state",
+    "enforcement",
+    "binding_evidence",
+    "signoff_approval"
+  ]
+}

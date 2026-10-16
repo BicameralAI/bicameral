@@ -1,0 +1,398 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bicameral:schema:smr-feedback:v0.1",
+  "title": "SmrFeedbackRunRecordV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_id",
+    "experiment_revision",
+    "specification",
+    "schema",
+    "baseline",
+    "input",
+    "technical_pins",
+    "technical_pins_digest",
+    "result"
+  ],
+  "properties": {
+    "contract_id": { "const": "bicameral.smr-feedback.v0.1" },
+    "experiment_revision": { "const": "smr-feedback-v0.1-r2" },
+    "specification": { "$ref": "#/$defs/ArtifactIdentity" },
+    "schema": { "$ref": "#/$defs/ArtifactIdentity" },
+    "baseline": { "$ref": "#/$defs/AcceptedSmrBaselineV1" },
+    "input": { "$ref": "#/$defs/NoteIdentityV1" },
+    "technical_pins": { "$ref": "#/$defs/TechnicalPinsV1" },
+    "technical_pins_digest": { "$ref": "#/$defs/Sha256" },
+    "result": { "$ref": "#/$defs/EvaluationResultV1" }
+  },
+  "$defs": {
+    "Sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "GitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "ArtifactIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "path", "content_digest"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "revision": { "$ref": "#/$defs/GitSha" },
+        "path": { "type": "string", "pattern": "^[^/].+" },
+        "content_digest": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ReviewEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewer", "review_ref", "reviewed_at"],
+      "properties": {
+        "reviewer": { "type": "string", "minLength": 1 },
+        "review_ref": { "type": "string", "minLength": 1 },
+        "reviewed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AcceptedSmrBaselineV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "product_id",
+        "event_stream_id",
+        "replay_through_event_position",
+        "accepted_event_id",
+        "projection_digest",
+        "claim_set_digest",
+        "scope",
+        "owner",
+        "reviews"
+      ],
+      "properties": {
+        "contract_version": { "const": "accepted-smr-baseline/v1" },
+        "product_id": { "type": "string", "minLength": 1 },
+        "event_stream_id": { "type": "string", "minLength": 1 },
+        "replay_through_event_position": { "type": "integer", "minimum": 0 },
+        "accepted_event_id": { "$ref": "#/$defs/Uuid" },
+        "projection_digest": { "$ref": "#/$defs/Sha256" },
+        "claim_set_digest": { "$ref": "#/$defs/Sha256" },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "completeness", "exclusions"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "completeness": { "enum": ["complete", "partial"] },
+            "exclusions": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          }
+        },
+        "owner": { "type": "string", "minLength": 1 },
+        "reviews": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ReviewEvidence" }
+        }
+      }
+    },
+    "NoteIdentityV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note_digest", "media_type", "byte_length", "raw_retained", "privacy_gate"],
+      "properties": {
+        "note_digest": { "$ref": "#/$defs/Sha256" },
+        "media_type": { "enum": ["text/plain", "text/markdown"] },
+        "byte_length": { "type": "integer", "minimum": 0, "maximum": 32768 },
+        "raw_retained": { "const": false },
+        "privacy_gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "checklist_digest"],
+          "properties": {
+            "kind": { "enum": ["synthetic", "approved_live"] },
+            "checklist_digest": { "$ref": "#/$defs/Sha256" }
+          }
+        }
+      }
+    },
+    "TechnicalPinsV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_max_bytes",
+        "accepted_claim_max_count",
+        "accepted_model_atom_max_count",
+        "accepted_relation_max_count",
+        "connect_timeout_ms",
+        "extraction_timeout_ms",
+        "alloy_timeout_ms",
+        "command_deadline_ms",
+        "extraction_profile",
+        "prompt_revision",
+        "provider",
+        "model",
+        "alloy_version",
+        "alloy_distribution_digest",
+        "solver",
+        "java_version",
+        "analyzer_memory_mib"
+      ],
+      "properties": {
+        "input_max_bytes": { "const": 32768 },
+        "accepted_claim_max_count": { "const": 512 },
+        "accepted_model_atom_max_count": { "const": 4096 },
+        "accepted_relation_max_count": { "const": 8192 },
+        "connect_timeout_ms": { "const": 5000 },
+        "extraction_timeout_ms": { "const": 60000 },
+        "alloy_timeout_ms": { "const": 10000 },
+        "command_deadline_ms": { "const": 90000 },
+        "extraction_profile": { "const": "smr-claim-trace-alpha-v1" },
+        "prompt_revision": { "const": "smr-feedback-extraction-prompt-v1" },
+        "provider": { "const": "vertex-openai-compatible-adc" },
+        "model": { "const": "google/gemini-2.5-flash" },
+        "alloy_version": { "const": "6.2.0" },
+        "alloy_distribution_digest": {
+          "const": "sha256:6b8c1cb5bc93bedfc7c61435c4e1ab6e688a242dc702a394628d9a9801edb78d"
+        },
+        "solver": { "const": "SAT4J" },
+        "java_version": { "const": "17" },
+        "analyzer_memory_mib": { "const": 512 }
+      }
+    },
+    "SourceSpanV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_byte", "end_byte", "span_digest"],
+      "properties": {
+        "start_byte": { "type": "integer", "minimum": 0 },
+        "end_byte": { "type": "integer", "minimum": 1 },
+        "span_digest": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "CoverageV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "unknown_scope"],
+      "properties": {
+        "status": { "enum": ["complete_named_baseline", "unknown_scope"] },
+        "unknown_scope": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "unknown_scope" } } },
+          "then": { "properties": { "unknown_scope": { "minItems": 1 } } },
+          "else": { "properties": { "unknown_scope": { "maxItems": 0 } } }
+        }
+      ]
+    },
+    "AssertionResultV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assertion_id",
+        "ordinal",
+        "source_spans",
+        "evaluation_state",
+        "coverage",
+        "governing_relation_count",
+        "accepted_claim_refs",
+        "accepted_atom_refs",
+        "accepted_relation_refs",
+        "source_anchor_refs",
+        "construction_reasons",
+        "caveats"
+      ],
+      "properties": {
+        "assertion_id": { "$ref": "#/$defs/Sha256" },
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "source_spans": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/SourceSpanV1" }
+        },
+        "evaluation_state": { "enum": ["evaluated", "unevaluated"] },
+        "verdict": { "enum": ["entailed", "refuted", "underdetermined", "conflict"] },
+        "unevaluated_reason": { "type": "string", "minLength": 1 },
+        "evidence_state": {
+          "enum": ["supported", "conflicting", "no_governing_relation", "partial", "unavailable"]
+        },
+        "coverage": { "$ref": "#/$defs/CoverageV1" },
+        "governing_relation_count": { "type": "integer", "minimum": 0 },
+        "discovery_signal": { "const": "candidate_product_gap" },
+        "conflict_witness_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "accepted_claim_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "accepted_atom_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "accepted_relation_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "source_anchor_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "construction_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "caveats": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "evaluation_state": { "const": "evaluated" } } },
+          "then": { "required": ["verdict", "evidence_state"], "not": { "required": ["unevaluated_reason"] } },
+          "else": { "required": ["unevaluated_reason"], "not": { "required": ["verdict", "discovery_signal", "conflict_witness_refs"] } }
+        },
+        {
+          "if": { "required": ["discovery_signal"] },
+          "then": {
+            "properties": {
+              "evaluation_state": { "const": "evaluated" },
+              "verdict": { "const": "underdetermined" },
+              "coverage": {
+                "properties": {
+                  "status": { "const": "complete_named_baseline" },
+                  "unknown_scope": { "maxItems": 0 }
+                }
+              },
+              "governing_relation_count": { "const": 0 }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["verdict"],
+            "properties": { "verdict": { "const": "conflict" } }
+          },
+          "then": {
+            "required": ["conflict_witness_refs"],
+            "properties": { "conflict_witness_refs": { "minItems": 1 } }
+          },
+          "else": {
+            "properties": { "conflict_witness_refs": { "maxItems": 0 } }
+          }
+        }
+      ]
+    },
+    "VerdictCountsV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entailed", "refuted", "underdetermined", "conflict", "unevaluated"],
+      "properties": {
+        "entailed": { "type": "integer", "minimum": 0 },
+        "refuted": { "type": "integer", "minimum": 0 },
+        "underdetermined": { "type": "integer", "minimum": 0 },
+        "conflict": { "type": "integer", "minimum": 0 },
+        "unevaluated": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "EvaluationResultV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "status",
+        "assertions",
+        "counts",
+        "result_digest",
+        "limitations",
+        "recovery"
+      ],
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "status": {
+          "enum": ["bounded_result", "partial", "unavailable", "timeout", "malformed", "indeterminate", "refused"]
+        },
+        "failure_code": {
+          "enum": [
+            "privacy_gate_failed",
+            "input_capacity_exceeded",
+            "source_capacity_exceeded",
+            "baseline_invalid",
+            "baseline_digest_mismatch",
+            "trace_invalid",
+            "ambiguous_scope",
+            "unsupported_extraction_profile",
+            "provider_unavailable",
+            "analyzer_unavailable",
+            "connect_timeout",
+            "extraction_timeout",
+            "analyzer_timeout",
+            "command_timeout",
+            "unsupported_semantics",
+            "indeterminate_mapping",
+            "result_invalid"
+          ]
+        },
+        "assertions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AssertionResultV1" }
+        },
+        "counts": { "$ref": "#/$defs/VerdictCountsV1" },
+        "trace_digest": { "$ref": "#/$defs/Sha256" },
+        "accepted_snapshot_digest": { "$ref": "#/$defs/Sha256" },
+        "alloy_snapshot_digest": { "$ref": "#/$defs/Sha256" },
+        "result_digest": { "$ref": "#/$defs/Sha256" },
+        "limitations": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "recovery": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "bounded_result" } } },
+          "then": {
+            "required": ["trace_digest", "accepted_snapshot_digest", "alloy_snapshot_digest"],
+            "not": { "required": ["failure_code"] },
+            "properties": { "assertions": { "minItems": 1 } }
+          },
+          "else": {
+            "required": ["failure_code"],
+            "properties": {
+              "limitations": { "minItems": 1 },
+              "recovery": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

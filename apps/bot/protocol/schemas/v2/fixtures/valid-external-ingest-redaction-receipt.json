@@ -1,0 +1,39 @@
+{
+  "source_system": "github",
+  "source_uri": "https://github.com/BicameralAI/example/issues/7",
+  "content": "Contact [redacted:email] before rollout.",
+  "evidence": [
+    {
+      "excerpt": "Contact [redacted:email] before rollout."
+    }
+  ],
+  "candidate_hints": [
+    {
+      "title": "Rollout contact was sanitized",
+      "body": "Contact [redacted:email] before rollout.",
+      "labels": [
+        "emission_type:evidence",
+        "redaction:v1",
+        "redaction_ruleset:fx-sec-001-plus-pii-v1"
+      ]
+    }
+  ],
+  "redaction_receipt": {
+    "schema_version": 1,
+    "engine": "bicameral-stdlib-redaction",
+    "engine_version": "1.0.0",
+    "ruleset_id": "fx-sec-001-plus-pii-v1",
+    "ruleset_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "input_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "output_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "findings": [
+      {
+        "category": "pii",
+        "action": "tokenized",
+        "count": 1
+      }
+    ],
+    "structural_fields_preserved": true,
+    "completed_at": "2026-07-17T21:00:00Z"
+  }
+}

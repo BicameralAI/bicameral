@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/onboarding/v1/product-creation-result.schema.json",
+  "title": "ProductCreationResult",
+  "description": "Daemon-canonical result of product.create. Creator roles are materialized atomically as Policy Owner + Product Owner in a single membership event. See docs/specs/domain-product-onboarding-contract.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "product_id",
+    "creator_cloud_account_id",
+    "creator_roles",
+    "membership_event_ref",
+    "governance_policy_version",
+    "receipt_id",
+    "created_at"
+  ],
+  "properties": {
+    "product_id": {
+      "type": "string",
+      "description": "Canonical Product identity minted by the daemon."
+    },
+    "creator_cloud_account_id": {
+      "type": "string"
+    },
+    "creator_roles": {
+      "type": "array",
+      "description": "Atomic creator role set: exactly Policy Owner and Product Owner. Never a partial grant.",
+      "items": { "type": "string", "enum": ["Policy Owner", "Product Owner"] },
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true
+    },
+    "membership_event_ref": {
+      "type": "string",
+      "description": "Canonical Decision Ledger membership event reference for the atomic creator materialization."
+    },
+    "governance_policy_version": {
+      "type": "string",
+      "description": "Canonical, versioned Governance Policy Version created with the Product."
+    },
+    "receipt_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

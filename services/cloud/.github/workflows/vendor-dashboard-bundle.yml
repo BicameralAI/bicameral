@@ -1,0 +1,94 @@
+name: Vendor Dashboard Bundle
+
+on:
+  repository_dispatch:
+    types: [dashboard_bundle_released]
+  workflow_dispatch:
+    inputs:
+      bot_sha:
+        description: "bicameral-bot commit SHA vendor"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  vendor:
+    name: vendor-dashboard
+    runs-on: ubuntu-latest
+    env:
+      BOT_SHA: ${{ github.event.client_payload.bot_sha || inputs.bot_sha }}
+      SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository || 'BicameralAI/bicameral-bot' }}
+      SOURCE_RUN_URL: ${{ github.event.client_payload.source_run_url || github.server_url }}
+      HOSTED_BRIDGE_CONTRACT_SHA256: ${{ github.event.client_payload.hosted_bridge_contract_sha256 || '' }}
+      DASHBOARD_BUNDLE_URL: ${{ github.event.client_payload.dashboard_bundle_url || '' }}
+      DASHBOARD_BUNDLE_SHA256: ${{ github.event.client_payload.dashboard_bundle_sha256 || '' }}
+      BOT_DESCRIPTOR_DIGEST: ${{ github.event.client_payload.bot_descriptor_digest || '' }}
+    steps:
+      - name: Check out cloud
+        uses: actions/checkout@v4
+
+      - name: Download and verify immutable dashboard artifact
+        run: |
+          set -euo pipefail
+          test -n "${DASHBOARD_BUNDLE_URL}" && test -n "${DASHBOARD_BUNDLE_SHA256}"
+          curl --fail-with-body --location --retry 3 "${DASHBOARD_BUNDLE_URL}" --output dashboard.tar.gz
+          echo "${DASHBOARD_BUNDLE_SHA256}  dashboard.tar.gz" | sha256sum --check --status
+          mkdir -p _dashboard_source
+          tar -xzf dashboard.tar.gz -C _dashboard_source
+          DASHBOARD_BOT_SHA="${BOT_SHA}" \
+          DASHBOARD_SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" \
+          DASHBOARD_SOURCE_RUN_URL="${SOURCE_RUN_URL}" \
+          HOSTED_BRIDGE_CONTRACT_SHA256="${HOSTED_BRIDGE_CONTRACT_SHA256}" \
+          DASHBOARD_ARTIFACT_SHA256="${DASHBOARD_BUNDLE_SHA256}" \
+          BOT_DESCRIPTOR_DIGEST="${BOT_DESCRIPTOR_DIGEST}" \
+          DASHBOARD_ALREADY_BUILT=1 \
+          scripts/vendor_dashboard.sh _dashboard_source/dashboard
+
+      - name: Validate cloud dashboard surface
+        run: |
+          python -m pip install -e '.[dev]'
+          pytest -q tests/test_dashboard.py
+
+      - name: Open or update vendor PR
+        env:
+          GH_TOKEN: ${{ secrets.BICAMERAL_CROSS_REPO_TOKEN || secrets.BICAMERAL_BOT_READ_TOKEN }}
+        run: |
+          short_sha="${BOT_SHA:0:12}"
+          branch="chore/vendor-dashboard-latest"
+          body_file="$(mktemp)"
+
+          cat > "${body_file}" <<BODY
+          ## Summary
+          - vendor dashboard SPA from ${SOURCE_REPOSITORY}@${BOT_SHA}
+          - pin hosted-bridge contract ${HOSTED_BRIDGE_CONTRACT_SHA256}
+          - update /app/version.json bundle metadata
+
+          Source run: ${SOURCE_RUN_URL}
+
+          ## Validation
+          - pytest -q tests/test_dashboard.py
+          BODY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "${branch}"
+          git add src/bicameral_cloud/static/dashboard src/bicameral_cloud/contracts release-inputs/bot-release-descriptor.json
+
+          if git diff --cached --quiet; then
+            echo "No dashboard bundle changes vendor."
+            exit 0
+          fi
+
+          git commit -m "chore(dashboard): vendor bot dashboard ${short_sha}"
+          git push --force origin "${branch}"
+
+          gh pr create \
+            --base dev \
+            --head "${branch}" \
+            --title "chore(dashboard): vendor latest bot dashboard and bridge contract" \
+            --body-file "${body_file}" \
+          || gh pr edit "${branch}" \
+            --title "chore(dashboard): vendor latest bot dashboard and bridge contract" \
+            --body-file "${body_file}"

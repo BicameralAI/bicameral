@@ -1,0 +1,47 @@
+{
+  "_comment": "Commit-driven preflight freshness read-model (issue #625): freshness-touched-file-changed. Daemon-authored, evidence-only; surfaces render this verbatim.",
+  "_expected": {
+    "commit_freshness": "touched_stale",
+    "currentness": "content_changed",
+    "evidence_state": "unknown_stale",
+    "graph_readiness": "ready"
+  },
+  "freshness": {
+    "caveats": [
+      {
+        "code": "graph_stale",
+        "current_head_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+        "message": "A newer commit touched code in this evidence's scope; freshness is downgraded until a bounded touched-scope refresh completes.",
+        "snapshot_id": "snap-2026-06-12-aaaa1111"
+      }
+    ],
+    "commit_freshness": "touched_stale",
+    "currentness": "content_changed",
+    "evidence_state": "unknown_stale",
+    "graph_readiness": "ready",
+    "graph_snapshot": {
+      "commit_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+      "graph_snapshot_id": "snap-2026-06-12-aaaa1111",
+      "index_version": "idx-7",
+      "ref_name": "refs/heads/dev",
+      "repo_id": "repo-bicameral-bot"
+    },
+    "next_actions": [
+      "request_touched_refresh",
+      "inspect_evidence"
+    ],
+    "refresh_outcome": "stale",
+    "scope": {
+      "completeness": "file_scoped",
+      "graph_slice_id": "slice-touched-file",
+      "scope_fingerprint": "fp-slice-touched-file",
+      "scope_kind": "file_scoped"
+    },
+    "touched_scope": {
+      "detection": "diff_context",
+      "files": [
+        "crates/bicameral-runtime/src/preflight.rs"
+      ]
+    }
+  }
+}

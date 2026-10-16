@@ -1,0 +1,14 @@
+{
+  "cloud_account_id": "acct_01HZX8DANA",
+  "decided_at": "2026-07-12T09:12:00Z",
+  "failure": {
+    "code": "wrong_account",
+    "message": "Ticket cloud_account_id is not bound to the locally confirmed actor context."
+  },
+  "granted_role": null,
+  "membership_event_ref": null,
+  "outcome": "rejected",
+  "product_id": "prd_01HZX8CHECKOUT",
+  "receipt_id": null,
+  "request_id": "jrq_01HZX8WRONGACCT"
+}

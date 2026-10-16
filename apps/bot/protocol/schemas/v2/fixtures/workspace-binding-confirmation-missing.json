@@ -1,0 +1,40 @@
+{
+  "scenario": "confirmation-missing",
+  "description": "MCP proposed a safe candidate for a registered, unbound project, but the request carried no explicit operator confirmation. The daemon fails closed with the typed confirmation_missing error and leaves the project local_workspace_unbound. The hosted-safe view exposes no local path.",
+  "local": {
+    "request": {
+      "proposal": {
+        "project_id": "proj_ada",
+        "display": {
+          "display_name": "Ada Service",
+          "project_slug": "ada-service",
+          "candidate_label": "ada-service"
+        },
+        "candidate_path": "/home/alex/code/ada-service",
+        "source_surface": "mcp",
+        "reason": "Open editor workspace matches the registered project.",
+        "confidence": 0.82
+      },
+      "confirmed": false,
+      "expected_current_state": "local_workspace_unbound"
+    },
+    "error": {
+      "error": "confirmation_missing",
+      "project_id": "proj_ada",
+      "message": "Explicit operator confirmation is required to bind a workspace.",
+      "state": "local_workspace_unbound",
+      "retry_after_repair": true
+    }
+  },
+  "hosted_safe_view": {
+    "project_id": "proj_ada",
+    "state": "local_workspace_unbound",
+    "display": {
+      "display_name": "Ada Service",
+      "project_slug": "ada-service",
+      "candidate_label": "ada-service"
+    },
+    "bind_available": true,
+    "status_message": "Confirm the proposed folder to bind this project's workspace."
+  }
+}

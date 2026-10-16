@@ -1,0 +1,187 @@
+{
+  "digest_profile_version": 1,
+  "construction": "\"sha256:\" || lowerhex(SHA-256(UTF8(\"bicameral/<artifact-name>/v1\") || 0x00 || JCS(normalized_value)))",
+  "canonicalization": "RFC 8785 JSON Canonicalization Scheme",
+  "note": "Cross-language golden vectors. An implementation in any language must reproduce every expected_digest exactly. Equality pairs V4/V5 and V9/V10 prove key-order independence and NFC normalization. V1/V2 prove domain separation.",
+  "equality_pairs": [
+    {
+      "a": "V4-KEY-ORDER-A",
+      "b": "V5-KEY-ORDER-B",
+      "reason": "JCS sorts object keys"
+    },
+    {
+      "a": "V9-NFC-PRECOMPOSED",
+      "b": "V10-NFC-COMPOSED",
+      "reason": "strings are NFC-normalized"
+    }
+  ],
+  "inequality_pairs": [
+    {
+      "a": "V1-EMPTY",
+      "b": "V2-DOMAIN-SEPARATION",
+      "reason": "domain tag separates identical values"
+    }
+  ],
+  "vectors": [
+    {
+      "vector_id": "V1-EMPTY",
+      "artifact_name": "claim-set",
+      "normalized_value": {},
+      "expected_digest": "sha256:2e9b5ab32d6c6b8327a076af7ec521067b29a7a3252d8d1684c8e93f9e7a5489",
+      "note": "Empty normalized value. Proves the domain tag and 0x00 separator participate in the digest."
+    },
+    {
+      "vector_id": "V2-DOMAIN-SEPARATION",
+      "artifact_name": "claim-scope",
+      "normalized_value": {},
+      "expected_digest": "sha256:1ee34806ea07e26332eb03cfd0f229d0362158e0820bd52a8a95e1d6729b27d6",
+      "note": "Identical value, different artifact name. Must differ from V1-EMPTY, proving domain separation."
+    },
+    {
+      "vector_id": "V3-ARTIFACT-BINDING",
+      "artifact_name": "artifact-binding",
+      "normalized_value": {
+        "repository_id": "bicameral/bicameral-bot",
+        "git_head": "d4f768368e5b917fe54a4d5b0e4dc68a60cce8af",
+        "artifact_path": "docs/specs/state-machine-resolver-v1-runtime-architecture.md",
+        "blob_id": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+        "artifact_content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected_digest": "sha256:0445aa683bb74c6c5a433f65521380456abc73e1503e1d05f43a3f3aff6b923a",
+      "note": "Realistic artifact binding object."
+    },
+    {
+      "vector_id": "V4-KEY-ORDER-A",
+      "artifact_name": "claim-set",
+      "normalized_value": {
+        "alpha": 1,
+        "beta": 2,
+        "gamma": 3
+      },
+      "expected_digest": "sha256:aa5b30e3fdfde3073461b3c9c80fad00ad9abaa27a7150000ddeae4604b21904",
+      "note": "Object keys in ascending order."
+    },
+    {
+      "vector_id": "V5-KEY-ORDER-B",
+      "artifact_name": "claim-set",
+      "normalized_value": {
+        "gamma": 3,
+        "beta": 2,
+        "alpha": 1
+      },
+      "expected_digest": "sha256:aa5b30e3fdfde3073461b3c9c80fad00ad9abaa27a7150000ddeae4604b21904",
+      "note": "Same object, keys supplied in descending order. Digest MUST equal V4-KEY-ORDER-A: JCS sorts keys."
+    },
+    {
+      "vector_id": "V6-SET-SORTED",
+      "artifact_name": "claim-set",
+      "normalized_value": {
+        "model_atoms": [
+          {
+            "atom_id": "atom.a",
+            "atom_kind": "state",
+            "semantic_key": "Draft",
+            "scope_id": "scope.root"
+          },
+          {
+            "atom_id": "atom.b",
+            "atom_kind": "state",
+            "semantic_key": "Review",
+            "scope_id": "scope.root"
+          },
+          {
+            "atom_id": "atom.c",
+            "atom_kind": "transition",
+            "semantic_key": "submit",
+            "scope_id": "scope.root"
+          }
+        ]
+      },
+      "expected_digest": "sha256:661b2667c2c8c32c025b12162b42dcd5660e7cf6b8b0bd394f826d6a709aed41",
+      "note": "Set-like array already deduplicated and sorted by atom_id. This is the canonical form a producer must emit before JCS."
+    },
+    {
+      "vector_id": "V8-ORDERED-ORDINALS",
+      "artifact_name": "claim-set",
+      "normalized_value": {
+        "atom_relations": [
+          {
+            "relation_id": "rel.1",
+            "relation_kind": "precedes",
+            "from_atom_id": "atom.a",
+            "to_atom_id": "atom.b",
+            "supporting_claim_ids": ["claim.a"],
+            "supporting_source_anchor_ids": ["anchor.a"],
+            "ordinal": 0
+          },
+          {
+            "relation_id": "rel.2",
+            "relation_kind": "precedes",
+            "from_atom_id": "atom.b",
+            "to_atom_id": "atom.c",
+            "supporting_claim_ids": ["claim.b"],
+            "supporting_source_anchor_ids": ["anchor.b"],
+            "ordinal": 1
+          }
+        ]
+      },
+      "expected_digest": "sha256:c2294860f6cb60b396830adb7df70f610f66a077e2e952a08d315ba218a02860",
+      "note": "Ordered lifecycle fragment carries explicit integer ordinals. Array position alone is never semantic."
+    },
+    {
+      "vector_id": "V9-NFC-PRECOMPOSED",
+      "artifact_name": "claim-set",
+      "normalized_value": {
+        "semantic_key": "Idée"
+      },
+      "expected_digest": "sha256:04f2905054e420147ac54adb0a8bda89e48ec4c29c53d4e42a3f4c29d4e183da",
+      "note": "Decomposed 'Ide\\u0301e' NFC-normalizes to precomposed 'Id\\u00e9e'. Digest MUST equal V10-NFC-COMPOSED."
+    },
+    {
+      "vector_id": "V10-NFC-COMPOSED",
+      "artifact_name": "claim-set",
+      "normalized_value": {
+        "semantic_key": "Idée"
+      },
+      "expected_digest": "sha256:04f2905054e420147ac54adb0a8bda89e48ec4c29c53d4e42a3f4c29d4e183da",
+      "note": "Precomposed 'Id\\u00e9e'. Digest MUST equal V9-NFC-PRECOMPOSED."
+    },
+    {
+      "vector_id": "V11-DISPLAY-SUMMARY",
+      "artifact_name": "display-summary",
+      "normalized_value": "Promote 3 Claims and 7 ModelAtoms into a new proposed Decision.",
+      "expected_digest": "sha256:7308890068f5ac5ada47ee821feeb7e089503989d3b67fe98169756f297549dd",
+      "note": "Display summary digest. The text is bound only through this digest and never enters a semantic digest."
+    },
+    {
+      "vector_id": "V12-MODEL-ATOM-IDENTITY",
+      "artifact_name": "model-atom",
+      "normalized_value": {
+        "atom_kind": "state",
+        "semantic_key": "retained-retryable-product-draft",
+        "scope_id": "scope.alpha.product-creation-workspace-routing"
+      },
+      "expected_jcs_utf8_hex": "7b2261746f6d5f6b696e64223a227374617465222c2273636f70655f6964223a2273636f70652e616c7068612e70726f647563742d6372656174696f6e2d776f726b73706163652d726f7574696e67222c2273656d616e7469635f6b6579223a2272657461696e65642d726574727961626c652d70726f647563742d6472616674227d",
+      "expected_preimage_hex": "626963616d6572616c2f6d6f64656c2d61746f6d2f7631007b2261746f6d5f6b696e64223a227374617465222c2273636f70655f6964223a2273636f70652e616c7068612e70726f647563742d6372656174696f6e2d776f726b73706163652d726f7574696e67222c2273656d616e7469635f6b6579223a2272657461696e65642d726574727961626c652d70726f647563742d6472616674227d",
+      "expected_digest": "sha256:3a3c9dfd50edf8637f70767beb2c196d48cc04fdbd8804059e01b4e066466888",
+      "note": "Proposed exact ModelAtom identity encoding for #1221. atom_id is this digest over atom_kind, scope_id, and semantic_key only."
+    },
+    {
+      "vector_id": "V13-EMPTY-SMR-BASE-SNAPSHOT",
+      "artifact_name": "smr-base-snapshot",
+      "normalized_value": {
+        "claims": [],
+        "model_atoms": [],
+        "claim_assertions": [],
+        "atom_relations": [],
+        "scopes": [],
+        "closure_assertions": [],
+        "source_anchors": []
+      },
+      "expected_jcs_utf8_hex": "7b2261746f6d5f72656c6174696f6e73223a5b5d2c22636c61696d5f617373657274696f6e73223a5b5d2c22636c61696d73223a5b5d2c22636c6f737572655f617373657274696f6e73223a5b5d2c226d6f64656c5f61746f6d73223a5b5d2c2273636f706573223a5b5d2c22736f757263655f616e63686f7273223a5b5d7d",
+      "expected_preimage_hex": "626963616d6572616c2f736d722d626173652d736e617073686f742f7631007b2261746f6d5f72656c6174696f6e73223a5b5d2c22636c61696d5f617373657274696f6e73223a5b5d2c22636c61696d73223a5b5d2c22636c6f737572655f617373657274696f6e73223a5b5d2c226d6f64656c5f61746f6d73223a5b5d2c2273636f706573223a5b5d2c22736f757263655f616e63686f7273223a5b5d7d",
+      "expected_digest": "sha256:34898ecac394da50dfda4b2235ef7a216edf9f8e09b6622943703e8f9cf26fb9",
+      "note": "Proposed exact accepted projection at base_event_position 0 for #1221. All seven normalized Claim-set collections are present and empty."
+    }
+  ]
+}

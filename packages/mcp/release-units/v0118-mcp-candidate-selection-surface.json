@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0118-mcp-candidate-selection-surface",
+  "label": "v0.1.18 MCP render exact CandidateSet and mediate explicit confirmation (#785)",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#785",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.18",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "product-owner:Knapp-Kevin",
+  "proposed_at": "2026-08-03T16:14:00Z",
+  "proposal_digest": "sha256:00710ef9e8b0de6dcf7658995ad3bb0aa0333cbf17b9a530d60c04a777e0f347"
+}

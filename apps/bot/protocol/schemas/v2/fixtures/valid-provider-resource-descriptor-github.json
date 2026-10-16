@@ -1,0 +1,23 @@
+{
+  "_comment": "Golden ProviderResourceDescriptor for GitHub (#523): a repository resource exposed by the integrations provider. Provider-neutral discovery fact with capabilities, permission, freshness, and screened namespaced extension metadata.",
+  "_expected_behavior": "accepted — describes a discoverable GitHub repository without governance, review, or binding authority",
+  "_authority_boundary": "Provisional alpha provider-fact handoff object. It is NOT a SourceBinding, Source, SourceSnapshot, SourceEvidence, DecisionCandidate, review command, signoff, compliance, or event-store authority object. provider_metadata holds only screened, non-authoritative provider facts.",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "display_name": "octocat/hello-world",
+  "resource_type": "repository",
+  "uri": "https://github.com/octocat/hello-world",
+  "capabilities": ["list", "read", "search", "watch", "incremental_fetch"],
+  "permission": "granted",
+  "freshness": {
+    "last_modified": "2026-06-10T18:22:00Z",
+    "etag": "W/\"9f1c2a\"",
+    "item_count": 412
+  },
+  "provider_metadata": {
+    "default_branch": "main",
+    "visibility": "private",
+    "archived": false
+  },
+  "captured_at": "2026-06-15T12:00:00Z"
+}

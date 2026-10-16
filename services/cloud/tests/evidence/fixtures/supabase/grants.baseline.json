@@ -1,0 +1,4 @@
+[
+  {"grantee": "service_role", "table_name": "design_partner_allowlist", "privilege_type": "SELECT"},
+  {"grantee": "service_role", "table_name": "product_directory", "privilege_type": "SELECT"}
+]

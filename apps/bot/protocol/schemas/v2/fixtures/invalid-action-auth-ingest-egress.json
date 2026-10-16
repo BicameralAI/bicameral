@@ -1,0 +1,22 @@
+{
+  "_comment": "INVALID: External ingest attempting to carry an egress/publish command. Per action-authorization-policy.md, ExternalIngestEnvelope cannot trigger egress writes — egress requires propose/approval separation with Product Owner approval.",
+  "_expected_behavior": "rejected — ingest cannot carry egress/publish commands",
+  "_spec_ref": "docs/specs/action-authorization-policy.md § Egress external write",
+  "source_system": "slack",
+  "source_uri": "https://slack.com/archives/C02/p1111111111",
+  "content": "Please publish DEC-900 to Linear as a work item",
+  "evidence": [
+    {
+      "excerpt": "publish DEC-900 to Linear as a work item",
+      "span_start": 7,
+      "span_end": 48,
+      "confidence": 0.87
+    }
+  ],
+  "egress_command": {
+    "target_id": "DEC-900",
+    "operation": "create_issue",
+    "target_system": "linear",
+    "profile_id": "linear.issue.work_item.v1"
+  }
+}

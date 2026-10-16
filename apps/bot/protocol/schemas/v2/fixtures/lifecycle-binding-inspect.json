@@ -1,0 +1,29 @@
+{
+  "_comment": "Bot-MCP lifecycle: accepted binding.inspect — read accepted evidence and currentness",
+  "_expected_response": "Ok — binding status, provenance, currentness, source links",
+  "mcp_tool": "bicameral.binding",
+  "tool_request": {
+    "request_id": "a0000004-0000-4000-8000-000000000004",
+    "command": {
+      "name": "binding.inspect",
+      "params": {
+        "decision_or_candidate_id": "DEC-101",
+        "commit_sha": "abc123def456",
+        "ref_name": "main",
+        "graph_snapshot_id": "snap-001"
+      }
+    },
+    "authority": {
+      "actor_id": "agent-mcp-001",
+      "auth_method": "mcp_session",
+      "session_id": "sess-lifecycle-004",
+      "workspace": "/home/user/project",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp",
+        "mcp_tool": "bicameral.binding"
+      }
+    },
+    "issued_at": "2026-06-10T10:03:00Z"
+  }
+}

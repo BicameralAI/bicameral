@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "contract_id": "bicameral.semantic-resolution",
+  "expected_artifact_sha256": "sha256:f35134886ed4a58a279aaef5de1c1404a4c3676f493f4470e3212d0e2f5a6459",
+  "required_obligations": [
+    "SRC-FAILURE-01",
+    "SRC-SCOPE-01",
+    "SRC-PROVENANCE-01",
+    "SRC-AUTHORITY-01"
+  ],
+  "producer": {
+    "repository": "BicameralAI/bicameral-bot",
+    "source_issue": 987,
+    "source_pr": 1019,
+    "source_ref": "feat/987-candidate-selection-atomic-commit",
+    "candidate_session_contract": {
+      "path": "crates/bicameral-api/src/candidate_session.rs",
+      "blob_sha": "0aaa1a1a9c290ba7d85431b0af91223f4dd6cd23",
+      "contract_version": 1
+    },
+    "candidate_selection_contract": {
+      "path": "crates/bicameral-api/src/candidate_selection.rs",
+      "blob_sha": "2d69d6afbb0e9f37c8e077e5367b54ec7bbfc648",
+      "contract_version": 1
+    }
+  },
+  "consumer": {
+    "repository": "BicameralAI/bicameral-mcp",
+    "source_issue": 785,
+    "surface_module": "candidate_selection_surface.py"
+  },
+  "exact_contract_bytes_vendored": false,
+  "status": "draft_renderer_and_transport_slice",
+  "notes": [
+    "This lock prevents the first MCP slice from silently claiming a different semantic contract.",
+    "Exact capability-contract bytes and automated fingerprint verification remain required before merge.",
+    "The Bot source ref is a producer implementation branch, not release or activation authority."
+  ]
+}

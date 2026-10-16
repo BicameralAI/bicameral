@@ -1,0 +1,39 @@
+{
+  "scenario": "rejected-unsafe-path",
+  "description": "The proposed candidate_path failed the daemon's local safety policy (e.g. a sensitive system directory). The daemon rejects the bind with the typed unsafe_path error and leaves the project local_workspace_unbound. The hosted-safe view never carries the rejected local path.",
+  "local": {
+    "request": {
+      "proposal": {
+        "project_id": "proj_ada",
+        "display": {
+          "display_name": "Ada Service",
+          "project_slug": "ada-service",
+          "candidate_label": "etc"
+        },
+        "candidate_path": "/etc",
+        "source_surface": "mcp",
+        "reason": "Editor was opened at a system directory.",
+        "confidence": 0.4
+      },
+      "confirmed": true,
+      "expected_current_state": "local_workspace_unbound"
+    },
+    "error": {
+      "error": "unsafe_path",
+      "project_id": "proj_ada",
+      "message": "Candidate path failed the local safety policy.",
+      "state": "local_workspace_unbound",
+      "retry_after_repair": true
+    }
+  },
+  "hosted_safe_view": {
+    "project_id": "proj_ada",
+    "state": "local_workspace_unbound",
+    "display": {
+      "display_name": "Ada Service",
+      "project_slug": "ada-service"
+    },
+    "bind_available": true,
+    "status_message": "Proposed folder was rejected as unsafe. Choose a project folder to bind."
+  }
+}

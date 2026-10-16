@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0121-cloud-connect-device-shell-promote",
+  "label": "Promote spa-mock connect-device purple rail onto Cloud /dashboard",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "BicameralAI/bicameral-cloud#dashboard-connect-device",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.21",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "agent:grok-build",
+  "proposed_at": "2026-08-06T15:36:46Z",
+  "proposal_digest": "sha256:a017b3843f37352d6d1c3d8bd0b83af3d4e03b025fec2397d0841d10eaf01290"
+}

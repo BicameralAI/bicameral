@@ -1,0 +1,17 @@
+{
+  "_comment": "INVALID: External ingest payload attempting to resolve compliance. External integrations cannot emit compliance resolution, canonical decisions, event-store writes, or blocking governance results.",
+  "_expected_behavior": "rejected — external integrations cannot resolve compliance or write canonical state",
+  "source_system": "github",
+  "source_uri": "https://github.com/org/repo/pull/42",
+  "content": "PR merged, marking decision as reflected",
+  "evidence": [],
+  "candidate_hints": [],
+  "compliance_resolution": {
+    "target_id": "DEC-002",
+    "compliance_verdict": "reflected"
+  },
+  "event_store_write": {
+    "event_type": "resolve_compliance",
+    "payload": { "decision_id": "DEC-002", "verdict": "reflected" }
+  }
+}

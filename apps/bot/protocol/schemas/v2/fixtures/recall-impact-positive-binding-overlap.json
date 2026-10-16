@@ -1,0 +1,30 @@
+{
+  "_comment": "Positive recall fixture: accepted binding overlap returns relevant decision in recall packet",
+  "_scenario": "impact_seed targets file src/api/handler.rs with exact match; decision D-001 has accepted binding to that file",
+  "_expected": "RecallPacket contains canonical_decisions with D-001, searched_scope is enumerated",
+  "_evaluation": {
+    "recall_at_1": "D-001 must appear",
+    "first_relevant_rank": 1,
+    "honesty_label": "canonical — human_ratified"
+  },
+  "impact_seed": {
+    "kind": "file",
+    "value": "src/api/handler.rs",
+    "role": "exact"
+  },
+  "expected_recall_packet": {
+    "canonical_decisions": [
+      {
+        "decision_id": "d0000001-0001-4000-8000-000000000001",
+        "title": "API handler must validate input before dispatch",
+        "level": "architecture",
+        "signoff_state": "approved",
+        "authority_labels": [
+          { "kind": "human_ratified", "description": "Accepted binding overlap" }
+        ]
+      }
+    ],
+    "decision_candidates": [],
+    "unknown_scope": []
+  }
+}

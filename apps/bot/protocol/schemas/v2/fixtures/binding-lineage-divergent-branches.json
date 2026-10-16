@@ -1,0 +1,31 @@
+{
+  "_comment": "Conformance fixture: divergent branch bindings as parallel evidence, not collision_pending (ADR-0010/ADR-0011)",
+  "_acceptance_criteria": "issue #101 criterion 4",
+  "scenario": "divergent_branch_parallel_evidence",
+  "description": "Two branches bind the same Decision to different code regions. The graph layer classifies this as divergent/parallel binding evidence, not as a conflict. Collision requires policy/governance acceptance of incompatible evidence.",
+  "decision_id": "d4000000-0000-0000-0000-000000000001",
+  "branch_a_binding": {
+    "binding_id": "b4000000-0000-0000-0000-000000000001",
+    "binding_type": "code_region",
+    "target": "src/alpha.rs:1-10",
+    "graph_snapshot_id": "gs-branch-a",
+    "validated_sha": "branch_a_sha_40chars_000000000000000000",
+    "evidence_state": "verified",
+    "ref_name": "feature/alpha"
+  },
+  "branch_b_binding": {
+    "binding_id": "b4000000-0000-0000-0000-000000000002",
+    "binding_type": "code_region",
+    "target": "src/beta.rs:20-30",
+    "graph_snapshot_id": "gs-branch-b",
+    "validated_sha": "branch_b_sha_40chars_000000000000000000",
+    "evidence_state": "verified",
+    "ref_name": "feature/beta"
+  },
+  "expected_behavior": {
+    "both_bindings_coexist": true,
+    "decision_review_state": "not collision_pending",
+    "collision_requires_governance": true,
+    "explanation": "Divergent bindings are parallel evidence. They become a conflict only when governance or policy accepts evidence that the bindings represent incompatible Decision meaning, implementation, compliance, or scope."
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "_comment": "Commit-driven preflight freshness read-model (issue #625): freshness-untouched-snapshot-scoped. Daemon-authored, evidence-only; surfaces render this verbatim.",
+  "_expected": {
+    "commit_freshness": "snapshot_scoped",
+    "currentness": "graph_unavailable",
+    "evidence_state": "unknown_stale",
+    "graph_readiness": "stale"
+  },
+  "freshness": {
+    "caveats": [
+      {
+        "code": "snapshot_scoped_evidence",
+        "current_head_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+        "message": "Graph is stale, but the cited evidence was not touched by newer commits; it remains usable only against its older snapshot identity.",
+        "snapshot_id": "snap-2026-06-12-aaaa1111"
+      }
+    ],
+    "commit_freshness": "snapshot_scoped",
+    "currentness": "graph_unavailable",
+    "evidence_state": "unknown_stale",
+    "graph_readiness": "stale",
+    "graph_snapshot": {
+      "commit_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+      "graph_snapshot_id": "snap-2026-06-12-aaaa1111",
+      "index_version": "idx-7",
+      "ref_name": "refs/heads/dev",
+      "repo_id": "repo-bicameral-bot"
+    },
+    "next_actions": [
+      "proceed_snapshot_scoped"
+    ],
+    "refresh_outcome": "stale",
+    "scope": {
+      "completeness": "file_scoped",
+      "graph_slice_id": "slice-untouched",
+      "scope_fingerprint": "fp-slice-untouched",
+      "scope_kind": "file_scoped"
+    },
+    "touched_scope": {
+      "detection": "confirmed_untouched"
+    }
+  }
+}

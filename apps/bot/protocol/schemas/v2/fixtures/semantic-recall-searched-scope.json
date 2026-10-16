@@ -1,0 +1,71 @@
+{
+  "_comment": "Semantic recall contribution read-model (issue #640): semantic-recall-searched-scope. Daemon-authored, evidence-only; surfaces render this verbatim. Approximate hints and graph-verified targets are kept in separate collections and never collapsed.",
+  "_expected": {
+    "approximate_hint_count": 1,
+    "caveat_codes": [
+      "approximate_hints_present"
+    ],
+    "next_actions": [
+      "verify_with_graph_proof",
+      "inspect_candidate"
+    ],
+    "no_result_in_searched_scope": false,
+    "provider_status": "ready",
+    "verified_target_count": 1
+  },
+  "semantic_recall": {
+    "approximate_hints": [
+      {
+        "caveats": [
+          "approximate semantic hint: not graph-verified"
+        ],
+        "confidence": "low",
+        "evidence_state": "approximate_candidate",
+        "file": "crates/bicameral-runtime/src/search.rs",
+        "reasons": [
+          "Approximate semantic hint; requires deterministic graph proof before binding."
+        ],
+        "tier": "approximate_hint"
+      }
+    ],
+    "caveats": [
+      {
+        "code": "approximate_hints_present",
+        "message": "Approximate semantic hints are advisory and require deterministic graph proof before they can be treated as verified targets."
+      }
+    ],
+    "currentness": "current",
+    "next_actions": [
+      "verify_with_graph_proof",
+      "inspect_candidate"
+    ],
+    "no_result_in_searched_scope": false,
+    "provenance": {
+      "index_version": "sem-idx-12",
+      "model_id": "fake-embed",
+      "model_version": "v0",
+      "provider_id": "fake-semantic-provider",
+      "provider_version": "0.1.0"
+    },
+    "provider_status": "ready",
+    "searched_scope": {
+      "corpus_id": "corpus-bicameral-bot",
+      "corpus_version": "sem-idx-12",
+      "scope_fingerprint": "fp-semantic-query",
+      "scope_kind": "query"
+    },
+    "verified_targets": [
+      {
+        "confidence": "high",
+        "evidence_state": "verified",
+        "file": "crates/bicameral-api/src/recall.rs",
+        "range": "60:1-90:1",
+        "reasons": [
+          "Semantic candidate confirmed by deterministic graph proof at the bound snapshot."
+        ],
+        "symbol": "RecallPacket::with_semantic_recall",
+        "tier": "graph_verified"
+      }
+    ]
+  }
+}

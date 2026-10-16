@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0122-mcp-0172-candidateset-ux-package",
+  "label": "Publish MCP 0.17.2 with CandidateSet UX amend (#809/#816)",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#809",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.22",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "agent:grok-build",
+  "proposed_at": "2026-08-09T17:20:35Z",
+  "proposal_digest": "sha256:de823e7a16f6af68ff2c717b62956873404edcc08067782281c27ccbabf2937b"
+}

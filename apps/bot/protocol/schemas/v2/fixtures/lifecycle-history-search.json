@@ -1,0 +1,59 @@
+{
+  "_comment": "Bot-MCP lifecycle: accepted history.list and search.query — read projections",
+  "_expected_response": "Ok — decisions, candidates, evidence, source links; the `bindings` scope is supported and reads accepted, bot-owned BindingEvidence (see lifecycle-bindings-search.json)",
+  "fixtures": [
+    {
+      "label": "history.list with decision filter",
+      "tool_request": {
+        "request_id": "a000000a-0000-4000-8000-00000000000a",
+        "command": {
+          "name": "history.list",
+          "params": {
+            "decision_id": "DEC-101",
+            "include_events": true,
+            "include_bindings": true
+          }
+        },
+        "authority": {
+          "actor_id": "agent-mcp-001",
+          "auth_method": "mcp_session",
+          "session_id": "sess-lifecycle-005",
+          "workspace": "/home/user/project",
+          "policy_scope": ["default"],
+          "audit_metadata": {
+            "surface": "mcp"
+          }
+        },
+        "issued_at": "2026-06-10T10:09:00Z"
+      }
+    },
+    {
+      "label": "search.query with scope and filters",
+      "tool_request": {
+        "request_id": "a000000b-0000-4000-8000-00000000000b",
+        "command": {
+          "name": "search.query",
+          "params": {
+            "query": "health check endpoint",
+            "scope": "all",
+            "filters": {
+              "level": "architecture"
+            },
+            "limit": 20
+          }
+        },
+        "authority": {
+          "actor_id": "agent-mcp-001",
+          "auth_method": "mcp_session",
+          "session_id": "sess-lifecycle-006",
+          "workspace": "/home/user/project",
+          "policy_scope": ["default"],
+          "audit_metadata": {
+            "surface": "mcp"
+          }
+        },
+        "issued_at": "2026-06-10T10:10:00Z"
+      }
+    }
+  ]
+}

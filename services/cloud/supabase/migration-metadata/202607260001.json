@@ -1,0 +1,8 @@
+{
+  "application_rollback_safe": true,
+  "compatibility": "expand",
+  "description": "Bind Product directory publication to provider-confirmed creation proof fields.",
+  "execution_policy": "automatic",
+  "schema_version": 1,
+  "version": "202607260001"
+}

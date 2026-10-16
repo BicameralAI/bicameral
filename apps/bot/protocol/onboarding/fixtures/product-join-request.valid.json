@@ -1,0 +1,18 @@
+{
+  "local_actor_ref": "actor_local_dana",
+  "request_id": "jrq_01HZX8DANA",
+  "requested_at": "2026-07-12T09:01:00Z",
+  "ticket": {
+    "audience": "daemon:prd_01HZX8CHECKOUT",
+    "cloud_account_id": "acct_01HZX8DANA",
+    "expiry": "2026-07-12T09:05:00Z",
+    "issued_at": "2026-07-12T09:00:00Z",
+    "issuer": "https://cloud.bicameral.example",
+    "nonce": "jti_01HZX8NONCE7Q",
+    "product_id": "prd_01HZX8CHECKOUT",
+    "provider_hint": "github",
+    "registration_ref": "reg_opaque_9f2c",
+    "substrate_hint": "git",
+    "verified_domain": "acme.example"
+  }
+}

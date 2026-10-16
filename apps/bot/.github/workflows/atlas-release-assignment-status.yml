@@ -1,0 +1,30 @@
+name: Atlas Release Unit status resolver
+
+on:
+  status:
+
+permissions:
+  contents: read
+  pull-requests: read
+  id-token: write
+  statuses: write
+
+concurrency:
+  group: atlas-release-status-${{ github.event.sha }}-${{ github.event.context }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-release-status:
+    if: >-
+      github.event_name == 'status' &&
+      github.event.state == 'pending' &&
+      (github.event.context == 'release-unit / assigned' ||
+       github.event.context == 'stage-version / authorized')
+    uses: BicameralAI/bicameral-factory/.github/workflows/atlas-release-unit-status.yml@main
+    with:
+      workload_identity_provider: projects/694608247534/locations/global/workloadIdentityPools/github-actions/providers/bicameral-bot-atlas-receipts
+      service_account: atlas-assignment-reader@bicameral-cloud-500911.iam.gserviceaccount.com
+      release_status_app_id: ${{ vars.RELEASE_UNIT_STATUS_APP_ID }}
+    secrets:
+      cross_repo_token: ${{ secrets.BICAMERAL_CROSS_REPO_TOKEN }}
+      release_status_app_private_key: ${{ secrets.RELEASE_UNIT_STATUS_APP_PRIVATE_KEY }}

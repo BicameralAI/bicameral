@@ -1,0 +1,45 @@
+{
+  "_comment": "VALID: Egress preview for a canonical artifact. Preview is read-only — no external effect, no approval required. EgressMode is 'preview', ApprovalClass is 'none_read_only'.",
+  "_spec_ref": "docs/specs/governed-egress-projection-ownership.md",
+  "eligibility": {
+    "artifact_id": "DEC-100",
+    "target_system": "linear",
+    "profile_id": "linear.issue.summary.v1",
+    "eligible": true,
+    "approval_class": "none_read_only",
+    "warnings": [],
+    "rejection_reasons": []
+  },
+  "policy": {
+    "artifact_id": "DEC-100",
+    "target_system": "linear",
+    "profile_id": "linear.issue.summary.v1",
+    "actor_id": "user-member-01",
+    "verdict": "allowed",
+    "approval_class": "none_read_only",
+    "reasons": ["Preview is read-only, no approval required"]
+  },
+  "projection": {
+    "artifact_id": "DEC-100",
+    "artifact_revision": "rev-001",
+    "target_system": "linear",
+    "profile_id": "linear.issue.summary.v1",
+    "mode": "preview",
+    "authority_label": "bicameral.daemon.alpha",
+    "evidence_refs": ["evidence-ref-100"],
+    "payload": {
+      "title": "Health check endpoint decision",
+      "summary": "The /healthz endpoint must verify DB connection"
+    }
+  },
+  "receipt": {
+    "mode": "preview",
+    "target_operation": "preview",
+    "target_system": "linear",
+    "target_object_ref": null,
+    "payload_hash": "sha256:abc123",
+    "artifact_revision": "rev-001",
+    "actor_id": "user-member-01",
+    "reconciliation_state": "not_applicable"
+  }
+}

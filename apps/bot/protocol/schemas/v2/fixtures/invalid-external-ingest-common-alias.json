@@ -1,0 +1,18 @@
+{
+  "_comment": "INVALID: External ingest payload using common alias field names that are NOT accepted. The canonical ExternalIngestEnvelope contract requires specific field names. This fixture demonstrates the most frequent integration mistakes.",
+  "_expected_behavior": "rejected — invalid_payload with actionable field mapping hints",
+  "_field_mapping_guidance": {
+    "source_ref → source_uri": "The provenance URI field is named 'source_uri', not 'source_ref'.",
+    "body → content": "The captured content field is named 'content', not 'body'.",
+    "evidence[].title → evidence[].excerpt": "Evidence items use 'excerpt' for the cited text, not 'title' or 'body'."
+  },
+  "source_system": "jira",
+  "source_ref": "https://jira.example.com/browse/PROJ-789",
+  "body": "Sprint planning: the auth service must support SAML SSO for enterprise customers by Q3.",
+  "evidence": [
+    {
+      "title": "SAML SSO requirement",
+      "body": "auth service must support SAML SSO for enterprise customers"
+    }
+  ]
+}

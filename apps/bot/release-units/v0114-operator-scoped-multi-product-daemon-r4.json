@@ -1,0 +1,85 @@
+{
+  "schema_version": 2,
+  "release_unit_id": "v0114-operator-scoped-multi-product-daemon-r4",
+  "label": "v0.1.14 operator-scoped multi-Product daemon (linux-native topology; macOS deferred)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#908",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.14",
+  "topology": {
+    "required": true,
+    "topology_type": "daemon_service_multi_product_v1",
+    "validation_checklist": [
+      {
+        "check_id": "service-zero-product",
+        "label": "Install and start the user service from an unrelated cwd with an empty operator registry, then observe healthy"
+      },
+      {
+        "check_id": "multi-product-routing",
+        "label": "Register and bind two Products, alternate Product-scoped MCP ToolRequests without restart, and observe isolated results"
+      },
+      {
+        "check_id": "watcher-state-isolation",
+        "label": "Commit only Product A while the service is stopped, then observe Product A stale and failed while Product B remains current with independent queued work and failure backlog"
+      },
+      {
+        "check_id": "restart-rehydrate",
+        "label": "Restart the daemon and observe Product registrations, workspace bindings, watcher checkpoints, queued work, and failure backlog rehydrate independently"
+      },
+      {
+        "check_id": "repair-isolation",
+        "label": "Break Product A workspace binding and observe its watcher disabled and setup repair-required while Product B remains current, healthy, and routable"
+      }
+    ],
+    "evidence_contract": {
+      "schema_version": 1,
+      "runtime_path": "authentic-runtime",
+      "operator_policy": "synthetic-or-human",
+      "initiation": "native-service-flow",
+      "artifact_policy": "raw-or-reproducible",
+      "required_execution_lanes": [
+        "linux-systemd-user-v1"
+      ],
+      "check_requirements": [
+        {
+          "check_id": "service-zero-product",
+          "observation_kind": "native-service-event",
+          "minimum": 1,
+          "maximum": 1
+        },
+        {
+          "check_id": "multi-product-routing",
+          "observation_kind": "runtime-outcome",
+          "minimum": 1,
+          "maximum": 1
+        },
+        {
+          "check_id": "watcher-state-isolation",
+          "observation_kind": "runtime-outcome",
+          "minimum": 1,
+          "maximum": 1
+        },
+        {
+          "check_id": "restart-rehydrate",
+          "observation_kind": "native-service-event",
+          "minimum": 1,
+          "maximum": 1
+        },
+        {
+          "check_id": "repair-isolation",
+          "observation_kind": "runtime-outcome",
+          "minimum": 1,
+          "maximum": 1
+        }
+      ]
+    }
+  },
+  "journey_revision": {
+    "comment_id": 5145944845,
+    "journey_id": "daemon_service_multi_product_v1",
+    "journey_digest": "sha256:342585f766586cf8d8cb6bcf4a589381422b32fbd8fef70a0adbf5ebb66d59b0"
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-01T00:02:00Z",
+  "proposal_digest": "sha256:65f5e7bc654941420f4778033695d90328a6561dda7abce01c27354ed62890ff"
+}

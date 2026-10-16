@@ -1,0 +1,74 @@
+name: Factory Attestation - Migration Gate
+
+# Validates this repo's factory attestation for the current run against the
+# bicameral-factory validator. bicameral-factory is a PRIVATE repo, so its checkout
+# reuses the org-level BICAMERAL_CROSS_REPO_TOKEN (already exposed across private
+# Bicameral repos, e.g. Cloud dashboard vendoring) for the READ-ONLY clone. The
+# caller-repo checkout uses the default github.token — same-repo access suffices.
+# The cross-repo token is used only for the read; no write operation uses it.
+#
+# FACTORY_REF pins the exact bicameral-factory commit whose context this run loaded.
+# The run's attestation is grounded at that commit and named with a stable per-run
+# suffix, so validating that single file lets the validator verify context_evidence SHA-256s
+# deterministically against the pinned checkout.
+on:
+  pull_request: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  FACTORY_REF: 456e4f6e22b4fcf8c1cabba1fe11d64303445988
+  FACTORY_RUN_ID: first-class-migration-delivery
+
+jobs:
+  factory-attestation:
+    name: bicameral-factory-attestation-migration-gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out caller repo (same-repo, github.token)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          path: target
+          token: ${{ github.token }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Check out bicameral-factory validator (cross-repo, read-only)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: BicameralAI/bicameral-factory
+          ref: ${{ env.FACTORY_REF }}
+          path: bicameral-factory
+          token: ${{ secrets.BICAMERAL_CROSS_REPO_TOKEN || secrets.BICAMERAL_BOT_READ_TOKEN }}
+          persist-credentials: false
+
+      - name: Validate factory attestation for this run
+        run: |
+          python3 bicameral-factory/scripts/validate-factory-attestation.py \
+            "target/.bicameral/factory-attestations/${FACTORY_REF}.${FACTORY_RUN_ID}.json" \
+            --context-root bicameral-factory
+
+      - name: Validate exact-head migration spec governance
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          python3 bicameral-factory/scripts/spec_governance.py validate \
+            --policy bicameral-factory/.bicameral/spec-governance-policy.json \
+            --results-dir target/.bicameral/spec-governance \
+            --repo-root target \
+            --repository "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --base-sha "${{ github.event.pull_request.base.sha }}" \
+            --head-sha "${{ github.event.pull_request.head.sha }}" \
+            --skill-manifest bicameral-factory/skills/factory-skill-manifest.json \
+            --receipt-out /tmp/spec-governance-validation-receipt.json
+
+      - name: Retain spec-governance validation receipt
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-governance-validation-${{ github.event.pull_request.head.sha }}
+          path: /tmp/spec-governance-validation-receipt.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,9 @@
+# Every tracked file in this repository is stored LF, and fail-closed checks
+# hash file bytes at runtime. A CRLF working tree therefore changes governed
+# fingerprints even when the committed blob is identical.
+#
+# Pin the repository to LF so hosted-bridge and onboarding fingerprint inputs
+# materialize deterministically on every platform. The companion regression
+# test asserts Git's resolved attribute policy rather than Linux checkout
+# behavior, so removing or weakening this line fails CI.
+* text=auto eol=lf

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0129-mcp-833-planning-complete-hook",
+  "label": "MCP Planning-complete managed hook boundary (#833)",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#833",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.29",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:Knapp-Kevin",
+  "proposed_at": "2026-08-24T21:02:00Z",
+  "proposal_digest": "sha256:b53db2dec226c55b4c8f5b53dac6f8782dd9c2ec6344ed28a59dc2a1b442e99d"
+}

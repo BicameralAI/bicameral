@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0114-mcp-daemon-readiness",
+  "label": "Persist and project operator-local MCP developer-host readiness",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#955",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.14",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-07-30T04:48:03Z",
+  "proposal_digest": "sha256:04723d683aab65b3b894bed71aa9c9b4373efe55ffe2a894f707f9d7b2423b01"
+}

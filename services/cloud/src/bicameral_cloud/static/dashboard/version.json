@@ -1,0 +1,10 @@
+{
+  "artifact_sha256": "96f9e7488dead22a553efec138811a24d145c27bc02998da8a019705b6bc6d7b",
+  "bot_commit": "4deb00470346a571d611ef6fe2d0a36cc9138e66",
+  "bot_descriptor_digest": "sha256:2c843afb719235d0d1aa5012d1376b93cc16e02f0da61651e9616d4b273b70f0",
+  "built_at": "2026-09-30T19:34:57Z",
+  "bundle_sha256": "05d2608ed8a5f64cf4a0d0dbf7c2ddaec0e9f7714dfac834df35296ad9d0ed94",
+  "hosted_bridge_contract_sha256": "26137c825145a1cc379a02c487dfb33d6c882f19b0e7f59c16e45be2849a7c70",
+  "source_repository": "BicameralAI/bicameral-bot",
+  "source_run_url": "https://github.com/BicameralAI/bicameral-bot/actions/runs/36765896067"
+}

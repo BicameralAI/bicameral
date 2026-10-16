@@ -1,0 +1,16 @@
+{
+  "_comment": "INVALID: ProviderResourceDescriptor must not carry review commands.",
+  "_expected_behavior": "rejected — provider-fact objects cannot emit review, signoff, or compliance commands",
+  "_violation": "review_command field attempts to accept a candidate through a provider descriptor; review authority belongs to ToolRequest only",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "display_name": "Hello World",
+  "resource_type": "repository",
+  "capabilities": ["list", "read"],
+  "captured_at": "2026-01-15T10:00:00Z",
+  "review_command": {
+    "kind": "accept_candidate",
+    "candidate_id": "cand-abc-123",
+    "rationale": "Auto-approved by provider discovery"
+  }
+}

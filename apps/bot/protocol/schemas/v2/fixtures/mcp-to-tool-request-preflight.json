@@ -1,0 +1,28 @@
+{
+  "_comment": "Valid MCP-to-ToolRequest mapping: bicameral.preflight → preflight.run",
+  "mcp_tool": "bicameral.preflight",
+  "tool_request": {
+    "request_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "command": {
+      "name": "preflight.run",
+      "params": {
+        "files": ["src/routes/healthz.rs", "src/db/pool.rs"],
+        "symbols": ["HealthCheckHandler"],
+        "diff_context": null,
+        "branch": "feature/healthz"
+      }
+    },
+    "authority": {
+      "actor_id": "agent-copilot-02",
+      "auth_method": "mcp_session",
+      "session_id": "sess-xyz789",
+      "workspace": "/home/user/project",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp",
+        "mcp_tool": "bicameral.preflight"
+      }
+    },
+    "issued_at": "2026-06-01T09:30:00Z"
+  }
+}

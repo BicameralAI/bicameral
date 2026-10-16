@@ -1,0 +1,28 @@
+{
+  "_comment": "Negative fixture: preflight.run is read-only — it must not mutate decisions, candidates, signoffs, compliance, or bindings",
+  "_expected_response": "Ok (preflight is accepted) but consumer must verify no mutation occurred",
+  "_note": "PreflightRunParams has no mutation fields. This fixture verifies the structural read-only invariant.",
+  "tool_request": {
+    "request_id": "f0000006-0000-4000-8000-000000000006",
+    "command": {
+      "name": "preflight.run",
+      "params": {
+        "files": ["src/main.rs"],
+        "symbols": [],
+        "diff_context": "--- a/src/main.rs\n+++ b/src/main.rs\n@@ -1 +1 @@\n-old\n+new",
+        "branch": "main"
+      }
+    },
+    "authority": {
+      "actor_id": "agent-001",
+      "auth_method": "mcp_session",
+      "session_id": "sess-neg-006",
+      "workspace": "/repo",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp"
+      }
+    },
+    "issued_at": "2026-06-10T10:25:00Z"
+  }
+}

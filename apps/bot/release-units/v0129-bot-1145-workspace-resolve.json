@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0129-bot-1145-workspace-resolve",
+  "label": "Bot workspace.resolve routing for SessionStart (#1145)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1145",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.29",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:Knapp-Kevin",
+  "proposed_at": "2026-08-24T21:02:00Z",
+  "proposal_digest": "sha256:1fa23ca645c6cde002e2ea8d3304cef9d606523689c0d63812fa6370e619b843"
+}

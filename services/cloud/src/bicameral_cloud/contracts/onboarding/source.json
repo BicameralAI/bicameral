@@ -1,0 +1,12 @@
+{
+  "contract": "domain-product-onboarding-contract",
+  "contract_version": "1.0.0",
+  "producer_repo": "BicameralAI/bicameral-bot",
+  "producer_issue": "https://github.com/BicameralAI/bicameral-bot/issues/787",
+  "producer_pr": "https://github.com/BicameralAI/bicameral-bot/pull/791",
+  "source_commit": "92ff48fad81cd5401d72a9c16ba66041fd60a119",
+  "vendored_from_ref": "dev",
+  "vendored_from_commit": "ff0b015acfc4ce868b61b083f11f062e8c3c2df5",
+  "semantic_fingerprint": "236243a322fcc945ccbff71cdb00271b7d5d4c263a6bcb800bb3c47ba690397f",
+  "notes": "Bot-owned onboarding semantic contract, vendored verbatim. The bot repo remains canonical; Cloud pins the contract version + semantic fingerprint (never the SPA bundle digest) and fails closed on drift."
+}

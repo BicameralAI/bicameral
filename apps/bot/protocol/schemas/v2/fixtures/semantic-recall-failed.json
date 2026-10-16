@@ -1,0 +1,37 @@
+{
+  "_comment": "Semantic recall contribution read-model (issue #640): semantic-recall-failed. Daemon-authored, evidence-only; surfaces render this verbatim. Approximate hints and graph-verified targets are kept in separate collections and never collapsed.",
+  "_expected": {
+    "approximate_hint_count": 0,
+    "caveat_codes": [
+      "provider_failed"
+    ],
+    "next_actions": [],
+    "no_result_in_searched_scope": true,
+    "provider_status": "failed",
+    "verified_target_count": 0
+  },
+  "semantic_recall": {
+    "caveats": [
+      {
+        "code": "provider_failed",
+        "message": "The semantic provider failed; no semantic contribution was retrieved for the searched scope."
+      }
+    ],
+    "currentness": "graph_unavailable",
+    "no_result_in_searched_scope": true,
+    "provenance": {
+      "index_version": "sem-idx-12",
+      "model_id": "fake-embed",
+      "model_version": "v0",
+      "provider_id": "fake-semantic-provider",
+      "provider_version": "0.1.0"
+    },
+    "provider_status": "failed",
+    "searched_scope": {
+      "corpus_id": "corpus-bicameral-bot",
+      "corpus_version": "sem-idx-12",
+      "scope_fingerprint": "fp-semantic-query",
+      "scope_kind": "query"
+    }
+  }
+}

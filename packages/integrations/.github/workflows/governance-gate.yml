@@ -1,0 +1,16 @@
+name: Governance Gate
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    uses: ./.github/workflows/_reusable-governance-gate.yml
+    with:
+      tooling-ref: ${{ github.sha }}

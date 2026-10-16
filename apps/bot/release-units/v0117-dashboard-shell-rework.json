@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0117-dashboard-shell-rework",
+  "label": "v0.1.17 dashboard shell rework + Figma eval path (bot#1025)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1025",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.17",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-02T23:38:51Z",
+  "proposal_digest": "sha256:3451356924543ba40c6f6eba4294dd99e5ff043d2f658690fb01704c552dce16"
+}

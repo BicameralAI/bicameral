@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0127-bot-production-byte-proof-gate",
+  "label": "Bot production Cloud immutable dashboard byte-proof gate",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1120",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.27",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:Knapp-Kevin",
+  "proposed_at": "2026-08-14T17:07:00Z",
+  "proposal_digest": "sha256:e70ecf7efe1224741d379d6b3c5efe9ac4d88887310d99951a1ac33ecf8e769f"
+}

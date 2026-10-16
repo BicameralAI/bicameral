@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/smr-claim-acceptance/v1/test-manifest.schema.json",
+  "title": "SmrTestManifestV1",
+  "description": "Versioned test manifest for SMR claim acceptance. Tests and outcomes are first-class deliverables of the implementation PR, not a byproduct. Every group defines positive proof, negative controls, exact environment, expected typed result, a machine-readable receipt, a human-readable result, and a named human acceptance requirement where applicable. Run states are never collapsed into a percentage or a single green or red result. See docs/domain/smr-candidate-promotion/README.md section 5.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["test_manifest_version", "contract_id", "groups"],
+  "properties": {
+    "test_manifest_version": { "const": 1 },
+    "contract_id": { "const": "state-machine-resolver-v1-runtime-architecture" },
+    "implementation_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Exact commit the run executed against."
+    },
+    "contract_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "groups": {
+      "type": "array",
+      "minItems": 8,
+      "items": { "$ref": "#/definitions/TestGroup" }
+    }
+  },
+  "definitions": {
+    "TestGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_id",
+        "name",
+        "environment",
+        "positive_proof",
+        "negative_controls",
+        "expected_typed_result",
+        "run_state",
+        "human_acceptance_required"
+      ],
+      "properties": {
+        "group_id": {
+          "enum": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"]
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "conformance_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CONF-[A-Z0-9-]+-[0-9]{2}$"
+          }
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["environment_id", "topology"],
+          "properties": {
+            "environment_id": {
+              "enum": [
+                "local-product-environment-v1",
+                "developer-host-environment-v1"
+              ]
+            },
+            "topology": {
+              "enum": ["component", "real_process_local", "released_host_terminal"],
+              "description": "Component evidence is diagnostic. Only released_host_terminal can yield authoritative or human_accepted outcomes."
+            }
+          }
+        },
+        "positive_proof": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "negative_controls": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["control_id", "mutation", "expected_typed_result"],
+            "properties": {
+              "control_id": { "type": "string", "minLength": 1 },
+              "mutation": { "type": "string", "minLength": 1 },
+              "expected_typed_result": { "type": "string", "minLength": 1 },
+              "must_fail_closed": { "const": true }
+            }
+          }
+        },
+        "expected_typed_result": {
+          "enum": [
+            "committed_once",
+            "not_committed",
+            "reconciliation_required",
+            "proposal_identity_mismatch",
+            "operation_conflict",
+            "replayed_result",
+            "challenge_expired",
+            "routing_mismatch",
+            "proposal_too_large",
+            "unsupported_contract_version",
+            "scope_insufficient",
+            "daemon_only",
+            "same_projection",
+            "exact_match",
+            "compatible"
+          ]
+        },
+        "run_state": {
+          "enum": [
+            "not_run",
+            "blocked",
+            "diagnostic_failed",
+            "diagnostic_passed",
+            "authoritative_failed",
+            "authoritative_inconclusive",
+            "authoritative_passed",
+            "human_rejected",
+            "human_accepted"
+          ],
+          "description": "Closed and distinct. Collapsing these into a percentage or a single green or red result is non-conformant."
+        },
+        "receipt_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path or identity of the machine-readable receipt conforming to promotion-receipt.schema.json."
+        },
+        "human_readable_result": {
+          "type": "string",
+          "minLength": 1,
+          "description": "States what was proven and what was not proven."
+        },
+        "human_acceptance_required": { "type": "boolean" },
+        "accepted_by": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required before run_state may be human_accepted."
+        }
+      }
+    }
+  }
+}

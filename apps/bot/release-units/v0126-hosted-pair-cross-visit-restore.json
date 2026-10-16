@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0126-hosted-pair-cross-visit-restore",
+  "label": "Hosted pair cross-visit bounded restore",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1109",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.26",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "agent:openai-chatgpt",
+  "proposed_at": "2026-08-12T21:24:00Z",
+  "proposal_digest": "sha256:3dd9b9709a497aa37d8352f4ecb41809c40b605bd82e9a04caecc18da287f9a3"
+}

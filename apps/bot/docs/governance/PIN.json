@@ -1,0 +1,18 @@
+{
+  "$schema": "Governance doctrine pin — see docs/governance/BOUNDARY.md",
+  "description": "Pins the exact bicameral-factory commit and content hashes this repo consumes as shared bic-logic doctrine. CI or review may verify the pin; contributors should not edit this file without updating the factory reference.",
+  "factory_repo": "BicameralAI/bicameral-factory",
+  "factory_commit": "09dd3184bf03a9ef6deccbfb7154306b521a6ad6",
+  "pinned_at": "2026-06-09T06:45:00Z",
+  "doctrine_files": {
+    "CONTEXT.md": {
+      "sha256": "8ff5fa51d0cfcb9f0ad27abac204e42976c7e8b5d1fa923bcc682acd6335b5e1"
+    },
+    "PAMA.md": {
+      "sha256": "608b4bf5e33aacfdd882b8adf27c7062cf591bcac8a265724b7d476c9332dfa2"
+    },
+    "INSTRUCTIONS.md": {
+      "sha256": "622e47d31c9aa8e9dcd2a64750da477bedee29f3c93cfd0a4925bfe15bde82a0"
+    }
+  }
+}

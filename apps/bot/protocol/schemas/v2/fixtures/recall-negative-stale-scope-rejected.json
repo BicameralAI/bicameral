@@ -1,0 +1,16 @@
+{
+  "_comment": "Negative fixture: stale or unscoped signals are rejected or downgraded",
+  "_invariant": "Stale scope metadata, expired graph snapshots, and unscoped signals must be rejected or downgraded. They must not contribute to positive recall ranking at the same tier as fresh, scoped signals.",
+  "_expected": "Signals with stale freshness or unknown_scope status must be downgraded to the lowest ranking tier or rejected entirely. RecallPacket must disclose stale scope in unknown_scope entries.",
+  "_must_fail_if": "stale signal ranks at same tier as fresh signal",
+  "scenario": {
+    "stale_signal_count": 2,
+    "stale_graph_snapshot_age_hours": 168,
+    "fresh_signal_count": 1
+  },
+  "stale_signals_must": [
+    "carry stale or possibly_stale freshness label",
+    "rank below fresh signals of the same route",
+    "appear in unknown_scope or carry downgraded caveats"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0113-retire-quickstart-journey-gate",
+  "label": "Retire the obsolete Quickstart journey merge gate",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-factory#433",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.13",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-07-30T19:36:38Z",
+  "proposal_digest": "sha256:ba6c5e511a3e06fb43d95f4c4e1997290ece9d29c6f486bdf2412d829986a735"
+}

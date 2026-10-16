@@ -1,0 +1,34 @@
+name: Security Scan
+
+# Static application security testing (SAST) for the hosted plane's Python code.
+# bicameral-cloud is product-critical (largest attack surface) yet had no working
+# SAST gate: GitHub-native CodeQL needs Advanced Security on this private repo, so
+# Bandit is the compensating in-CI control (SOC 2 CC7.1 / CC8.1). Runs on every PR
+# and push to main (no path filter) so it is safe to require as a merge check.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bandit:
+    name: Bandit SAST (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --upgrade pip bandit==1.8.6
+      - name: Bandit (application source + scripts, excluding tests)
+        # Block on Medium+ severity; Low findings are advisory. B101 (assert) skipped;
+        # validated false-positives carry inline `# nosec BXXX` justifications.
+        run: bandit -r src scripts -x '*/tests/*,*/test_*.py' --skip B101 --severity-level medium

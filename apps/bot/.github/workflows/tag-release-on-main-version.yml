@@ -1,0 +1,153 @@
+name: Tag release on main version bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_binding_url:
+        description: "Immutable HTTPS URL for the exact release publication binding"
+        required: true
+        type: string
+      release_binding_sha256:
+        description: "SHA-256 of the exact release publication binding bytes"
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: tag-release-on-main-version
+  cancel-in-progress: false
+
+jobs:
+  tag-release:
+    name: Create missing release tag
+    runs-on: ubuntu-latest
+    environment: production
+    if: github.repository == 'BicameralAI/bicameral-bot'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Read workspace version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)"
+          if [ -z "${version}" ]; then
+            echo "Could not read workspace version from Cargo.toml" >&2
+            exit 1
+          fi
+          tag="v${version}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact release publication binding
+        shell: bash
+        env:
+          RELEASE_BINDING_URL: ${{ inputs.release_binding_url }}
+          RELEASE_BINDING_SHA256: ${{ inputs.release_binding_sha256 }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/main"
+          [[ "${RELEASE_BINDING_URL}" =~ ^https://[^[:space:]]+$ ]]
+          [[ "${RELEASE_BINDING_SHA256}" =~ ^[a-f0-9]{64}$ ]]
+          mkdir -p release-inputs
+          curl \
+            --proto '=https' \
+            --tlsv1.2 \
+            --location \
+            --fail \
+            --silent \
+            --show-error \
+            "${RELEASE_BINDING_URL}" \
+            --output release-inputs/publication-binding.json
+          printf '%s  %s\n' \
+            "${RELEASE_BINDING_SHA256}" \
+            release-inputs/publication-binding.json \
+            | sha256sum --check -
+          python3 scripts/generate_public_release_manifest.py \
+            --binding release-inputs/publication-binding.json \
+            --tag "${{ steps.version.outputs.tag }}" \
+            --bot-commit "$(git rev-parse HEAD)" \
+            --bot-version "${{ steps.version.outputs.version }}" \
+            --validate-only
+
+      - name: Verify production Cloud contract
+        uses: ./.github/actions/verify-production-cloud-contract
+
+      - name: Check release tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.version.outputs.tag }}"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release tag ${tag} already exists."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Release tag ${tag} is missing."
+          fi
+
+      - name: Create release tag
+        if: steps.tag.outputs.exists == 'false'
+        shell: bash
+        env:
+          RELEASE_BINDING_URL: ${{ inputs.release_binding_url }}
+          RELEASE_BINDING_SHA256: ${{ inputs.release_binding_sha256 }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${tag}" "${GITHUB_SHA}" \
+            -m "Release ${tag}" \
+            -m "release-binding-url: ${RELEASE_BINDING_URL}" \
+            -m "release-binding-sha256: ${RELEASE_BINDING_SHA256}"
+          git push origin "${tag}"
+
+      - name: Verify immutable tag binding
+        shell: bash
+        env:
+          RELEASE_BINDING_URL: ${{ inputs.release_binding_url }}
+          RELEASE_BINDING_SHA256: ${{ inputs.release_binding_sha256 }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.version.outputs.tag }}"
+          git fetch --no-tags origin "refs/tags/${tag}:refs/tags/${tag}" --force
+          test "$(git cat-file -t "${tag}")" = "tag"
+          tag_message="$(git for-each-ref \
+            --format='%(contents)' \
+            "refs/tags/${tag}")"
+          test "$(printf '%s\n' "${tag_message}" \
+            | grep -Fxc "release-binding-url: ${RELEASE_BINDING_URL}")" = "1"
+          test "$(printf '%s\n' "${tag_message}" \
+            | grep -Fxc "release-binding-sha256: ${RELEASE_BINDING_SHA256}")" = "1"
+
+      - name: Check GitHub release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch release build
+        if: steps.release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run release.yml \
+            --ref main \
+            -f release_tag="${{ steps.version.outputs.tag }}" \
+            -f release_binding_url="${{ inputs.release_binding_url }}" \
+            -f release_binding_sha256="${{ inputs.release_binding_sha256 }}"

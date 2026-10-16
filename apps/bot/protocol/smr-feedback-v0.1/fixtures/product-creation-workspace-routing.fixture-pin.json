@@ -1,0 +1,10 @@
+{
+  "fixture_id": "product-creation-workspace-routing-v1",
+  "fixture_file_sha256": "bad78bae59137eb60c91f9863d5954f7ac677edcd31e97fec0630a0870e64a64",
+  "fixture_head_commit": "bcbf14b638c44d460beadfd1f01fbbf33820fb7b",
+  "merged_commit": "d2b83826579c648da9b5cee6b9a92088ef3768a5",
+  "claim_set_digest": "sha256:350fa9f73cdf6b80e42822371973b27c1eb6611b52416cf2a92e7ac3bf7c98ae",
+  "analysis_key": "fixture.smr-feedback.product-creation-workspace-routing-v1",
+  "scope_id": "scope.alpha.product-creation-workspace-routing",
+  "scope_completeness": "partial"
+}

@@ -1,0 +1,65 @@
+{
+  "_comment": "Semantic recall contribution read-model (issue #640): semantic-recall-indexing. Daemon-authored, evidence-only; surfaces render this verbatim. Approximate hints and graph-verified targets are kept in separate collections and never collapsed.",
+  "_expected": {
+    "approximate_hint_count": 1,
+    "caveat_codes": [
+      "provider_indexing",
+      "approximate_hints_present"
+    ],
+    "next_actions": [
+      "retry_when_ready",
+      "verify_with_graph_proof",
+      "inspect_candidate"
+    ],
+    "no_result_in_searched_scope": false,
+    "provider_status": "indexing",
+    "verified_target_count": 0
+  },
+  "semantic_recall": {
+    "approximate_hints": [
+      {
+        "caveats": [
+          "approximate semantic hint: not graph-verified"
+        ],
+        "confidence": "low",
+        "evidence_state": "approximate_candidate",
+        "file": "crates/bicameral-runtime/src/preflight.rs",
+        "reasons": [
+          "Approximate semantic hint; requires deterministic graph proof before binding."
+        ],
+        "tier": "approximate_hint"
+      }
+    ],
+    "caveats": [
+      {
+        "code": "provider_indexing",
+        "message": "The semantic provider is still indexing; semantic coverage is incomplete for the searched scope."
+      },
+      {
+        "code": "approximate_hints_present",
+        "message": "Approximate semantic hints are advisory and require deterministic graph proof before they can be treated as verified targets."
+      }
+    ],
+    "currentness": "graph_unavailable",
+    "next_actions": [
+      "retry_when_ready",
+      "verify_with_graph_proof",
+      "inspect_candidate"
+    ],
+    "no_result_in_searched_scope": false,
+    "provenance": {
+      "index_version": "sem-idx-12",
+      "model_id": "fake-embed",
+      "model_version": "v0",
+      "provider_id": "fake-semantic-provider",
+      "provider_version": "0.1.0"
+    },
+    "provider_status": "indexing",
+    "searched_scope": {
+      "corpus_id": "corpus-bicameral-bot",
+      "corpus_version": "sem-idx-12",
+      "scope_fingerprint": "fp-semantic-query",
+      "scope_kind": "query"
+    }
+  }
+}

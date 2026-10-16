@@ -1,0 +1,11 @@
+{
+  "_comment": "Valid minimal ProviderItemEnvelope: screened provider item fact. Required fields only.",
+  "_expected_behavior": "accepted — describes a fetched provider item without governance, review, or binding authority",
+  "_authority_boundary": "This is a provisional alpha provider-fact handoff object. It is NOT Source, SourceSnapshot, SourceEvidence, DecisionCandidate, Decision, ToolRequest, ExternalIngestEnvelope, or event-store authority.",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "item_id": "issue-42",
+  "item_type": "issue",
+  "content": "Fix the widget alignment bug in the sidebar component",
+  "fetched_at": "2026-01-15T10:05:00Z"
+}

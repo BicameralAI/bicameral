@@ -1,0 +1,25 @@
+{
+  "_comment": "Bot-MCP lifecycle: accepted search.query with the supported `bindings` scope — reads accepted, bot-owned BindingEvidence from replayed state",
+  "_expected_response": "Ok — binding results with binding_id, linked decision_id, target kind/metadata, graph_snapshot_id, validated_sha, evidence state, and readiness/scope caveats. Read-only; never implies verified project truth, compliance, signoff, no-conflict, or merge safety. Never a silent empty or a typed unsupported-capability answer.",
+  "tool_request": {
+    "request_id": "f0000004-0000-4000-8000-000000000004",
+    "command": {
+      "name": "search.query",
+      "params": {
+        "query": "src/main.rs",
+        "scope": "bindings"
+      }
+    },
+    "authority": {
+      "actor_id": "agent-001",
+      "auth_method": "mcp_session",
+      "session_id": "sess-lifecycle-006b",
+      "workspace": "/repo",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp"
+      }
+    },
+    "issued_at": "2026-06-10T10:23:00Z"
+  }
+}

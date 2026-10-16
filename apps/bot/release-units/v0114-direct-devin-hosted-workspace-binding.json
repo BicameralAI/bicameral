@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0114-direct-devin-hosted-workspace-binding",
+  "label": "Reserve hosted workspace-binding topology for direct Devin",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#999",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.14",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-07-31T02:13:01Z",
+  "proposal_digest": "sha256:d4be578210385a050c2562badab71d08c1cec2d7f1636c9e1b82bac78847d93b"
+}

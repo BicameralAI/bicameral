@@ -1,0 +1,26 @@
+{
+  "_comment": "Golden ProviderResourceDescriptor for Google Drive (#523): a folder resource on a shared drive. Demonstrates a nested parent reference and screened namespaced extension metadata.",
+  "_expected_behavior": "accepted — describes a discoverable Google Drive folder without governance, review, or binding authority",
+  "_authority_boundary": "Provisional alpha provider-fact handoff object. It is NOT a SourceBinding, Source, SourceSnapshot, SourceEvidence, DecisionCandidate, review command, signoff, compliance, or event-store authority object. provider_metadata holds only screened, non-authoritative provider facts.",
+  "provider": "google_drive",
+  "resource_id": "folder-abc123",
+  "display_name": "Engineering Specs",
+  "resource_type": "folder",
+  "uri": "https://drive.google.com/drive/folders/abc123",
+  "capabilities": ["list", "read", "search"],
+  "permission": "granted",
+  "parent": {
+    "resource_id": "shared-drive-eng",
+    "display_name": "Engineering Shared Drive"
+  },
+  "freshness": {
+    "last_modified": "2026-06-01T08:00:00Z",
+    "etag": "rev-42",
+    "item_count": 15
+  },
+  "provider_metadata": {
+    "mime_type": "application/vnd.google-apps.folder",
+    "drive_id": "shared-drive-eng"
+  },
+  "captured_at": "2026-06-15T12:00:00Z"
+}

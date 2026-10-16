@@ -1,0 +1,91 @@
+{
+  "$id": "https://bicameral.ai/cloud/schemas/database-migration-set.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorizes_apply": {
+      "const": false
+    },
+    "cloud_commit": {
+      "pattern": "^[a-f0-9]{40}$",
+      "type": "string"
+    },
+    "migration_set_id": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "migrations": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "application_rollback_safe": {
+            "type": "boolean"
+          },
+          "compatibility": {
+            "enum": [
+              "expand",
+              "backfill",
+              "contract",
+              "destructive"
+            ]
+          },
+          "description": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "execution_policy": {
+            "enum": [
+              "automatic",
+              "separate_authorization"
+            ]
+          },
+          "metadata_digest": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "path": {
+            "pattern": "^migrations/[0-9]{12,14}_[a-z0-9_]+\\.sql$",
+            "type": "string"
+          },
+          "sql_digest": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^(?:[0-9]{12}|[0-9]{14})$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "path",
+          "sql_digest",
+          "metadata_digest",
+          "compatibility",
+          "application_rollback_safe",
+          "execution_policy",
+          "description"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "state": {
+      "const": "planned"
+    }
+  },
+  "required": [
+    "schema_version",
+    "migration_set_id",
+    "cloud_commit",
+    "migrations",
+    "state",
+    "authorizes_apply"
+  ],
+  "title": "Cloud Database Migration Set",
+  "type": "object"
+}

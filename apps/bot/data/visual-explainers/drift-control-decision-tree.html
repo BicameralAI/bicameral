@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drift Control Decision Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+    --bg: #f5f7f2;
+    --surface: #ffffff;
+    --surface-2: #eef2ec;
+    --surface-3: #e5ebe3;
+    --border: rgba(31, 42, 54, 0.11);
+    --border-strong: rgba(31, 42, 54, 0.22);
+    --text: #1f2a36;
+    --muted: #65727a;
+    --blue: #1e3a5f;
+    --blue-soft: rgba(30, 58, 95, 0.1);
+    --green: #2f7a4f;
+    --green-soft: rgba(47, 122, 79, 0.11);
+    --gold: #b57614;
+    --gold-soft: rgba(181, 118, 20, 0.13);
+    --rose: #a33d4e;
+    --rose-soft: rgba(163, 61, 78, 0.1);
+    --teal: #0f766e;
+    --teal-soft: rgba(15, 118, 110, 0.1);
+    --shadow: 0 18px 50px rgba(31, 42, 54, 0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101416;
+      --surface: #171d20;
+      --surface-2: #1f282b;
+      --surface-3: #273236;
+      --border: rgba(239, 244, 239, 0.1);
+      --border-strong: rgba(239, 244, 239, 0.2);
+      --text: #edf3ee;
+      --muted: #a4b1b5;
+      --blue: #8eb8e5;
+      --blue-soft: rgba(142, 184, 229, 0.13);
+      --green: #83c99b;
+      --green-soft: rgba(131, 201, 155, 0.13);
+      --gold: #e2b761;
+      --gold-soft: rgba(226, 183, 97, 0.13);
+      --rose: #e28b9a;
+      --rose-soft: rgba(226, 139, 154, 0.13);
+      --teal: #6fd6ca;
+      --teal-soft: rgba(111, 214, 202, 0.13);
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-body);
+    color: var(--text);
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(rgba(31, 42, 54, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(31, 42, 54, 0.035) 1px, transparent 1px);
+    background-size: 34px 34px;
+    padding: 34px;
+    overflow-wrap: break-word;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 18% 8%, var(--gold-soft), transparent 30%),
+      radial-gradient(circle at 82% 12%, var(--green-soft), transparent 28%);
+    opacity: 0.75;
+  }
+
+  a { color: inherit; }
+
+  .wrap {
+    position: relative;
+    max-width: 1420px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 188px minmax(0, 1fr);
+    gap: 38px;
+  }
+
+  .main { min-width: 0; }
+
+  .toc {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    padding: 12px 0;
+  }
+
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--muted);
+    padding-bottom: 10px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toc a {
+    display: block;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+    padding: 6px 8px;
+    margin-bottom: 2px;
+    border-left: 2px solid transparent;
+    border-radius: 6px;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .toc a:hover,
+  .toc a.active {
+    color: var(--text);
+    background: var(--surface-2);
+    border-left-color: var(--gold);
+  }
+
+  .hero {
+    background:
+      linear-gradient(135deg, var(--surface), color-mix(in srgb, var(--surface) 82%, var(--blue) 18%));
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: clamp(26px, 4vw, 48px);
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::after {
+    content: "";
+    position: absolute;
+    right: -90px;
+    top: -120px;
+    width: 310px;
+    height: 310px;
+    border: 1px solid var(--border-strong);
+    transform: rotate(19deg);
+  }
+
+  .eyebrow,
+  .section-label,
+  .card-kicker,
+  .meta {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    font-weight: 700;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    color: var(--blue);
+    margin-bottom: 14px;
+  }
+
+  h1,
+  h2,
+  h3,
+  p {
+    margin-top: 0;
+  }
+
+  h1 {
+    font-size: clamp(34px, 5vw, 68px);
+    line-height: 1.02;
+    letter-spacing: 0;
+    max-width: 980px;
+    margin-bottom: 18px;
+  }
+
+  .subtitle {
+    max-width: 860px;
+    color: var(--muted);
+    font-size: clamp(16px, 2vw, 19px);
+    line-height: 1.55;
+    margin-bottom: 0;
+  }
+
+  .scoreboard {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 20px 0 28px;
+  }
+
+  .metric,
+  .panel,
+  .branch-card,
+  .leaf,
+  .callout,
+  .contract-chip,
+  .principle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .metric {
+    padding: 17px;
+    min-height: 112px;
+  }
+
+  .metric b {
+    display: block;
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1;
+    color: var(--blue);
+    margin-bottom: 9px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .metric span {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .section-head {
+    margin: 38px 0 14px;
+    scroll-margin-top: 24px;
+  }
+
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .section-label::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+
+  .section-head h2 {
+    font-size: clamp(24px, 3vw, 36px);
+    line-height: 1.15;
+    margin: 9px 0 0;
+    letter-spacing: 0;
+  }
+
+  .panel {
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+
+  .overview-map {
+    position: relative;
+    margin-top: 16px;
+    padding: 24px;
+    background: color-mix(in srgb, var(--surface) 88%, var(--surface-2) 12%);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .map-stack {
+    position: relative;
+    display: grid;
+    gap: 18px;
+  }
+
+  .map-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .map-row.single {
+    grid-template-columns: minmax(0, 0.72fr);
+    justify-content: center;
+  }
+
+  .map-card {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--accent, var(--blue));
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 8px 22px rgba(31, 42, 54, 0.04);
+  }
+
+  .map-card b {
+    display: block;
+    font-size: 16px;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+
+  .map-card span {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .map-card.root { --accent: var(--gold); }
+  .map-card.app { --accent: var(--blue); }
+  .map-card.dev { --accent: var(--green); }
+  .map-card.ticket { --accent: var(--rose); }
+  .map-card.truth { --accent: var(--teal); }
+  .map-card.factory { --accent: var(--green); }
+  .map-card.soc2 { --accent: var(--blue); }
+  .map-card.done { --accent: var(--gold); }
+
+  .map-arrows {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    color: var(--border-strong);
+  }
+
+  .map-arrows path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .map-arrows marker path {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  .branch-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .branch-card {
+    padding: 18px;
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .branch-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 4px;
+    background: var(--accent, var(--blue));
+  }
+
+  .branch-card h3 {
+    font-size: 18px;
+    line-height: 1.2;
+    margin: 10px 0 9px;
+  }
+
+  .card-kicker {
+    color: var(--accent, var(--blue));
+    font-size: 10px;
+  }
+
+  .branch-card p {
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .leaf-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 8px;
+  }
+
+  .leaf {
+    padding: 10px 11px 10px 27px;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.42;
+    position: relative;
+    min-width: 0;
+  }
+
+  .leaf::before {
+    content: "";
+    position: absolute;
+    left: 11px;
+    top: 16px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent, var(--blue));
+  }
+
+  .leaf strong {
+    color: var(--accent, var(--blue));
+    font-weight: 700;
+  }
+
+  .card-app { --accent: var(--blue); }
+  .card-dev { --accent: var(--green); }
+  .card-ticket { --accent: var(--gold); }
+  .card-source { --accent: var(--teal); }
+  .card-factory { --accent: var(--rose); }
+  .card-soc2 { --accent: var(--blue); }
+
+  .model-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .contract-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .contract-chip {
+    padding: 14px;
+    min-width: 0;
+  }
+
+  .contract-chip b {
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .contract-chip span {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .principle {
+    padding: 18px;
+    background: color-mix(in srgb, var(--surface) 90%, var(--gold) 10%);
+    border-color: color-mix(in srgb, var(--border) 55%, var(--gold) 45%);
+  }
+
+  .principle b {
+    color: var(--gold);
+  }
+
+  .callout {
+    padding: 18px 20px;
+    border-left: 4px solid var(--gold);
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .callout strong {
+    color: var(--text);
+  }
+
+  .meta {
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 18px;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    color: var(--blue);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  @media (max-width: 1120px) {
+    body {
+      padding: 0 24px 24px;
+    }
+
+    .wrap {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      max-height: none;
+      overflow-x: auto;
+      padding: 10px 24px;
+      margin: 0 -24px 22px;
+      background: color-mix(in srgb, var(--bg) 92%, var(--surface) 8%);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toc-title { display: none; }
+
+    .toc a {
+      white-space: nowrap;
+      flex-shrink: 0;
+      border-left: 0;
+      border-bottom: 2px solid transparent;
+      border-radius: 5px 5px 0 0;
+      padding: 7px 10px;
+    }
+
+    .toc a.active {
+      border-bottom-color: var(--gold);
+    }
+
+    .section-head { scroll-margin-top: 58px; }
+  }
+
+  @media (max-width: 900px) {
+    .scoreboard,
+    .branch-grid,
+    .model-grid,
+    .contract-row,
+    .map-row,
+    .map-row.single {
+      grid-template-columns: 1fr;
+    }
+
+    .hero {
+      margin-top: 20px;
+    }
+
+    .map-arrows {
+      display: none;
+    }
+  }
+
+  @media (max-width: 560px) {
+    body {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .toc {
+      margin-left: -16px;
+      margin-right: -16px;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .hero,
+    .panel,
+    .branch-card {
+      padding: 18px;
+    }
+
+    .zoom-controls {
+      position: static;
+      margin: 8px;
+      width: max-content;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="toc" id="toc" aria-label="Decision tree sections">
+    <div class="toc-title">Contents</div>
+    <a href="#overview">Overview</a>
+    <a href="#classify">1. Classify Drift</a>
+    <a href="#model">2. Single Truth</a>
+    <a href="#factory">3. Factory Hub</a>
+    <a href="#soc2">4. Security and SOC 2</a>
+    <a href="#framing">Conceptual Model</a>
+  </nav>
+
+  <main class="main">
+    <header class="hero animate" id="overview" style="--i:0">
+      <div class="eyebrow">Decision Tree</div>
+      <h1>Reduce drift through one source of truth and deterministic synchronization</h1>
+      <p class="subtitle">
+        Classify the drift family first, map each boundary to a contract family, then use factory governance
+        as the control hub for application, development, and ticket/decision alignment.
+      </p>
+    </header>
+
+    <section class="scoreboard animate" aria-label="Decision tree counts" style="--i:1">
+      <div class="metric"><b>3</b><span>Drift families to classify before action.</span></div>
+      <div class="metric"><b>3</b><span>Contract families for cross-boundary alignment.</span></div>
+      <div class="metric"><b>4</b><span>Primary decision passes from classification to SOC 2.</span></div>
+      <div class="metric"><b>1</b><span>Operating principle: single truth, minimal duplication.</span></div>
+    </section>
+
+    <section class="panel animate" style="--i:2">
+      <div class="section-label">Overview map</div>
+      <div class="overview-map" aria-label="Decision tree overview">
+        <svg class="map-arrows" viewBox="0 0 1000 520" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+              <path d="M 0 0 L 8 4 L 0 8 z"></path>
+            </marker>
+          </defs>
+          <path d="M 500 83 C 500 117 168 120 168 154" marker-end="url(#arrowhead)"></path>
+          <path d="M 500 83 C 500 117 500 120 500 154" marker-end="url(#arrowhead)"></path>
+          <path d="M 500 83 C 500 117 832 120 832 154" marker-end="url(#arrowhead)"></path>
+          <path d="M 168 235 C 168 270 333 272 333 307" marker-end="url(#arrowhead)"></path>
+          <path d="M 500 235 C 500 270 667 272 667 307" marker-end="url(#arrowhead)"></path>
+          <path d="M 832 235 C 832 270 667 272 667 307" marker-end="url(#arrowhead)"></path>
+          <path d="M 333 390 C 333 424 500 425 500 458" marker-end="url(#arrowhead)"></path>
+          <path d="M 667 390 C 667 424 500 425 500 458" marker-end="url(#arrowhead)"></path>
+        </svg>
+
+        <div class="map-stack">
+          <div class="map-row single">
+            <div class="map-card root">
+              <b>Classify the problem first</b>
+              <span>Start by naming the drift family before changing repos, contracts, or workflow.</span>
+            </div>
+          </div>
+
+          <div class="map-row">
+            <div class="map-card app">
+              <b>Application drift</b>
+              <span>Cross-boundary runtime contracts across cloud, bot, MCP, and integrations.</span>
+            </div>
+            <div class="map-card dev">
+              <b>Developmental drift</b>
+              <span>PR gates, provenance, substantiation, and local-machine expectations.</span>
+            </div>
+            <div class="map-card ticket">
+              <b>Ticket / decision drift</b>
+              <span>Collaborator visibility, reusable workflow automation, and shared issue state.</span>
+            </div>
+          </div>
+
+          <div class="map-row">
+            <div class="map-card truth">
+              <b>Single source of truth</b>
+              <span>Delete duplicate pathways unless a boundary has a strong independent reason.</span>
+            </div>
+            <div class="map-card factory">
+              <b>Factory as control hub</b>
+              <span>Use factory as the governed source for deterministic control-plane work.</span>
+            </div>
+            <div class="map-card soc2">
+              <b>Security and SOC 2</b>
+              <span>Prioritize evidence, mappings, ownership, SBOM, and Vanta MCP support.</span>
+            </div>
+          </div>
+
+          <div class="map-row single">
+            <div class="map-card done">
+              <b>Governed control plane</b>
+              <span>One vocabulary, one authority path, deterministic synchronization.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-head animate" id="classify" style="--i:3">
+      <div class="section-label">1. Reduce drift by classifying the problem first</div>
+      <h2>Pick the drift family, then choose the matching controls.</h2>
+    </section>
+
+    <section class="branch-grid animate" style="--i:4">
+      <article class="branch-card card-app">
+        <div class="card-kicker">1.1 Application drift</div>
+        <h3>Make every runtime boundary explicit.</h3>
+        <p>Inventory cross-boundary communication and attach each boundary to a contract family, source of truth, and mismatch flow.</p>
+        <ul class="leaf-list">
+          <li class="leaf">Create a written inventory covering <strong>cloud, bot, MCP, and integrations</strong>.</li>
+          <li class="leaf">Label each boundary as <strong>semantic contract</strong>, <strong>API contract</strong>, or <strong>deployable artifact</strong>.</li>
+          <li class="leaf">Document where the <strong>single source of truth</strong> lives.</li>
+          <li class="leaf">Define a <strong>version synchronization flow</strong> for developers and users when versions mismatch.</li>
+          <li class="leaf">Add explicit version control for the ingestion envelope.</li>
+          <li class="leaf">Add a documented mismatch/update flow for ingestion-envelope changes.</li>
+          <li class="leaf">Confirm the hosted UI / local daemon setup keeps the UI in the bot repo and auto-generates a PR to the hosted repo on frontend updates.</li>
+        </ul>
+      </article>
+
+      <article class="branch-card card-dev">
+        <div class="card-kicker">1.2 Developmental drift</div>
+        <h3>Gate implementation changes deterministically.</h3>
+        <p>Shift from implicit trust in branch activity to traceable gates, provenance, and validation against feature claims.</p>
+        <ul class="leaf-list">
+          <li class="leaf">Put governance checks in place at PR / commit stages.</li>
+          <li class="leaf">Ensure change tracking includes a ledger / provenance trail for implementation updates.</li>
+          <li class="leaf">Add substantiation / validation so a feature is checked against what it claims to do.</li>
+          <li class="leaf">Define local-machine provenance expectations for commits / PRs.</li>
+          <li class="leaf">Confirm deterministic governance work is centered in factory as the hub repo.</li>
+        </ul>
+      </article>
+
+      <article class="branch-card card-ticket">
+        <div class="card-kicker">1.3 Ticket / decision drift</div>
+        <h3>Make decision visibility reliable across collaborators.</h3>
+        <p>Ticket handling becomes a deterministic workflow, while reusable automation graduates into factory.</p>
+        <ul class="leaf-list">
+          <li class="leaf">Define a deterministic ticket-management workflow so tickets are reliably seen across collaborators.</li>
+          <li class="leaf">Move generally useful workflow automation into factory when it is reusable by the team.</li>
+          <li class="leaf">Share reusable ticket-detection / workflow automation in the dev environment channel after pushing it to factory.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section-head animate" id="model" style="--i:5">
+      <div class="section-label">2. Apply the new conceptual model</div>
+      <h2>Prefer one governed source and only the duplication that earns its keep.</h2>
+    </section>
+
+    <section class="model-grid animate" style="--i:6">
+      <article class="branch-card card-source">
+        <div class="card-kicker">Repo shape</div>
+        <h3>Delete or fold back duplicate pathways.</h3>
+        <ul class="leaf-list">
+          <li class="leaf">Delete the <strong>sidecar</strong> repo if no work needs to be preserved.</li>
+          <li class="leaf">Delete the <strong>SDK</strong> repo if it is not being actively pursued as a separate repo.</li>
+          <li class="leaf">If SDK-like functionality is still needed, keep it inside the integrations layer rather than as a separate repo.</li>
+          <li class="leaf">Verify bicameral cloud is explicitly included inside the governed control-plane model.</li>
+        </ul>
+      </article>
+
+      <article class="principle">
+        <div class="card-kicker">Operating principle</div>
+        <h3>Single source of truth + deterministic synchronization.</h3>
+        <p>
+          Prefer governed sources, explicit version flows, and reproducible updates over duplicate repos or duplicate pathways.
+          Add a separate repo only when the boundary has a strong reason to exist independently.
+        </p>
+      </article>
+    </section>
+
+    <section class="section-head animate" id="factory" style="--i:7">
+      <div class="section-label">3. Use factory as the control hub</div>
+      <h2>Other repos should relate back to factory rather than inventing parallel control planes.</h2>
+    </section>
+
+    <section class="branch-card card-factory animate" style="--i:8">
+      <div class="card-kicker">Control hub</div>
+      <h3>Factory owns deterministic governance language and reusable workflow.</h3>
+      <ul class="leaf-list">
+        <li class="leaf">Confirm bicameral factory is the designated single source of truth repo.</li>
+        <li class="leaf">Document how other repos relate back to factory as the hub.</li>
+        <li class="leaf">Update governance documentation to reflect cloud as part of the governed product/control plane.</li>
+      </ul>
+    </section>
+
+    <section class="section-head animate" id="soc2" style="--i:9">
+      <div class="section-label">4. Prioritize control-plane work around security and SOC 2</div>
+      <h2>SOC 2 document readiness becomes the highest-priority control-plane thread.</h2>
+    </section>
+
+    <section class="branch-card card-soc2 animate" style="--i:10">
+      <div class="card-kicker">Security priority</div>
+      <h3>Translate governance work into evidence, ownership, and document posting.</h3>
+      <ul class="leaf-list">
+        <li class="leaf">Treat SOC 2 integration as the top priority within the control-plane work.</li>
+        <li class="leaf">Incorporate security-related items like SBOM into the control-plane scope.</li>
+        <li class="leaf">Review the governance / control-plane writeup already sent earlier.</li>
+        <li class="leaf">Use the exported SOC 2 document requirements CSV and filter by category.</li>
+        <li class="leaf">Add or complete mappings from required documents to templates / instructions in the repo.</li>
+        <li class="leaf">Use the Vanta MCP to accelerate document posting / management.</li>
+        <li class="leaf">Identify which document categories require Jin's ownership vs Kevin's ownership.</li>
+      </ul>
+    </section>
+
+    <section class="section-head animate" id="framing" style="--i:11">
+      <div class="section-label">New conceptual framing introduced</div>
+      <h2>The vocabulary that keeps the tree from becoming ad hoc work.</h2>
+    </section>
+
+    <section class="panel animate" style="--i:12">
+      <div class="contract-row" aria-label="Drift families">
+        <div class="contract-chip">
+          <b>Application drift</b>
+          <span>Runtime boundaries, ingestion envelope versions, hosted UI / local daemon alignment.</span>
+        </div>
+        <div class="contract-chip">
+          <b>Developmental drift</b>
+          <span>PR gates, provenance, substantiation, and deterministic factory governance.</span>
+        </div>
+        <div class="contract-chip">
+          <b>Ticket / decision drift</b>
+          <span>Reliable collaborator visibility and reusable ticket workflow automation.</span>
+        </div>
+      </div>
+
+      <div class="contract-row" aria-label="Contract families">
+        <div class="contract-chip">
+          <b>Semantic contract</b>
+          <span>Shared domain language, meanings, state semantics, and cross-repo interpretation.</span>
+        </div>
+        <div class="contract-chip">
+          <b>API contract</b>
+          <span>Callable interfaces, request and response shapes, versioned mismatch behavior.</span>
+        </div>
+        <div class="contract-chip">
+          <b>Deployable artifact</b>
+          <span>Versioned release units, hosted assets, daemons, and generated downstream PRs.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="callout animate" style="--i:13">
+      <strong>Bottom line:</strong> the tree is not asking for more repos or more pathways. It asks for classification first,
+      then one governed source of truth, deterministic synchronization, and enough provenance to prove the system did what it claimed.
+    </section>
+
+    <div class="meta">Generated as a self-contained visual explainer.</div>
+  </main>
+</div>
+
+<script>
+  (function() {
+    const toc = document.getElementById("toc");
+    const links = Array.from(toc.querySelectorAll("a"));
+    const sections = links
+      .map((link) => ({ link, el: document.getElementById(link.getAttribute("href").slice(1)) }))
+      .filter((item) => item.el);
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        links.forEach((link) => link.classList.remove("active"));
+        const match = sections.find((section) => section.el === entry.target);
+        if (match) {
+          match.link.classList.add("active");
+          if (window.innerWidth <= 1120) {
+            match.link.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+          }
+        }
+      });
+    }, { rootMargin: "-12% 0px -72% 0px" });
+
+    sections.forEach((section) => observer.observe(section.el));
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,251 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/smr-claim-acceptance/v1/promotion-receipt.schema.json",
+  "title": "SmrPromotionReceiptV1",
+  "description": "Machine-readable canonical receipt returned after an SMR promotion or rejection operation, and the structured evidence record for terminal topology validation. A receipt is evidence, never Product state and never approval. Sensitive challenge values, credentials, raw private artifacts, and unrestricted prompts must never appear in a retained receipt. See docs/specs/state-machine-resolver-v1-runtime-architecture.md section 13.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_schema_version",
+    "digest_profile_version",
+    "operation_id",
+    "typed_result",
+    "routing",
+    "candidate",
+    "canonical",
+    "confirmation",
+    "working_state",
+    "smr",
+    "outcome"
+  ],
+  "properties": {
+    "receipt_schema_version": { "const": 1 },
+    "digest_profile_version": { "const": 1 },
+    "operation_id": { "$ref": "#/definitions/Uuid" },
+    "typed_result": {
+      "enum": [
+        "committed_once",
+        "not_committed",
+        "reconciliation_required",
+        "proposal_identity_mismatch",
+        "operation_conflict",
+        "replayed_result",
+        "challenge_expired",
+        "routing_mismatch",
+        "proposal_too_large",
+        "unsupported_contract_version",
+        "scope_insufficient",
+        "daemon_only",
+        "same_projection",
+        "exact_match",
+        "compatible"
+      ],
+      "description": "Closed. Never collapsed into a boolean or a percentage."
+    },
+    "mismatched_field": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required in practice when typed_result is proposal_identity_mismatch: the failure names the exact mismatched field."
+    },
+    "test_manifest_version": { "type": "integer", "minimum": 1 },
+    "journey_id": { "const": "developer_host_mcp_smr_claim_acceptance_v1" },
+    "journey_environment_ids": {
+      "type": "array",
+      "items": {
+        "enum": ["local-product-environment-v1", "developer-host-environment-v1"]
+      }
+    },
+    "released_host_version": { "type": "string", "minLength": 1 },
+    "mcp_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "bot_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "contract_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event_schema_version": { "type": "integer", "minimum": 1 },
+        "proposal_schema_version": { "type": "integer", "minimum": 1 },
+        "confirmation_protocol_version": { "type": "integer", "minimum": 1 },
+        "digest_profile_version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product_id", "event_stream_id"],
+      "properties": {
+        "product_id": { "type": "string", "minLength": 1 },
+        "event_stream_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "artifact_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_id", "git_head", "artifact_path", "blob_id"],
+      "properties": {
+        "repository_id": { "type": "string", "minLength": 1 },
+        "git_head": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "artifact_path": { "type": "string", "minLength": 1 },
+        "blob_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "generation", "kind"],
+      "properties": {
+        "candidate_id": { "$ref": "#/definitions/Uuid" },
+        "generation": { "type": "integer", "minimum": 0 },
+        "kind": { "enum": ["decision_v1", "smr_claim_set_v1"] },
+        "claim_set_digest": { "$ref": "#/definitions/Digest" },
+        "claim_scope_digest": { "$ref": "#/definitions/Digest" },
+        "currentness": { "enum": ["current", "stale"] },
+        "promotion_eligibility": { "enum": ["eligible", "invalid"] },
+        "analysis_status": {
+          "enum": ["complete", "needs_reanalysis", "deferred", "failed"]
+        },
+        "visibility": { "enum": ["visible", "suppressed"] }
+      }
+    },
+    "canonical": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appended", "canonical_event_log_digest_before", "canonical_event_log_digest_after"],
+      "description": "canonical_event_log_digest advances on any append, including a rejection. claim_projection_digest is unchanged by a rejection.",
+      "properties": {
+        "appended": { "type": "boolean" },
+        "event_id": { "$ref": "#/definitions/Uuid" },
+        "event_type": {
+          "enum": ["claim_set_candidate_promoted", "claim_set_candidate_rejected"]
+        },
+        "base_event_position": { "type": "integer", "minimum": 0 },
+        "canonical_event_log_digest_before": { "$ref": "#/definitions/Digest" },
+        "canonical_event_log_digest_after": { "$ref": "#/definitions/Digest" },
+        "claim_projection_digest_before": { "$ref": "#/definitions/Digest" },
+        "claim_projection_digest_after": { "$ref": "#/definitions/Digest" },
+        "resulting_decision_id": { "$ref": "#/definitions/Uuid" },
+        "resulting_decision_signoff_state": { "const": "approved" }
+      }
+    },
+    "confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol_version", "binding_digest", "actor_id"],
+      "description": "The challenge secret is never recorded in a retained receipt.",
+      "properties": {
+        "protocol_version": { "type": "integer", "minimum": 1 },
+        "binding_digest": { "$ref": "#/definitions/Digest" },
+        "display_summary_digest": { "$ref": "#/definitions/Digest" },
+        "actor_id": { "type": "string", "minLength": 1 },
+        "action": {
+          "enum": ["promote_smr_claim_set", "reject_smr_claim_set"]
+        }
+      }
+    },
+    "working_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reconciliation_result"],
+      "properties": {
+        "status_before": { "enum": ["proposed", "promoted", "rejected"] },
+        "status_after": { "enum": ["proposed", "promoted", "rejected"] },
+        "reconciliation_result": {
+          "enum": ["reconciled", "reconciliation_required", "not_applicable"]
+        }
+      }
+    },
+    "smr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_calls_during_replay"],
+      "properties": {
+        "projection_digest_before": { "$ref": "#/definitions/Digest" },
+        "projection_digest_after": { "$ref": "#/definitions/Digest" },
+        "replay_projection_digest": { "$ref": "#/definitions/Digest" },
+        "provider_calls_during_replay": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 0,
+          "description": "Must be exactly 0. Replay never invokes a provider or reconstructs extraction work. Any non-zero value is a conformance failure, not a performance note."
+        }
+      }
+    },
+    "assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["assertion_id", "result"],
+        "properties": {
+          "assertion_id": { "type": "string", "minLength": 1 },
+          "result": { "enum": ["passed", "failed", "inconclusive", "not_run"] },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "negative_controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["control_id", "expected_typed_result", "observed_typed_result"],
+        "properties": {
+          "control_id": { "type": "string", "minLength": 1 },
+          "expected_typed_result": { "type": "string", "minLength": 1 },
+          "observed_typed_result": { "type": "string", "minLength": 1 },
+          "failed_closed": { "type": "boolean" }
+        }
+      }
+    },
+    "sanitization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secrets_redacted"],
+      "properties": {
+        "secrets_redacted": { "type": "boolean" },
+        "raw_artifact_content_retained": { "type": "boolean" }
+      }
+    },
+    "teardown": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "completed": { "type": "boolean" },
+        "residue": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "outcome": {
+      "enum": [
+        "not_run",
+        "blocked",
+        "diagnostic_failed",
+        "diagnostic_passed",
+        "authoritative_failed",
+        "authoritative_inconclusive",
+        "authoritative_passed",
+        "human_rejected",
+        "human_accepted"
+      ],
+      "description": "Closed. Diagnostic evidence is not terminal evidence. Never collapsed into a percentage or a single green or red result."
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "What was NOT proven. The developer-host-environment-v1 authentic-host limitation stays visible here."
+    },
+    "accepted_by": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Named human. Required before outcome may be human_accepted."
+    }
+  },
+  "definitions": {
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

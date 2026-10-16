@@ -1,0 +1,9 @@
+# Customer-distribution build context is deny-by-default. Development governance,
+# tests, docs, evidence, workflows, and local tooling never enter the Docker context.
+*
+!Dockerfile
+!pyproject.toml
+!README.md
+!requirements.lock
+!src/
+!src/**

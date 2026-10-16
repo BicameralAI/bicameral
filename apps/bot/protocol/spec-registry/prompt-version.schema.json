@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/prompt-version.schema.json",
+  "title": "PromptVersion",
+  "description": "Immutable hosted prompt row. Not an entity on factory #935. ADR-0033.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["prompt_id", "route", "bytes", "sha256"],
+  "properties": {
+    "prompt_id": { "type": "string", "minLength": 1 },
+    "route": { "type": "string", "enum": ["system_one", "openai_compatible"] },
+    "bytes": { "type": "string" },
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

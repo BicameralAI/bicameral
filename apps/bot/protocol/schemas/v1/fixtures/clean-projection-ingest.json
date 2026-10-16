@@ -1,0 +1,11 @@
+{
+  "title": "User authentication must use OAuth 2.0",
+  "description": "The team decided in the sync meeting that all user-facing auth flows must use OAuth 2.0 with PKCE, replacing the legacy session-cookie approach.",
+  "source": "https://slack.com/archives/C12345/p1717200000",
+  "source_type": "slack",
+  "evidence": [
+    {
+      "excerpt": "We agreed: OAuth 2.0 with PKCE for all user auth flows going forward. No more session cookies for new endpoints."
+    }
+  ]
+}

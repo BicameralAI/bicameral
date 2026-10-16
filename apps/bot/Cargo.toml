@@ -1,0 +1,112 @@
+[workspace]
+members = [
+    ".",
+    "crates/bicameral-api",
+    "crates/bicameral-config",
+    "crates/bicameral-runtime",
+    "crates/bicameral-gateway",
+    "crates/bicameral-mods",
+    "crates/bicameral-audit",
+    "crates/bicameral-smr",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.35"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/BicameralAI/bicameral-bot"
+rust-version = "1.75"
+
+[workspace.dependencies]
+bicameral-api = { path = "crates/bicameral-api", version = "0.1.19" }
+bicameral-config = { path = "crates/bicameral-config", version = "0.1.19" }
+bicameral-runtime = { path = "crates/bicameral-runtime", version = "0.1.19" }
+bicameral-gateway = { path = "crates/bicameral-gateway", version = "0.1.19" }
+bicameral-mods = { path = "crates/bicameral-mods", version = "0.1.19" }
+bicameral-audit = { path = "crates/bicameral-audit", version = "0.1.19" }
+bicameral-smr = { path = "crates/bicameral-smr", version = "0.1.19" }
+
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+# Pinned exactly: 3.6.3 is the newest release declaring rust-version 1.75
+# (keyring 4.x raises the compiler floor). Platform keystores are selected
+# at compile time via features; with no feature enabled keyring silently
+# provides a mock store, so every supported OS is listed explicitly.
+keyring = { version = "=3.6.3", features = [
+    "apple-native",
+    "windows-native",
+    "sync-secret-service",
+    "vendored",
+] }
+clap = { version = "4", features = ["derive"] }
+cliclack = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml_edit = "0.22"
+serde_yaml = "0.9"
+thiserror = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4", "v5", "serde"] }
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors", "trace", "timeout"] }
+tower = { version = "0.5", features = ["util"] }
+once_cell = "1"
+regex = "1"
+schemars = "0.8"
+sha2 = "0.10"
+ring = "0.17"
+base64 = "0.22"
+libc = "0.2"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+rusqlite = { version = "0.39.0", features = ["bundled"] }
+tempfile = "3"
+flate2 = "1"
+tar = "0.4"
+tree-sitter = "0.24"
+tree-sitter-rust = "0.23"
+streaming-iterator = "0.1"
+
+[package]
+name = "bicameral"
+publish = false
+default-run = "bicameral"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Local-first governance runtime for software teams"
+
+[[bin]]
+name = "bicameral"
+path = "src/main.rs"
+
+[dependencies]
+bicameral-api.workspace = true
+bicameral-config.workspace = true
+bicameral-runtime.workspace = true
+bicameral-gateway.workspace = true
+bicameral-mods.workspace = true
+bicameral-audit.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+cliclack = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+toml_edit.workspace = true
+sha2.workspace = true
+chrono.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+libc.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+reqwest = { workspace = true, features = ["blocking"] }

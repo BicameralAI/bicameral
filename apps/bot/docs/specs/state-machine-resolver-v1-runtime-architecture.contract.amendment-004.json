@@ -1,0 +1,58 @@
+{
+  "amendment_id": "state-machine-resolver-v1-runtime-architecture-amendment-004",
+  "amendment_version": 4,
+  "base_contract_id": "state-machine-resolver-v1-runtime-architecture",
+  "base_contract_version": 1,
+  "effective_contract_version": "1.0.4",
+  "issue": 937,
+  "follow_up_issue": 1221,
+  "disposition": "AMEND",
+  "normative": true,
+  "authorizes_implementation": false,
+  "authorizes_release": false,
+  "supersedes": {
+    "amendment": "state-machine-resolver-v1-runtime-architecture-amendment-002",
+    "invariant": 5,
+    "clause": "Candidate generation predecessor for claim_set_candidate_promoted and claim_set_candidate_rejected"
+  },
+  "amendments": [
+    {
+      "id": "A26",
+      "target": "replay_totality",
+      "operation": "remove_candidate_generation_predecessor_require_self_contained_claim_set_terminals",
+      "self_contained_terminal_events": [
+        "claim_set_candidate_promoted",
+        "claim_set_candidate_rejected"
+      ],
+      "forbidden_canonical_generation_event": "claim_set_candidate_generated",
+      "required_predecessors_remain": [
+        "approve_signoff",
+        "reject_signoff",
+        "supersede_decision"
+      ],
+      "append_time_candidate_generation": {
+        "required_for": "live_j2_compare_and_append",
+        "not_required_for": "replay"
+      },
+      "second_terminal_replay_result": "invalid_canonical_history",
+      "missing_decision_predecessor_result": "invalid_canonical_history",
+      "silent_ignore": false,
+      "reason": "Candidate generation is daemon-local working state. A generated-candidate event would put unreviewed extract into Product history before human confirm."
+    }
+  ],
+  "conformance_obligations": [
+    "CONF-SMR-REPLAY-TOTALITY-01"
+  ],
+  "state_refinement": {
+    "lifecycle_changed": false,
+    "states_added": [],
+    "states_rejected": ["claim_set_candidate_generated"],
+    "authority_changed": false,
+    "persistence_changed": false
+  },
+  "user_journey": {
+    "journey_id": "developer_host_mcp_smr_claim_acceptance_v1",
+    "status": "passed_for_specification_boundary",
+    "reason": "Restores the locked J2 commit point: propose writes nothing canonical; confirm appends a self-contained event; replay does not invent a generated predecessor."
+  }
+}

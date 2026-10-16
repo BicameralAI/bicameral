@@ -1,0 +1,2361 @@
+{
+  "connectors": {
+    "aider": {
+      "available": true,
+      "category": "source-control / developer-AI tooling",
+      "channel": "beta",
+      "credentials": [],
+      "data": {
+        "emits": [
+          "commit"
+        ],
+        "pii_posture": "The commit SUBJECT is redact-and-passed (secret/PHI/PAN + email/phone scrubbed; F3 / SG-2026-06-13-A — a developer may paste a token/email into a commit message). The git AUTHOR NAME is RETAINED (e.g. 'Dev Example (aider)'): this connector exists to attribute developer-AI work, so *which human ran the AI pair-programmer* is the evidence at trust tier T0 — the deliberate opposite of the fathom/claude_code name-drop (F4 / SG-2026-06-13-B). Only author_name is read, never author_email; the author name is itself redact-and-passed so an email/phone-shaped name (e.g. a CI bot 'deploy-bot@corp.com (aider)') is scrubbed while a real name survives untouched (purple-team #170). The commit hash / 'aider-commit' floor is an opaque id and is NOT redacted. FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "redact-and-pass (commit subject + author name); a real name survives, an email/phone-shaped name is scrubbed; author name RETAINED as intentional T0 git provenance; opaque hash floor un-redacted; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "Aider-attributed git commits as read-only developer-AI provenance evidence (commit subject redact-and-passed; the human author name is retained as the provenance signal).",
+      "id": "aider",
+      "instructions": [
+        {
+          "action": "configure",
+          "ref": "connectors/aider/auth.md (Aider Auth)",
+          "text": "Point the operator runtime at the git repository to import. Aider's attribution ('(aider)' on the git author/committer name by default, or an opt-in Co-authored-by trailer) is detected automatically; only attributed commits are ingested. There are no network credentials — this is a local git import."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: an Aider-attributed commit should produce one emission (subject redact-and-passed; author name retained as provenance; attributed_by = author/committer/co-author)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + attribution detection + redact-and-pass on the subject are built and harness-proven; the author name is retained as deliberate git provenance. No network credentials (local git import). Gated on operator review + wiring the live git-log walk to a GatewaySink. To flip: set the repo path; wire the runtime git-log import; verify against an attributed commit; review before promoting.",
+      "modes": [
+        "passive"
+      ],
+      "name": "Aider",
+      "references": [
+        {
+          "kind": "git-attribution",
+          "url": "https://aider.chat/docs/git.html"
+        },
+        {
+          "kind": "auth",
+          "url": "connectors/aider/auth.md"
+        },
+        {
+          "kind": "contract",
+          "url": "connectors/aider/references.md"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "Path to the git repo the operator runtime walks (git-log import). Aider auto-commits its edits and attributes them; only attributed commits are ingested. Read-only — no canonical writes (ADR-0008).",
+          "key": "repo_path",
+          "label": "Git repository / working copy path",
+          "required": true
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T0",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Contract re-verified live 2026-06-13 (aider.chat/docs/git.html): '(aider)' appended to BOTH git author + committer name by default; committer-only for dirty-file commits; --attribute-co-authored-by opt-in Co-authored-by trailer. _attributed_by precedence (author -> committer -> co-author) matches.",
+        "PII: commit subject redact-and-passed (secret/PHI/PAN + email/phone); author NAME retained as intentional T0 git provenance (SG-2026-06-13-B); author_email never read; opaque hash floor un-redacted. FX-SEC-001 backstops secret/PHI/PAN.",
+        "Live git-log walk, the --analytics-log JSONL, and the .aider.chat.history.md transcript are operator-runtime; no live ingest this cycle. Live flip gated on operator review + a real git-log import (ADR-0012)."
+      ]
+    },
+    "anthropic_admin": {
+      "available": true,
+      "category": "developer-AI / usage",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "x-api-key: <admin key> (+ anthropic-version: 2023-06-01)",
+          "key": "anthropic_admin",
+          "label": "Admin API key (sk-ant-admin…)",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "An organization admin provisions an Admin API key (sk-ant-admin…) in the Claude Console (Admin role required).",
+              "Bicameral sends it as x-api-key (with anthropic-version: 2023-06-01) on GET /v1/organizations/usage_report/messages (verified 2026-06-13). Distinct from a standard API key."
+            ],
+            "url": "https://docs.anthropic.com/en/api/administration-api"
+          },
+          "required": true,
+          "type": "api_key",
+          "validation": "^sk-ant-admin"
+        }
+      ],
+      "data": {
+        "emits": [
+          "usage_metrics"
+        ],
+        "pii_posture": "PII-FREE aggregate by construction. parse_usage synthesizes its OWN excerpt from numeric token totals (input = uncached + cache_read + nested cache_creation.ephemeral_*; + output) and distinct model names. The opaque workspace_id / api_key_id grouping dimensions are NEVER surfaced; there is no user email/name in the usage surface; no author field. No provider free text is emitted, so no redaction is required (the copilot/cursor PII-free-by-construction class). FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "n/a — PII-free aggregate (token totals + models only); opaque workspace/key ids never surfaced; no author; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "Anthropic organization usage/cost metrics as PII-free aggregate governed evidence (token totals + models; opaque workspace/key ids never surfaced).",
+      "id": "anthropic_admin",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://docs.anthropic.com/en/api/administration-api",
+          "ref": "connectors/anthropic_admin/auth.md (Anthropic Admin Auth)",
+          "text": "An org admin provisions an Admin API key (sk-ant-admin…) in the Claude Console (Admin role)."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the Admin API key (sent as x-api-key with anthropic-version)."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a usage poll should return one emission per time bucket (PII-free token totals + models; opaque workspace/key ids never surfaced)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse is built and harness-proven; the usage surface is PII-free aggregate (token totals + models). Gated on operator review + wiring the live usage poll (host-pinned to api.anthropic.com, Admin key) to a GatewaySink. To flip: provision the Admin API key; wire the runtime poll; run a real usage poll; review before promoting.",
+      "modes": [
+        "active"
+      ],
+      "name": "Anthropic Admin",
+      "references": [
+        {
+          "kind": "admin-api",
+          "url": "https://docs.anthropic.com/en/api/administration-api"
+        },
+        {
+          "kind": "usage-cost-api",
+          "url": "https://docs.anthropic.com/en/api/usage-cost-api"
+        },
+        {
+          "kind": "auth",
+          "url": "connectors/anthropic_admin/auth.md"
+        }
+      ],
+      "runtime_config": [
+        {
+          "default": "https://api.anthropic.com",
+          "description": "Host the poll client pins to (anti-SSRF).",
+          "key": "base_url",
+          "label": "Anthropic API base URL",
+          "required": false
+        },
+        {
+          "default": "1d",
+          "description": "Time-bucket granularity (1m / 1h / 1d). Operator-runtime poll knob; poll <= once/min.",
+          "key": "bucket_width",
+          "label": "Usage bucket width",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Usage API re-verified live 2026-06-13 (docs.anthropic.com/en/api/usage-cost-api): GET /v1/organizations/usage_report/messages, x-api-key Admin key (sk-ant-admin…) + anthropic-version; response uncached_input_tokens + cache_creation (NESTED ephemeral_1h/5m) + cache_read_input_tokens + output_tokens by model/workspace/service_tier. MATCHES parse_usage incl. the nested cache_creation summation.",
+        "PII: PII-free aggregate by construction — synthesized token-totals excerpt; opaque workspace_id/api_key_id never surfaced; no author; no provider free text. FX-SEC-001 backstops secret/PHI/PAN.",
+        "The live REST poll + Admin-key resolution are operator-runtime; no live network this cycle. Live flip gated on operator review + a real usage poll with an Admin key (ADR-0012). Per-user cost (Claude Code Analytics API) is deferred behind the redaction model (per-user PII)."
+      ]
+    },
+    "claude_code": {
+      "available": true,
+      "category": "developer-ai",
+      "channel": "beta",
+      "credentials": [],
+      "data": {
+        "emits": [
+          "user",
+          "assistant",
+          "summary"
+        ],
+        "pii_posture": "Transcripts are arbitrary local plaintext (file contents, command stdout/stderr, pasted text -> potential secrets/PII). The excerpt CONTENT is redact-and-passed (secret/PHI/PAN + email/phone scrubbed); the `[claude_code:kind] <id>` floor literal is left un-redacted but its id is opaque-id-validated ([A-Za-z0-9_-]{1,64}, else elided) so a poisoned id cannot carry an email. `cwd` is home-prefix-scrubbed for the common home layouts (drive-letter C:\\Users\\<name>, POSIX /Users//home//export/home, UNC \\\\server\\Users\\<name>, WSL \\\\wsl$\\<distro>\\home\\<name> -> ~/...) so the OS username is not surfaced. FX-SEC-001 hard-rejects any residual secret/PHI/PAN. No credential or secret is stored in this package.",
+        "redaction": "redact-and-pass (excerpt content); cwd home-prefix scrubbed (no OS username); FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "Claude Code session-transcript JSONL turns as redact-and-pass governed evidence (local file import, no credential).",
+      "id": "claude_code",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://code.claude.com/docs/en/data-usage",
+          "ref": "connectors/claude_code/auth.md (Sensitivity)",
+          "text": "No credential needed — Claude Code session transcripts are local JSONL the operator already has on disk. Review the data-usage / retention docs."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a session-transcript batch produces one emission per user/assistant/summary line (content redact-and-passed; cwd username scrubbed; non-evidence lines skipped)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse surface (redact-and-pass + cwd scrub) is built and harness-proven; no credential to provision. Gated on operator review + the deferred live file-watch path. To flip: point the operator runtime at the local transcript directory; feed lines through ClaudeCodeConnector; wire GatewaySink; review before promoting.",
+      "modes": [
+        "passive"
+      ],
+      "name": "Claude Code",
+      "references": [
+        {
+          "kind": "data-usage",
+          "url": "https://code.claude.com/docs/en/data-usage"
+        },
+        {
+          "kind": "claude-directory",
+          "url": "https://code.claude.com/docs/en/claude-directory"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T0",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Source schema re-pinned against a REAL 6,008-line transcript 2026-06-12 (SG-2026-06-12-G): evidence types user/assistant carry message.content (text/thinking/tool_use/tool_result blocks); cwd/model/sessionId/uuid/timestamp(ISO) present. The documented `summary` type is ABSENT in the current format (kept legacy-tolerant); new types ai-title/pr-link/system/queue-operation exist and are intentionally NOT emitted this cycle (user/assistant turns are the evidence surface).",
+        "PII: excerpt content redact-and-passed (secret/PHI/PAN + email/phone); cwd home-prefix scrubbed (no OS username); FX-SEC-001 is the un-bypassable backstop. source_id renamed claude-code -> claude_code (folder/descriptor alignment).",
+        "Local file import (T0), no credential, no network. Live file-watch of ~/.claude/projects/<slug>/<session-id>.jsonl + history.jsonl (epoch-ms ts) are deferred (operator runtime). Live flip gated on operator review (ADR-0012)."
+      ]
+    },
+    "confluence": {
+      "available": true,
+      "category": "docs / knowledge-base",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Authorization: Basic base64('<email>:<api_token>')",
+          "key": "confluence",
+          "label": "API token (Basic: email + token)",
+          "modes": [
+            "active",
+            "passive"
+          ],
+          "obtain": {
+            "steps": [
+              "Create an Atlassian API token (id.atlassian.com -> Security -> API tokens) for the account that reads the spaces.",
+              "Bicameral fetches GET /wiki/rest/api/content/{id}?expand=body.storage with HTTP Basic (email:token), host-pinned to your <site>.atlassian.net (verified 2026-06-13). OAuth 2.0 (3LO) is the alternative."
+            ],
+            "url": "https://developer.atlassian.com/cloud/confluence/rest/v1/intro/"
+          },
+          "required": true,
+          "type": "api_key"
+        }
+      ],
+      "data": {
+        "emits": [
+          "page"
+        ],
+        "pii_posture": "A Confluence page TITLE + flattened storage BODY are PII-dense free text (internal docs, names, emails) -> redact-and-passed (secret/PHI/PAN + email/phone scrubbed, since FX-SEC-001 backstops only secret/PHI/PAN). The page URL is ALSO redact-and-passed because the _links.webui slug carries the page title (purple-team CONF-PII-URL-01); the opaque page id ref is not redacted. RESIDUAL: a URL-encoded email in the title slug (e.g. %40) is not regex-matchable -- the redacted title field is the canonical surface. _strip_storage_html is a lossy flattener (NOT a sanitizer) -- redact() + FX-SEC-001 are the security controls. No author is surfaced. FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "redact-and-pass (page title + flattened storage body + page URL/webui-slug); opaque id ref un-redacted; URL-encoded slug PII is a disclosed residual; no author; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "Confluence Cloud page content as redact-and-pass governed evidence (title + body scrubbed); authenticated REST poll (the Connect-app-JWT webhook needs a Connect app, deferred).",
+      "id": "confluence",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://developer.atlassian.com/cloud/confluence/rest/v1/intro/",
+          "ref": "connectors/confluence/auth.md (Confluence Auth)",
+          "text": "Create an Atlassian API token for the account that reads the target spaces."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the API token (used with the account email as HTTP Basic)."
+        },
+        {
+          "action": "configure",
+          "ref": "connectors/confluence/auth.md (Confluence Auth)",
+          "text": "Set the Confluence site base URL (https://<site>.atlassian.net/wiki) and optional space filter. The poll is host-pinned to *.atlassian.net."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: fetching a page (expand=body.storage) should produce one emission (title + body redact-and-passed; opaque page id ref)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + redact-and-pass are built and harness-proven; title + body redact-and-passed, host pinned to *.atlassian.net. Gated on operator review + wiring the live authenticated REST poll (API-token Basic or OAuth) to a GatewaySink. To flip: create the API token + set the site base URL; wire the runtime poll; fetch a real page; review before promoting. The Connect-app-JWT webhook is a future path (needs a registered Connect app).",
+      "modes": [
+        "active",
+        "passive"
+      ],
+      "name": "Confluence",
+      "references": [
+        {
+          "kind": "rest-api",
+          "url": "https://developer.atlassian.com/cloud/confluence/rest/v1/intro/"
+        },
+        {
+          "kind": "auth",
+          "url": "connectors/confluence/auth.md"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "Your Atlassian Cloud site, e.g. https://<site>.atlassian.net/wiki. The poll client pins to *.atlassian.net (anti-SSRF; the connector's can_handle_ref matches the host).",
+          "key": "base_url",
+          "label": "Confluence site base URL",
+          "required": true
+        },
+        {
+          "description": "Which spaces/pages the operator runtime polls. Operator-runtime knob.",
+          "key": "space",
+          "label": "Space / content filter",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Cloud signature scheme re-verified 2026-06-13 (Atlassian docs): the Data-Center X-Hub-Signature HMAC does NOT transfer to Cloud; the Cloud webhook scheme is Connect-app JWT (Authorization: JWT, HS256 over the per-tenant install shared secret + qsh binding). It needs a registered Connect app + install-handshake shared-secret store, so verify() stays deferred and the descriptor offers only the authenticated poll (SG-2026-06-14-B).",
+        "PII: page title + flattened storage body redact-and-passed (secret/PHI/PAN + email/phone); opaque id ref + URL un-redacted; no author. _strip_storage_html is a lossy flattener, not a sanitizer; redact() + FX-SEC-001 are the controls.",
+        "The live REST fetch (OAuth 2.0 3LO or API-token Basic), host-pinned to *.atlassian.net, is operator-runtime; no live network this cycle. Live flip gated on operator review + a real authenticated page fetch (ADR-0012)."
+      ]
+    },
+    "continue_dev": {
+      "available": true,
+      "category": "developer-AI / source-control",
+      "channel": "beta",
+      "credentials": [],
+      "data": {
+        "emits": [
+          "development_data"
+        ],
+        "pii_posture": "Continue dev-data events carry developer-AI interaction text (prompt/completion/content/message) that can contain code with secrets/emails -> redact-and-passed (secret/PHI/PAN + email/phone scrubbed; SG-2026-06-13-A). The userId author is redact-and-passed too (an opaque id passes unchanged; an email-shaped userId is scrubbed), and the metadata 'model' (modelTitle is a USER-DEFINED free-form string) is ALSO redact-and-passed (purple-team CONTINUE-PII-1). The 'continue {eventName}' floor + the uniform-technical metadata (name/schema) are not redacted. The operator's Continue level:noCode lever additionally strips text fields AT SOURCE. FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "redact-and-pass (prompt/completion/content/message excerpt + userId author + free-form model metadata); event-kind floor + uniform-technical metadata (name/schema) kept; operator level:noCode strips at source; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "Continue (continue.dev) developer-AI dev-data events (local JSONL) as redact-and-pass governed evidence (prompt/completion text scrubbed; opaque userId).",
+      "id": "continue_dev",
+      "instructions": [
+        {
+          "action": "configure",
+          "ref": "connectors/continue_dev/auth.md (Continue Auth)",
+          "text": "Point the operator runtime at Continue's development-data JSONL path. This is a local file import -- there are no credentials and no network. Optionally enable Continue's level:noCode to strip prompt/completion text at source."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: ingesting a dev-data event should produce one emission (prompt/completion redact-and-passed; opaque userId; event-kind floor when text is stripped)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + redact-and-pass are built and harness-proven; prompt/completion text + userId redact-and-passed, the operator level:noCode lever strips at source. No credentials (local file import). Gated on operator review + wiring the live JSONL file-watch / HTTP-sink to a GatewaySink. To flip: set the dev-data path; wire the runtime ingest; ingest a real event; review before promoting.",
+      "modes": [
+        "passive"
+      ],
+      "name": "Continue",
+      "references": [
+        {
+          "kind": "dev-data",
+          "url": "https://docs.continue.dev/customize/deep-dives/development-data"
+        },
+        {
+          "kind": "repo",
+          "url": "https://github.com/continuedev/continue"
+        },
+        {
+          "kind": "auth",
+          "url": "connectors/continue_dev/auth.md"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "Path (or glob) to Continue's local development-data JSONL the operator runtime ingests (one event per developer-AI interaction). File import only; no network, no credential.",
+          "key": "dev_data_path",
+          "label": "Continue dev-data JSONL path",
+          "required": true
+        },
+        {
+          "default": false,
+          "description": "When the operator sets Continue's level:noCode, Continue strips prompt/completion text fields AT SOURCE before they are written — defense-in-depth on top of Bicameral's redact-and-pass.",
+          "key": "no_code_lever",
+          "label": "Continue level:noCode (source-side redaction)",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T0",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Dev-data shape re-confirmed live 2026-06-13 (docs.continue.dev development-data): schema-versioned event JSON blob + HTTP-sink. Field detail (eventName base field, no event-id, prompt/completion/content/message text fields, level:noCode lever) pinned 2026-06-08 against docs/source and handled defensively (eventName/name fallback, schema-version-tolerant, str-coerced); the doc defers the field list to source (SG-2026-06-13-D). No drift on the confirmed surface.",
+        "PII: prompt/completion/content/message excerpt + userId author redact-and-passed (secret/PHI/PAN + email/phone); event-kind floor + technical metadata kept; operator level:noCode strips text at source. FX-SEC-001 backstops secret/PHI/PAN.",
+        "The live JSONL file-watch / HTTP-sink collection is operator-runtime; no live ingest this cycle. Live flip gated on operator review + a real dev-data ingest (ADR-0012)."
+      ]
+    },
+    "copilot": {
+      "available": true,
+      "category": "developer-ai",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Authorization: Bearer <token>",
+          "key": "copilot",
+          "label": "GitHub token (PAT/OAuth) with read:org",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "Create a PAT (or OAuth app token) with `manage_billing:copilot` OR `read:org` / `read:enterprise`.",
+              "Sent as Authorization: Bearer (with Accept: application/vnd.github+json + X-GitHub-Api-Version)."
+            ],
+            "url": "https://docs.github.com/en/rest/copilot/copilot-metrics"
+          },
+          "required": true,
+          "type": "api_key"
+        }
+      ],
+      "data": {
+        "emits": [
+          "usage_metrics"
+        ],
+        "pii_posture": "PII-free: the aggregate metrics object carries no per-developer identity (one emission per day). The newer per-user NDJSON usage-metrics report is deferred behind a future redaction-and-pass model.",
+        "redaction": "none (aggregate, PII-free by construction)"
+      },
+      "description": "GitHub Copilot org metrics (aggregate, PII-free) as governed evidence.",
+      "id": "copilot",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://docs.github.com/en/rest/copilot/copilot-metrics",
+          "ref": "connectors/copilot/auth.md (Expected secret keys)",
+          "text": "Create a GitHub PAT/OAuth token with manage_billing:copilot or read:org."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the token (sent as Authorization: Bearer)."
+        },
+        {
+          "action": "configure",
+          "ref": "connectors/copilot/auth.md (Live path — reference poll client)",
+          "text": "Provide the org-templated metrics endpoint (.../orgs/<org>/copilot/metrics)."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: an active poll returns aggregate daily metrics (one emission per day), no per-developer identity."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Aggregate PII-free parse surface + the live fetch-half (build_copilot_spec) are built and harness-proven against a recorded fixture (contract verified 2026-06-08). Gated on operator review + a live poll with a real token. To flip: provide a read:org token + the org-templated endpoint; wire GatewaySink; run the live poll; review before promoting.",
+      "modes": [
+        "active"
+      ],
+      "name": "GitHub Copilot",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://docs.github.com/en/rest/copilot/copilot-metrics"
+        },
+        {
+          "kind": "auth",
+          "url": "https://docs.github.com/en/rest/overview/permissions-required-for-fine-grained-personal-access-tokens"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "GET .../orgs/<org>/copilot/metrics — template YOUR org in (host pinned api.github.com; default carries an ORG placeholder).",
+          "key": "base_url",
+          "label": "Copilot metrics endpoint (org-templated)",
+          "required": true
+        },
+        {
+          "default": "2022-11-28",
+          "description": "GitHub REST API version header (valid; EOL 2028-03-10).",
+          "key": "api_version",
+          "label": "X-GitHub-Api-Version",
+          "required": false
+        },
+        {
+          "default": 100,
+          "description": "Results per page (max 100; page-number pagination, 100-day lookback).",
+          "key": "per_page",
+          "label": "Page size",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Contract verified docs.github.com 2026-06-08: top-level JSON array of day objects (one emission/day); page/per_page pagination (max 100; 100-day lookback) via PageNumberPager (stop-on-short-page). X-GitHub-Api-Version 2022-11-28 is an argument, not baked.",
+        "Operator templates their org into base_url (required; the default carries an ORG placeholder that will 404).",
+        "Live flip gated on operator human review + a live poll with a real read:org token (ADR-0012)."
+      ]
+    },
+    "cursor": {
+      "available": true,
+      "category": "developer-ai",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Authorization: Basic (API key as username, empty password)",
+          "key": "cursor",
+          "label": "Team Admin API key",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "A team administrator mints an Admin API key in the Cursor dashboard (team settings).",
+              "The key is sent as HTTP Basic with the key as the username and an empty password."
+            ],
+            "url": "https://cursor.com/docs/account/teams/admin-api"
+          },
+          "required": true,
+          "type": "basic"
+        }
+      ],
+      "data": {
+        "emits": [
+          "usage_metrics"
+        ],
+        "pii_posture": "PII-free by construction: parse-time allowlist reads only numeric metrics + mostUsedModel + the OPAQUE integer userId; email/name/clientVersion are NEVER read (FX-SEC-001 does not detect a generic email, so the control is the allowlist, not a downstream screen). Free-text day/model pass through redact().",
+        "redaction": "parse-time PII exclusion (allowlist) + redact() on free-text; opaque userId for pseudonymous per-developer attribution (SG-2026-06-05-D)"
+      },
+      "description": "Cursor team daily-usage metrics (Admin API) as PII-free, governed evidence.",
+      "id": "cursor",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://cursor.com/docs/account/teams/admin-api",
+          "ref": "connectors/cursor/auth.md (Expected secret keys)",
+          "text": "A team admin mints a Cursor Admin API key (team settings)."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the Admin API key (sent as HTTP Basic username, empty password)."
+        },
+        {
+          "action": "configure",
+          "ref": "connectors/cursor/auth.md (Live path — reference poll client)",
+          "text": "Provide the date-range request body {startDate, endDate} in epoch milliseconds (range <= 30 days)."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: an active poll returns PII-free per-user-day usage rows (opaque userId only)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse surface (PII-free allowlist) + the live fetch-half (build_cursor_spec) are built and harness-proven against a recorded fixture; contract re-verified live 2026-06-11. Gated on operator human review + a live poll with a real team Admin API key. To flip: provide the key + a date-range body; wire GatewaySink; run the live poll; review before promoting.",
+      "modes": [
+        "active"
+      ],
+      "name": "Cursor",
+      "references": [
+        {
+          "kind": "admin-api",
+          "url": "https://cursor.com/docs/account/teams/admin-api"
+        }
+      ],
+      "runtime_config": [
+        {
+          "default": "https://api.cursor.com/teams/daily-usage-data",
+          "description": "The Cursor Admin API daily-usage endpoint (host pinned api.cursor.com; verified 2026-06-11).",
+          "key": "base_url",
+          "label": "Daily-usage endpoint",
+          "required": false
+        },
+        {
+          "description": "POST body {startDate, endDate} in epoch MILLISECONDS, range <= 30 days. page/pageSize (body) paginate; the reference client fetches one page (widen pageSize for teams > one page).",
+          "key": "body",
+          "label": "Date-range request body",
+          "required": true
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Contract verified live 2026-06-11: POST https://api.cursor.com/teams/daily-usage-data, HTTP Basic (key as username), body {startDate,endDate} epoch-ms <= 30 days, `data` envelope; rows carry userId/email/metrics, no `name`.",
+        "Pagination is POST-body `page`/`pageSize` with response `pagination.hasNextPage` (verified 2026-06-11). The reference client (build_cursor_spec) issues a SINGLE request and is NOT yet wired for multi-page — a team larger than one page truncates; widen `pageSize` or wire a body-page pager before relying on full coverage. (runtime/poll_specs.py build_cursor_spec carries stale 'inferred/unverified' comments to reconcile.)",
+        "PII control is the parse-time allowlist (no downstream screen for generic email) — do NOT relax it. Operator runs the live poll + reviews before promoting to Live (ADR-0012)."
+      ]
+    },
+    "devin": {
+      "available": true,
+      "category": "developer-ai",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Authorization: Bearer <cog_ Service-User key>",
+          "key": "devin",
+          "label": "Service-User API key",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "In your Devin organization settings, create a Service-User API key (cog_ prefix). It is shown once at creation and is RBAC-scoped; a Personal Access Token works too where available.",
+              "Copy the key — it is sent as an Authorization: Bearer header. Devin publishes no webhooks, so this is the only credential (active poll only)."
+            ],
+            "url": "https://docs.devin.ai/api-reference/authentication"
+          },
+          "required": true,
+          "type": "api_key",
+          "validation": "^cog_[A-Za-z0-9]+$"
+        }
+      ],
+      "data": {
+        "emits": [
+          "session"
+        ],
+        "pii_posture": "Session free-text (title, structured_output, message trail) may carry secrets/PII, so it is passed through adapter.core.redaction.redact (redact-and-pass) before emit; the first pull_requests[].pr_url is kept un-redacted as the artifact location (github/gitlab/jira precedent). FX-SEC-001 producer screen is the un-bypassable backstop.",
+        "redaction": "redact-and-pass (free-text scrubbed of secret/PHI/PAN + email/phone; FX-SEC-001 is the hard backstop)"
+      },
+      "description": "Devin agentic-coding sessions (v3 enterprise API) as redacted, governed evidence.",
+      "id": "devin",
+      "ingestion_gate": {
+        "empty_state": "No Devin evidence has produced candidates yet.",
+        "evidence_labels": {
+          "pr_url": "Pull request",
+          "session": "Session"
+        },
+        "source_title_template": "Devin: {session_title}",
+        "source_type_label": "Devin session",
+        "summary_fields": [
+          "session_title",
+          "session_status",
+          "pr_url"
+        ]
+      },
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://docs.devin.ai/api-reference/authentication",
+          "ref": "connectors/devin/auth.md (Expected secret keys)",
+          "text": "Create a Service-User API key (cog_) in your Devin organization settings."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the Service-User API key (sent as Authorization: Bearer <key>)."
+        },
+        {
+          "action": "configure",
+          "ref": "connectors/devin/auth.md (Live path — reference poll client)",
+          "text": "Provide the v3 sessions base URL with your org id templated in: https://api.devin.ai/v3/organizations/<org_id>/sessions."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: an active poll should return recent sessions as redacted evidence (one emission per session)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + redaction surface and the live fetch-half (build_devin_spec, runner-wired) are code-complete and harness-proven against a reference sink — but still incomplete: the Live flip is gated on operator human review + a live poll against the real Devin v3 enterprise API with a real Service-User (cog_) key. To flip: provide the api key + the org-templated base_url; wire GatewaySink; run the live poll; review before promoting to Live.",
+      "modes": [
+        "active"
+      ],
+      "name": "Devin",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://docs.devin.ai/api-reference/overview"
+        },
+        {
+          "kind": "auth",
+          "url": "https://docs.devin.ai/api-reference/authentication"
+        },
+        {
+          "kind": "sessions-v3",
+          "url": "https://docs.devinenterprise.com/api-reference/v3/sessions/organizations-sessions"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "The v3 sessions list endpoint with your org templated in: https://api.devin.ai/v3/organizations/<org_id>/sessions (host pinned api.devin.ai; org_id goes in the path). Consumed by runtime build_devin_spec(base_url=...); there is no default (the operator supplies org_id).",
+          "key": "base_url",
+          "label": "Sessions endpoint base URL",
+          "required": true
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "The operator templates org_id into the REQUIRED base_url (https://api.devin.ai/v3/organizations/<org_id>/sessions); build_devin_spec has no default base_url, so a missing value fails closed (ConfigError) before any request.",
+        "v3 contract (items envelope; pull_requests[] of {pr_url, pr_state}; cursor end_cursor/has_next_page re-sent as ?after=; Bearer cog_ Service-User key) was doc-verified 2026-06-08 and re-verified live 2026-06-11 (docs.devinenterprise.com) — but UNVERIFIED against the live API with a real cog_ key. The operator must run the live poll and review the result before promoting to Live (ADR-0012).",
+        "This connector targets the v3 ENTERPRISE API (docs.devinenterprise.com). The parallel v1 API (docs.devin.ai: GET /v1/sessions, `sessions` envelope, singular `pull_request`, limit/offset, apk_ keys) is the 2026-06-08-corrected drift shape — do NOT cite or wire it (SG-2026-06-11-A)."
+      ]
+    },
+    "fathom": {
+      "available": true,
+      "category": "meetings",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "X-Api-Key: <key>",
+          "key": "fathom",
+          "label": "Fathom API key",
+          "modes": [
+            "passive"
+          ],
+          "obtain": {
+            "steps": [
+              "Generate an API key in your Fathom settings area.",
+              "Bicameral sends it as the X-Api-Key header on each GET /external/v1/meetings request (verified 2026-06-12)."
+            ],
+            "url": "https://developers.fathom.ai/"
+          },
+          "required": true,
+          "type": "api_key"
+        },
+        {
+          "header": "webhook-signature (Svix-style HMAC-SHA256 over {webhook-id}.{webhook-timestamp}.{body}, signed with the base64-decoded whsec_ secret)",
+          "key": "fathom_webhook",
+          "label": "Webhook signing secret (whsec_)",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "Create a webhook subscription in Fathom; capture the whsec_-prefixed signing secret.",
+              "Bicameral verifies webhook-signature (HMAC-SHA256, base64, constant-time) over {id}.{timestamp}.{body} with a 5-minute replay window."
+            ],
+            "url": "https://developers.fathom.ai/webhooks"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        }
+      ],
+      "data": {
+        "emits": [
+          "meeting"
+        ],
+        "pii_posture": "Transcript + summary + title are PII-dense free text -> redact-and-passed (secret/PHI/PAN + email/phone scrubbed). The speaker (transcript[].speaker.display_name) and recorder (recorded_by.name) REAL NAMES are DROPPED, not surfaced (identity minimization; SG-2026-06-12-H) -- honoring the 'human real names are dropped' guarantee. FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "redact-and-pass (transcript, summary, title); speaker + recorder real names dropped; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "Fathom meeting transcripts + summaries as redact-and-pass governed evidence (speaker + recorder real names dropped).",
+      "id": "fathom",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://developers.fathom.ai/",
+          "ref": "connectors/fathom/auth.md (REST)",
+          "text": "Generate a Fathom API key in your settings area (sent as the X-Api-Key header for the passive poll)."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the Fathom API key."
+        },
+        {
+          "action": "register_webhook",
+          "link": "https://developers.fathom.ai/webhooks",
+          "ref": "connectors/fathom/auth.md (Webhook)",
+          "text": "Add a Fathom new-meeting-content-ready webhook subscription pointing at your Bicameral receiver; capture the whsec_ signing secret."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the whsec_ webhook signing secret."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a signed new-meeting-content-ready delivery should produce one emission (transcript redact-and-passed; speaker names dropped)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + Svix-style verify + dedup are built and harness-proven; transcript/summary/title redact-and-passed, speaker + recorder real names dropped. Gated on operator review + a live signed delivery (webhook) and/or a live poll with a real X-Api-Key. To flip: add the webhook subscription + whsec_ secret + receiver (and/or the API key); wire GatewaySink; send a signed test delivery; review before promoting.",
+      "modes": [
+        "passive",
+        "webhook"
+      ],
+      "name": "Fathom",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://developers.fathom.ai/"
+        },
+        {
+          "kind": "webhooks",
+          "url": "https://developers.fathom.ai/webhooks"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "new-meeting-content-ready"
+        ],
+        "header": "webhook-signature",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "Add a Fathom webhook subscription for new-meeting-content-ready and capture the whsec_ signing secret.",
+            "Set the subscription URL to your Bicameral webhook receiver (see receiver below)."
+          ],
+          "url": "https://developers.fathom.ai/webhooks"
+        },
+        "signature_scheme": "HMAC-SHA256(base64decode(whsec_ secret), '{webhook-id}.{webhook-timestamp}.{body}'), base64, constant-time; Fathom-documented 5-minute replay window"
+      },
+      "wire_gates": [
+        "Contract re-verified live 2026-06-12 (developers.fathom.ai): meeting fields recording_id/meeting_title/title/transcript[].text/transcript[].speaker.display_name/default_summary.markdown_formatted/share_url/recorded_by.name/recording_end_time all match; webhook headers webhook-id/webhook-timestamp/webhook-signature + whsec_ + {id}.{timestamp}.{body} HMAC-SHA256 match; REST header X-Api-Key; 5-minute replay window now Fathom-documented.",
+        "PII: transcript/summary/title redact-and-passed; speaker (transcript[].speaker.display_name) + recorder (recorded_by.name) real names DROPPED (SG-2026-06-12-H).",
+        "Webhook RECEIPT + REST poll are operator-runtime; live network deferred. Live flip gated on operator review + a signed live delivery / live poll with a real API key (ADR-0012)."
+      ]
+    },
+    "github": {
+      "available": true,
+      "category": "source-control",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "X-Hub-Signature-256 (sha256= hex HMAC-SHA256 over the raw body)",
+          "key": "github_webhook",
+          "label": "Webhook signing secret",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "When you create the repository (or org) webhook, set a Secret.",
+              "Copy it — Bicameral verifies X-Hub-Signature-256 (hex HMAC-SHA256, sha256= prefix) over the raw body, constant-time, fail-closed."
+            ],
+            "url": "https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        }
+      ],
+      "data": {
+        "emits": [
+          "pull_request"
+        ],
+        "pii_posture": "PR title + body are free-text -> passed through adapter.core.redaction.redact (redact-and-pass: scrubs secret/PHI/PAN + email/phone). author is the PUBLIC PR-author login (the artifact author, like the kept pr_url precedent), not redacted. FX-SEC-001 is the un-bypassable backstop. X-GitHub-Delivery dedups replays.",
+        "redaction": "redact-and-pass (PR body + title); public author login surfaced"
+      },
+      "description": "GitHub pull-request webhook events as redact-and-pass governed evidence.",
+      "id": "github",
+      "instructions": [
+        {
+          "action": "register_webhook",
+          "link": "https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks",
+          "ref": "connectors/github/auth.md (Verification)",
+          "text": "Create a GitHub webhook on Pull request events, pointing at your Bicameral receiver URL."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the webhook signing secret you set when creating the webhook."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a signed test pull_request delivery should produce one emission (body redact-and-passed); a replayed delivery is deduped."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + X-Hub-Signature-256 verify + dedup are built and harness-proven; PR body/title redact-and-passed. Gated on operator human review + a live signed delivery with a real webhook secret + a provisioned receiver. To flip: create the webhook + secret + receiver; wire GatewaySink; send a signed test delivery; review before promoting.",
+      "modes": [
+        "webhook"
+      ],
+      "name": "GitHub",
+      "references": [
+        {
+          "kind": "webhook",
+          "url": "https://docs.github.com/en/webhooks"
+        },
+        {
+          "kind": "api",
+          "url": "https://docs.github.com/en/rest/pulls/pulls"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "pull_request"
+        ],
+        "header": "X-Hub-Signature-256",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "In the GitHub repo/org settings, create a webhook subscribed to Pull request events (content type application/json).",
+            "Set its Payload URL to your Bicameral webhook receiver (see receiver below)."
+          ],
+          "url": "https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks"
+        },
+        "signature_scheme": "hex HMAC-SHA256 over the raw request body (sha256= prefix)"
+      },
+      "wire_gates": [
+        "Webhook path is built + verified: X-Hub-Signature-256 (sha256= hex HMAC-SHA256, constant-time, fail-closed) + X-GitHub-Delivery dedup + envelope unwrap (top-level number injected into the nested pull_request). PR body/title redact-and-passed.",
+        "The ACTIVE REST fetch (GET pulls) is in the connector's capabilities but is NOT wired in the runtime this cycle -- webhook is the ingest path; an active poller is a future enhancement.",
+        "Webhook RECEIPT is operator-runtime: provision the receiver URL + inject github_webhook into the receive path (the CLI runs active fetches, not webhook receipt). Live flip gated on operator review + a signed live delivery (ADR-0012)."
+      ]
+    },
+    "gitlab": {
+      "available": true,
+      "category": "source-control",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "X-Gitlab-Token (plaintext shared secret, constant-time compared — GitLab does NOT HMAC-sign the body)",
+          "key": "gitlab_webhook",
+          "label": "Webhook secret token",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "When you create the GitLab webhook, set a Secret token; GitLab sends it verbatim in the X-Gitlab-Token header.",
+              "Bicameral constant-time-compares it to this secret (fail-closed) and dedups on X-Gitlab-Event-UUID (verified 2026-06-13). The newer Standard-Webhooks signing token is the documented stronger next step, not wired this cycle."
+            ],
+            "url": "https://docs.gitlab.com/user/project/integrations/webhooks/"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        },
+        {
+          "header": "Authorization: Bearer <personal/project/group access token> (or PRIVATE-TOKEN)",
+          "key": "gitlab",
+          "label": "Access token (active REST poll — deferred)",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "Create a personal/project/group access token with read scope for the deferred REST poll of merge requests / issues.",
+              "The active REST poll is operator-runtime and DEFERRED this cycle; the webhook is the built + verified path. Wiring needs operator oversight."
+            ],
+            "url": "https://docs.gitlab.com/ee/api/rest/authentication.html"
+          },
+          "required": false,
+          "type": "api_key",
+          "wiring_oversight": true
+        }
+      ],
+      "data": {
+        "emits": [
+          "merge_request",
+          "issue"
+        ],
+        "pii_posture": "MR/issue SUBJECT (title) + BODY (description) are PII-dense free text -> redact-and-passed (secret/PHI/PAN + email/phone scrubbed to placeholders; the github standard, since FX-SEC-001 backstops only secret/PHI/PAN). The author is the PUBLIC GitLab username (user.username) -- the artifact author, the kept-public-login precedent github set (SG-2026-06-13-B); only username is read, never name or email, and it is NOT redacted. FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "redact-and-pass (title + description); public username retained as artifact author (name/email never read); FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "GitLab merge-request + issue webhook events as redact-and-pass governed evidence (body + title scrubbed; public username retained as the artifact author).",
+      "id": "gitlab",
+      "instructions": [
+        {
+          "action": "register_webhook",
+          "link": "https://docs.gitlab.com/user/project/integrations/webhooks/",
+          "ref": "connectors/gitlab/auth.md (GitLab Auth)",
+          "text": "Add a GitLab webhook on Merge request + Issue events, set a Secret token, and point it at your Bicameral receiver URL."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the GitLab webhook Secret token (sent verbatim in X-Gitlab-Token)."
+        },
+        {
+          "action": "open_url",
+          "link": "https://docs.gitlab.com/ee/api/rest/authentication.html",
+          "ref": "connectors/gitlab/auth.md (Deferred live paths)",
+          "text": "Optional (deferred): create an access token for the active REST poll. The webhook is the built + verified path; the REST poll is operator-runtime and not wired this cycle."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a webhook delivery with a matching X-Gitlab-Token should produce one emission (title + description redact-and-passed; public username retained; dedup on replay)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + plaintext X-Gitlab-Token verify + dedup are built and harness-proven; title/description redact-and-passed, public username retained. The active REST poll is deferred (operator-runtime). Gated on operator review + a live delivery. To flip: create the webhook + secret token + a Bicameral receiver URL; wire GatewaySink; send a test delivery; review before promoting. Stronger path: configure a Standard-Webhooks signing token and reuse the existing Svix verifier.",
+      "modes": [
+        "webhook",
+        "active"
+      ],
+      "name": "GitLab",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://docs.gitlab.com/ee/api/"
+        },
+        {
+          "kind": "webhooks",
+          "url": "https://docs.gitlab.com/user/project/integrations/webhooks/"
+        },
+        {
+          "kind": "webhook-verify",
+          "url": "https://docs.gitlab.com/user/project/integrations/webhooks/#validate-payloads-by-using-a-secret-token"
+        },
+        {
+          "kind": "auth",
+          "url": "https://docs.gitlab.com/ee/api/rest/authentication.html"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "merge_request",
+          "issue"
+        ],
+        "header": "X-Gitlab-Token",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "In your GitLab project, add a webhook subscribed to Merge request events + Issue events and set a Secret token.",
+            "Set the webhook URL to your Bicameral webhook receiver (see receiver below)."
+          ],
+          "url": "https://docs.gitlab.com/user/project/integrations/webhooks/"
+        },
+        "signature_scheme": "plaintext shared-secret token in the X-Gitlab-Token header (GitLab does NOT HMAC-sign the body); constant-time compared, fail-closed; no replay-timestamp window -> best-effort dedup on X-Gitlab-Event-UUID, falling back to a SHA-256 body hash when the UUID is absent (so a stripped-UUID replay cannot bypass dedup). The newer Standard-Webhooks signing token (HMAC-SHA256 over webhook-id.webhook-timestamp.body, webhook-signature header) is GitLab's recommended method and the documented stronger next step, not wired this cycle."
+      },
+      "wire_gates": [
+        "Webhook verification re-verified live 2026-06-13 (docs.gitlab.com webhooks): the X-Gitlab-Token plaintext shared secret is GitLab's documented (legacy) method; GitLab does NOT HMAC-sign the body. Built verify_shared_token (constant-time, fail-closed) MATCHES. The Standard-Webhooks signing token (HMAC-SHA256 over {id}.{ts}.{body}) is the recommended stronger next step, not wired.",
+        "PII: title + description redact-and-passed (secret/PHI/PAN + email/phone); author = public username (user.username, never name/email). FX-SEC-001 backstops secret/PHI/PAN.",
+        "Webhook RECEIPT + the active REST poll are operator-runtime; the REST poll is DEFERRED this cycle (webhook is the built + verified path). Live flip gated on operator review + a live delivery with a matching token (ADR-0012)."
+      ]
+    },
+    "google_drive": {
+      "available": true,
+      "category": "docs",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Authorization: Bearer <access_token>",
+          "key": "google_drive",
+          "label": "Google OAuth access token",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "An access token is SHORT-LIVED (~1 hour; honor the returned expires_in) — pasting one is a quick test, not a durable setup.",
+              "Durable option A (user OAuth): register an OAuth client (Testing publishing status = NO verification for your own/test users), grant the documents.readonly / drive.readonly scopes, and persist the REFRESH token + client id/secret. The stdlib runtime.RefreshTokenSecretResolver mints fresh access tokens from these (plain POST, no RSA).",
+              "Durable option B (server, service account): use a service-account JSON; share the doc with the SA email (or use domain-wide delegation to impersonate). This needs RS256 JWT signing (google-auth) and is OPERATOR-RUNTIME — NOT stdlib.",
+              "Quick test token: the OAuth 2.0 Playground (developers.google.com/oauthplayground) issues a ~1h access token for the selected scopes. Restricted-scope verification only applies to apps DISTRIBUTED to other users."
+            ],
+            "url": "https://developers.google.com/identity/protocols/oauth2"
+          },
+          "refresh_owner": "operator",
+          "required": true,
+          "scopes": [
+            "https://www.googleapis.com/auth/documents.readonly",
+            "https://www.googleapis.com/auth/drive.readonly"
+          ],
+          "type": "oauth2",
+          "wiring_oversight": true
+        }
+      ],
+      "data": {
+        "emits": [
+          "document"
+        ],
+        "pii_posture": "Document title + flattened body text (untrusted, possibly PII-dense). FX-SEC-001 producer screen rejects secret/PHI/PAN before emit.",
+        "redaction": "none (FX-SEC-001 screen is the backstop)"
+      },
+      "description": "Google Docs documents fetched by id (documents.get) as governed evidence.",
+      "id": "google_drive",
+      "instructions": [
+        {
+          "action": "oauth_consent",
+          "link": "https://developers.google.com/identity/protocols/oauth2",
+          "text": "Connect Google and grant read-only Docs/Drive access (documents.readonly / drive.readonly). Token refresh is handled by the operator runtime."
+        },
+        {
+          "action": "configure",
+          "ref": "connectors/google_drive/auth.md (Live fetch)",
+          "text": "Provide the Google Doc id to fetch."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: documents.get should return the document; its text is screened before emission."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Code-ready (FX-GDRIVE-002, documents.get) and harness-proven against a reference sink — but still incomplete: the Live flip is gated on operator human review + a live test against the real Google Docs API with a real OAuth credential. To flip: provide a durable credential (refresh token via RefreshTokenSecretResolver, or a service-account JSON at the operator runtime) + a document id; wire GatewaySink; run the live test; review before promoting to Live.",
+      "modes": [
+        "active"
+      ],
+      "name": "Google Drive (Docs)",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://developers.google.com/docs/api/reference/rest/v1/documents/get"
+        },
+        {
+          "kind": "auth",
+          "url": "https://developers.google.com/identity/protocols/oauth2"
+        },
+        {
+          "kind": "drive-api",
+          "url": "https://developers.google.com/drive/api/guides/about-sdk"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "The Google Doc id to fetch (validated [A-Za-z0-9_-]{1,200}; spliced into GET /v1/documents/{id}).",
+          "key": "document_id",
+          "label": "Document ID",
+          "required": true
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1/T3",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Bearer-header assumption + multi-tab docs confirmed against a live response before the Live flip. Multi-tab docs (content under tabs[].documentTab.body) emit title-only — extract_document_text walks the legacy body; includeTabsContent/tabs[] deferred.",
+        "OAuth token refresh is now stdlib (runtime.RefreshTokenSecretResolver, FX-RUNTIME-006) — pasting a raw access token is a ~1h TEST only; the durable path is the refresh resolver (user OAuth) or a service-account JSON (operator-runtime, RS256/google-auth, not stdlib). Folder polling (Drive files.list) + push-notification webhooks remain deferred.",
+        "Live flip GATED on human review + live testing: code-complete and harness-proven through runtime/ against a reference sink, but UNVERIFIED against the live Google Docs API with a real OAuth credential — no machine has minted a real token and fetched a real document yet. The operator must run the live test (durable path = the refresh resolver) and review the result before promoting; until then this connector is flip-ready, NOT Live (ADR-0012)."
+      ]
+    },
+    "granola": {
+      "available": true,
+      "category": "meetings",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Authorization: Bearer grn_<key>",
+          "key": "granola",
+          "label": "Granola API key (grn_)",
+          "obtain": {
+            "steps": [
+              "Create a Granola API key (grn_ prefix) in your Granola workspace settings.",
+              "Sent as Authorization: Bearer grn_<key>."
+            ],
+            "url": "https://docs.granola.ai"
+          },
+          "required": true,
+          "type": "api_key",
+          "validation": "^grn_[A-Za-z0-9]+$"
+        }
+      ],
+      "data": {
+        "emits": [
+          "transcript"
+        ],
+        "pii_posture": "Meeting content is PII-dense and the provider gives no redaction guidance. The transcript + title are passed through adapter.core.redaction.redact (redact-and-pass: scrubs secret/PHI/PAN + email/phone). The meeting OWNER's identity (owner.name/email) is NEVER surfaced (author dropped, PII-safe). speaker is an anonymized object (source/diarization label), never read. FX-SEC-001 is the un-bypassable backstop.",
+        "redaction": "redact-and-pass (transcript + title); owner identity dropped"
+      },
+      "description": "Granola meeting notes + transcript (redact-and-pass) as governed evidence.",
+      "id": "granola",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://docs.granola.ai",
+          "ref": "connectors/granola/auth.md (Live path — reference poll client)",
+          "text": "Create a Granola API key (grn_) in your Granola workspace settings."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the Granola API key (sent as Authorization: Bearer grn_<key>)."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: an active poll returns recent notes; the transcript is redact-and-passed and the owner's identity is never surfaced."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Redacted transcript parse surface + the live fetch-half (build_granola_spec) are built and harness-proven against a recorded fixture; contract re-verified live 2026-06-11; the owner-vs-attendees drift + transcript-PII gap are fixed (L2). Gated on operator review + a live poll with a real grn_ key. To flip: provide the key; wire GatewaySink; run the live poll; review before promoting.",
+      "modes": [
+        "passive"
+      ],
+      "name": "Granola",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://docs.granola.ai"
+        }
+      ],
+      "runtime_config": [
+        {
+          "default": "https://public-api.granola.ai/v1/notes?include=transcript",
+          "description": "The notes-with-transcript endpoint (host pinned public-api.granola.ai; verified 2026-06-11). The incremental created_after watermark + two-phase commit are operator-runtime.",
+          "key": "base_url",
+          "label": "Notes endpoint",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Contract re-verified live 2026-06-11 (public-api.granola.ai): GET /v1/notes?include=transcript, Bearer grn_; `notes` envelope; cursor `cursor`/`hasMore` pagination; note carries owner{name,email}, title, summary, transcript[{speaker:{source,diarization_label},text}], created_at.",
+        "PII (SG-2026-06-11-D, fixed this cycle): identity is `owner` (NOT `attendees`); transcript + title are redact-and-passed; owner identity is dropped (FX-SEC-001 does not catch a generic name/email).",
+        "Live flip gated on operator human review + a live poll with a real grn_ key (ADR-0012)."
+      ]
+    },
+    "jira": {
+      "available": true,
+      "category": "project-management",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "X-Hub-Signature (sha256= hex HMAC-SHA256 over the raw body, WebSub)",
+          "key": "jira_webhook",
+          "label": "Webhook signing secret",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "When you create the Jira webhook, set a Secret (classic webhooks sign with it).",
+              "Copy it — Bicameral verifies X-Hub-Signature (hex HMAC-SHA256, sha256= prefix) over the raw body, constant-time, fail-closed."
+            ],
+            "url": "https://developer.atlassian.com/server/jira/platform/webhooks/"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        }
+      ],
+      "data": {
+        "emits": [
+          "issue"
+        ],
+        "pii_posture": "Title/excerpt come from issue.fields.summary (a string), passed through adapter.core.redaction.redact (redact-and-pass: scrubs secret/PHI/PAN + email/phone). fields.description is an Atlassian Document Format OBJECT and is NEVER read. The issue actor's displayName (a real name) is NOT surfaced (author dropped, PII-safe). FX-SEC-001 is the un-bypassable backstop.",
+        "redaction": "redact-and-pass (summary); ADF description never read; actor identity dropped"
+      },
+      "description": "Jira Cloud issue webhook events as redact-and-pass governed evidence.",
+      "id": "jira",
+      "instructions": [
+        {
+          "action": "register_webhook",
+          "link": "https://support.atlassian.com/cloud-automation/docs/jira-webhooks/",
+          "ref": "connectors/jira/auth.md (Verification)",
+          "text": "Create a Jira webhook on Issue created/updated/deleted with a Secret, pointing at your Bicameral receiver URL."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the webhook signing secret you set when creating the webhook."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a signed test issue event should produce one emission (summary redact-and-passed); a duplicate delivery is deduped."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + X-Hub-Signature verify + best-effort dedup are built and harness-proven; summary redact-and-passed, ADF description never read, actor identity dropped. Gated on operator review + a live signed delivery with a real webhook secret + a provisioned receiver. To flip: create the webhook + secret + receiver; wire GatewaySink; send a signed test delivery; review before promoting.",
+      "modes": [
+        "webhook"
+      ],
+      "name": "Jira",
+      "references": [
+        {
+          "kind": "webhook",
+          "url": "https://developer.atlassian.com/cloud/jira/platform/webhooks/"
+        },
+        {
+          "kind": "api",
+          "url": "https://developer.atlassian.com/cloud/jira/platform/rest/v3/"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "jira:issue_created",
+          "jira:issue_updated",
+          "jira:issue_deleted"
+        ],
+        "header": "X-Hub-Signature",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "In Jira (system or app webhooks), create a webhook on Issue created/updated/deleted with a Secret.",
+            "Set its URL to your Bicameral webhook receiver (see receiver below)."
+          ],
+          "url": "https://support.atlassian.com/cloud-automation/docs/jira-webhooks/"
+        },
+        "signature_scheme": "hex HMAC-SHA256 over the raw request body (X-Hub-Signature, sha256= prefix, WebSub)"
+      },
+      "wire_gates": [
+        "Webhook path built + verified: X-Hub-Signature (sha256= hex HMAC-SHA256, constant-time, fail-closed). Jira documents NO anti-replay window, so best-effort dedup (X-Atlassian-Webhook-Identifier -> issue.id -> body-hash) is the only replay guard. summary redact-and-passed; ADF description never read.",
+        "The ACTIVE REST fetch is in capabilities but NOT wired this cycle; Connect-JWT / Forge / Automation auth are deferred -- the classic signed webhook is the ingest path.",
+        "Webhook RECEIPT is operator-runtime (receiver URL + jira_webhook injection). Live flip gated on operator review + a signed live delivery (ADR-0012)."
+      ]
+    },
+    "linear": {
+      "available": true,
+      "category": "project-management",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Authorization (raw key, NO Bearer prefix)",
+          "key": "linear",
+          "label": "Personal API key",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "In your Linear workspace settings, create a personal API key.",
+              "Copy the key — it is sent as a raw Authorization header (no Bearer prefix)."
+            ],
+            "url": "https://linear.app/developers/graphql"
+          },
+          "required": true,
+          "type": "api_key",
+          "validation": "^lin_api_[A-Za-z0-9]+$"
+        },
+        {
+          "header": "Linear-Signature (hex HMAC-SHA256 over the raw body)",
+          "key": "linear_webhook",
+          "label": "Webhook signing secret",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "When you create the Linear webhook, Linear shows a signing secret.",
+              "Copy it — Bicameral verifies Linear-Signature (hex HMAC-SHA256) + a 60s anti-replay window."
+            ],
+            "url": "https://linear.app/developers/webhooks"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        }
+      ],
+      "data": {
+        "emits": [
+          "issue"
+        ],
+        "pii_posture": "Webhook: issue identifier/title/description/url; the actor display NAME is dropped (author='') — FX-SEC-001 does not screen a generic name, so it is not surfaced rather than relied on (SG-2026-06-11-D, deep-audit). GraphQL active fetch: PII-safe (no assignee/creator identity surfaced). FX-SEC-001 producer screen remains the un-bypassable secret/PHI/PAN backstop.",
+        "redaction": "author (actor.name) dropped; FX-SEC-001 screen rejects secret/PHI/PAN"
+      },
+      "description": "Linear issues — webhook events + active GraphQL fetch — as governed evidence.",
+      "id": "linear",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://linear.app/developers/graphql",
+          "ref": "connectors/linear/auth.md (GraphQL active fetch)",
+          "text": "Create a personal API key in your Linear workspace settings."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the personal API key (sent as a raw Authorization header — no Bearer prefix)."
+        },
+        {
+          "action": "register_webhook",
+          "link": "https://linear.app/developers/webhooks",
+          "ref": "connectors/linear/auth.md (Verification)",
+          "text": "Create a Linear webhook on Issue events, pointing at your Bicameral receiver URL."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the webhook signing secret Linear shows when the webhook is created."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a signed test webhook should produce one emission; an active GraphQL fetch should return recent issues."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Code-ready on both paths (FX-LINEAR-002 webhook, FX-LINEAR-003 GraphQL) and harness-proven against a reference sink — but still incomplete: the Live flip is gated on operator human review + a live test against Linear's real API/webhook with real secrets. To flip: provide the API key, the webhook signing secret, and a webhook receiver URL; wire GatewaySink; run the live test; review before promoting to Live.",
+      "modes": [
+        "webhook",
+        "active"
+      ],
+      "name": "Linear",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://linear.app/docs/api-and-webhooks"
+        },
+        {
+          "kind": "graphql",
+          "url": "https://linear.app/developers/graphql"
+        },
+        {
+          "kind": "webhook",
+          "url": "https://linear.app/developers/webhooks"
+        },
+        {
+          "kind": "pagination",
+          "url": "https://linear.app/developers/pagination"
+        },
+        {
+          "kind": "rate-limiting",
+          "url": "https://linear.app/developers/rate-limiting"
+        }
+      ],
+      "runtime_config": [
+        {
+          "default": 50,
+          "description": "Issues fetched per GraphQL page (Linear Relay cursor; default 50).",
+          "key": "page_size",
+          "label": "GraphQL page size",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "Issue"
+        ],
+        "header": "Linear-Signature",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "In Linear, create a webhook subscribed to Issue events.",
+            "Set its URL to your Bicameral webhook receiver (see receiver below)."
+          ],
+          "url": "https://linear.app/developers/webhooks"
+        },
+        "signature_scheme": "hex HMAC-SHA256 over the raw request body"
+      },
+      "wire_gates": [
+        "Two-secret model (RESOLVED, FX-RUNTIME-005): Linear needs two namespaced credential keys — 'linear' (GraphQL API key, modes: active) + 'linear_webhook' (webhook signing secret, modes: webhook). The resolver resolves each by key (env BICAMERAL_LINEAR / BICAMERAL_LINEAR_WEBHOOK), and assert_runnable is mode-scoped so an active `runtime.cli run linear` requires only 'linear'. Residual: injecting 'linear_webhook' into deliver_webhook's receive path stays operator-runtime (the CLI runs active fetches, not webhook receipt).",
+        "GraphQL issue field set (id/identifier/title/description/url/updatedAt/state.name) confirmed against a live response before the Live flip (verify-before-cite).",
+        "Live flip GATED on human review + live testing: code-complete and harness-proven through runtime/ against a reference sink, but UNVERIFIED against Linear's live API/webhook with real secrets — no machine has hit the live endpoint yet. The operator must run the live test and review the result before promoting; until then this connector is flip-ready, NOT Live (ADR-0012)."
+      ]
+    },
+    "local_directory": {
+      "available": true,
+      "category": "file/static-import",
+      "channel": "beta",
+      "credentials": [],
+      "data": {
+        "emits": [
+          "planning"
+        ],
+        "pii_posture": "File content and the filename stem are operator-supplied free text -> redact-and-passed (secret/PHI/PAN + email/phone scrubbed to placeholders; SG-2026-06-13-A — a local/passive source still needs redaction parity, since no network boundary is not no PII boundary). The file path is sha256-tokenized into an opaque ref so the operator's filesystem layout never enters the ledger. FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop. The operator additionally owns directory scoping, the extension allow-list, and the size cap.",
+        "redaction": "redact-and-pass (file content + filename stem); path sha256-tokenized (opaque ref, never the FS layout); FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "Files dropped in a watched local directory as redact-and-pass governed evidence (no network credentials; host filesystem permissions are the access control).",
+      "id": "local_directory",
+      "instructions": [
+        {
+          "action": "configure",
+          "ref": "connectors/local_directory/auth.md (Local-Directory Auth)",
+          "text": "Point the operator runtime at the local directory to watch, and (optionally) set the extension allow-list and file-size cap. There are no network credentials — host filesystem permissions are the access control. Scope the directory to contents you intend to govern."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: dropping a file into the watched directory should produce one emission (content + filename stem redact-and-passed; the ref is an opaque sha256 token, not the path)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + redact-and-pass + opaque path tokenization are built and harness-proven. No network credentials exist (host filesystem permissions). Gated on operator review + wiring the live directory scan (with the extension allow-list, size cap, and watermark two-phase commit) to a GatewaySink. To flip: set the watched directory path; wire the runtime scan; drop a test file; review before promoting.",
+      "modes": [
+        "passive"
+      ],
+      "name": "Local Directory",
+      "references": [
+        {
+          "kind": "auth",
+          "url": "connectors/local_directory/auth.md"
+        },
+        {
+          "kind": "contract",
+          "url": "connectors/local_directory/references.md"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "Absolute path the operator runtime scans (non-recursive iterdir; hidden files and subdirectories ignored). Files become evidence — scope it to a directory whose contents you intend to govern.",
+          "key": "directory",
+          "label": "Watched directory path",
+          "required": true
+        },
+        {
+          "default": [
+            ".md",
+            ".txt",
+            ".json"
+          ],
+          "description": "Only files with these extensions are ingested. Operator-runtime filter.",
+          "key": "extensions",
+          "label": "Extension allow-list",
+          "required": false
+        },
+        {
+          "default": 1048576,
+          "description": "Files larger than this are skipped, not ingested (default 1 MiB). Operator-runtime guard.",
+          "key": "max_bytes",
+          "label": "File-size cap (bytes)",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T0",
+      "version": "0.1.0",
+      "wire_gates": [
+        "No external provider contract — local filesystem source; nothing to re-verify against a vendor API. Parse shape {path, content, modified, source_type_label} ported from bicameral-mcp events/sources/local_directory.py.",
+        "PII: file content + filename stem redact-and-passed (secret/PHI/PAN + email/phone); path sha256-tokenized into an opaque ref (no FS-layout leak). FX-SEC-001 backstops secret/PHI/PAN.",
+        "Live directory scan, non-recursive iterdir, extension allow-list, 1 MiB size cap, and watermark two-phase commit are operator-runtime; no live ingest this cycle. Live flip gated on operator review + a real watched-directory scan (ADR-0012)."
+      ]
+    },
+    "mcp_registry": {
+      "available": true,
+      "category": "agent-ecosystem",
+      "channel": "beta",
+      "credentials": [],
+      "data": {
+        "emits": [
+          "mcp_server"
+        ],
+        "pii_posture": "Public registry metadata (server name/title/description, repository/website URL, version) — but the registry is PUBLIC and fully attacker-publishable, so the free-text leaves are third-party-controlled and could embed a generic email/phone. They are redact-and-passed at parse (the only downstream backstop, FX-SEC-001, catches secret/PHI/PAN but not generic email/phone). No credential; no intended per-person data.",
+        "redaction": "redact-and-pass (title, description, url — third-party public free text); ref keeps the server-name locator (re-redacted on the wire by gateway_mapping)"
+      },
+      "description": "Public MCP Registry server entries as redact-and-pass, no-auth governed evidence.",
+      "id": "mcp_registry",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://registry.modelcontextprotocol.io/openapi.yaml",
+          "ref": "connectors/mcp_registry/auth.md",
+          "text": "No credential needed — this is a public, no-auth registry. Review the server-list API."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: an active poll returns the public MCP server list (one emission per server)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Public no-auth parse + live fetch-half (build_mcp_registry_spec) built, harness-proven, and runner-wired this cycle. No secret to provision. To flip: configure the gateway endpoint; run the public poll; review before promoting to Live.",
+      "modes": [
+        "active"
+      ],
+      "name": "MCP Registry",
+      "references": [
+        {
+          "kind": "openapi",
+          "url": "https://registry.modelcontextprotocol.io/openapi.yaml"
+        },
+        {
+          "kind": "reference",
+          "url": "https://github.com/modelcontextprotocol/registry"
+        }
+      ],
+      "runtime_config": [
+        {
+          "default": "https://registry.modelcontextprotocol.io/v0/servers",
+          "description": "Public, no-auth GET /v0/servers list (verified 2026-06-08). Cursor pagination via metadata.nextCursor.",
+          "key": "base_url",
+          "label": "Registry servers endpoint",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Verified contract (registry.modelcontextprotocol.io/openapi.yaml 2026-06-08): public no-auth GET /v0/servers; list under `servers`; each entry nests the server under `server`; cursor pagination via response `metadata.nextCursor` (no has-more — stop on absent).",
+        "No credential (public). Live flip is gated only on the operator wiring GatewaySink + running the public poll + review (ADR-0012)."
+      ]
+    },
+    "notion": {
+      "available": true,
+      "category": "docs",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "X-Notion-Signature (HMAC-SHA256 over the request body, signed with the verification_token)",
+          "key": "notion_webhook",
+          "label": "Webhook verification token",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "Create a webhook subscription in your Notion integration; Notion issues a verification_token.",
+              "Bicameral verifies X-Notion-Signature (HMAC-SHA256 over the body) with the verification_token, constant-time, fail-closed."
+            ],
+            "url": "https://developers.notion.com/reference/webhooks"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        }
+      ],
+      "data": {
+        "emits": [
+          "page"
+        ],
+        "pii_posture": "WEBHOOK path (live): the delivery is a thin event envelope carrying NO page content, so the Observation is a page-changed POINTER keyed by the opaque page entity.id (a Notion UUID -- pseudonymous, SG-2026-06-05-D) with title 'Notion <event_type>'. No free-text on this path -> nothing to redact. DEFERRED active-fetch path: the full page object's title (type=='title' property) is free-text -> redact-and-passed (scrubs secret/PHI/PAN + email/phone); author is the opaque created_by.id; block body is a further deferred fetch. FX-SEC-001 is the un-bypassable backstop on both.",
+        "redaction": "webhook = page-id pointer (no content, no redact needed); deferred active fetch = redact-and-pass (page title), opaque created_by.id surfaced"
+      },
+      "description": "Notion page-change webhook events as governed page-pointer evidence (keyed by the page entity.id).",
+      "id": "notion",
+      "instructions": [
+        {
+          "action": "register_webhook",
+          "link": "https://developers.notion.com/reference/webhooks",
+          "ref": "connectors/notion/auth.md (Verification)",
+          "text": "Add a Notion webhook subscription (capture the verification_token), pointing at your Bicameral receiver URL."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the verification_token Notion issues for the webhook subscription."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a signed page event should produce one emission (title redact-and-passed)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Webhook verify + body-hash dedup + the page-changed pointer parse (keyed by entity.id) are built and harness-proven against a real delivery-envelope fixture. The webhook path emits a page-id pointer (no content); page-title redact-and-pass + active fetch are deferred. Gated on operator review + a live signed delivery with a real verification_token + a provisioned receiver, AND on confirming the X-Notion-Signature prefix format (open wire_gate). To flip: add the subscription + verification_token + receiver; wire GatewaySink; send a signed test delivery; confirm the signature format; review before promoting.",
+      "modes": [
+        "webhook"
+      ],
+      "name": "Notion",
+      "references": [
+        {
+          "kind": "webhooks",
+          "url": "https://developers.notion.com/reference/webhooks"
+        },
+        {
+          "kind": "api",
+          "url": "https://developers.notion.com/reference/intro"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "page.content_updated",
+          "comment.created",
+          "database.schema_updated",
+          "page.locked"
+        ],
+        "header": "X-Notion-Signature",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "In your Notion integration, add a webhook subscription and capture the verification_token.",
+            "Set the subscription URL to your Bicameral webhook receiver (see receiver below)."
+          ],
+          "url": "https://developers.notion.com/reference/webhooks"
+        },
+        "signature_scheme": "HMAC-SHA256 over the (minified-JSON) request body, signed with the verification_token (X-Notion-Signature)"
+      },
+      "wire_gates": [
+        "Contract DOC-verified (developers.notion.com; auth.md 2026-06-08, re-confirmed research brief #143), NOT live-verified (no signed live delivery yet; ADR-0012): X-Notion-Signature = HMAC-SHA256 over the (minified-JSON) body signed with the verification_token; events page.content_updated/comment.created/database.schema_updated/page.locked.",
+        "Webhook deliveries yield a page-changed POINTER Observation keyed by the page entity.id (NOT the ephemeral event id), title 'Notion <event_type>', with NO page content. Title/url/body require the deferred pages.retrieve active fetch (keyed by entity.id); the page-title redact-and-pass applies ONLY to that deferred path.",
+        "UNVERIFIED (verify-before-cite, must confirm before Live): the connector's verify() REQUIRES a `sha256=` PREFIX on X-Notion-Signature and rejects a bare-hex value, but the live docs describe a bare HMAC-SHA256 hash and do NOT confirm a prefix. If Notion sends bare hex, verify() rejects EVERY real delivery (ingest zero) -- confirm the exact header format against a live delivery and relax the prefix requirement if needed (SG-2026-06-12-A). Also: verify() hashes the raw received bytes, which match only if the receiver forwards Notion's exact minified body without re-serializing.",
+        "Webhook RECEIPT is operator-runtime; the active Notion API fetch + block-content retrieval + OAuth are deferred. Live flip gated on operator review + a signed live delivery (ADR-0012)."
+      ]
+    },
+    "openai_admin": {
+      "available": true,
+      "category": "security/compliance-evidence",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Authorization: Bearer <admin key>",
+          "key": "openai_admin",
+          "label": "Admin API key",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "An Org Owner provisions an Admin API key and enables org logging in Data Controls (irreversible).",
+              "Bicameral sends it as Authorization: Bearer on GET /v1/organization/audit_logs (verified 2026-06-13)."
+            ],
+            "url": "https://platform.openai.com/docs/api-reference/audit-logs"
+          },
+          "required": true,
+          "type": "api_key"
+        }
+      ],
+      "data": {
+        "emits": [
+          "audit_event"
+        ],
+        "pii_posture": "The EVENT (type + project + UTC time) is the evidence; the actor is structured identity (actor.*.user.email, actor.session.ip_address, user ids) and is DROPPED AT PARSE -- NEVER read. FX-SEC-001 screens secret/PHI/PAN only (NOT generic email/IP) and redact() has no IPv4 scrub, so the parse-time identity drop is the SOLE control for actor identity. Only the non-PII actor.type (session/api_key, allowlisted) is surfaced; the synthesized excerpt is redact()-ed defensively. FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "actor identity (email/id/ip) DROPPED at parse (never read); only non-PII actor.type surfaced; excerpt redact()-ed defensively; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "OpenAI organization audit-log events as governed evidence with actor identity dropped (event type + project + time; actor email/id/IP never read).",
+      "id": "openai_admin",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://platform.openai.com/docs/api-reference/audit-logs",
+          "ref": "connectors/openai_admin/auth.md (OpenAI Admin Auth)",
+          "text": "An Org Owner provisions an Admin API key and enables org logging in Data Controls (irreversible)."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the Admin API key (sent as Authorization: Bearer)."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: an audit-log poll should return one emission per event (type + project + time + non-PII actor type; actor email/id/IP never read)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + identity-drop + defensive redact are built and harness-proven; actor email/id/IP are never read. Gated on operator review + wiring the live audit-log poll (host-pinned to api.openai.com, Bearer Admin key, org logging enabled) to a GatewaySink. To flip: provision the Admin key + enable org logging; wire the runtime poll; run a real poll; review before promoting.",
+      "modes": [
+        "active"
+      ],
+      "name": "OpenAI Admin",
+      "references": [
+        {
+          "kind": "audit-logs-api",
+          "url": "https://platform.openai.com/docs/api-reference/audit-logs"
+        },
+        {
+          "kind": "administration",
+          "url": "https://platform.openai.com/docs/api-reference/administration"
+        },
+        {
+          "kind": "auth",
+          "url": "connectors/openai_admin/auth.md"
+        }
+      ],
+      "runtime_config": [
+        {
+          "default": "https://api.openai.com",
+          "description": "Host the poll client pins to (anti-SSRF).",
+          "key": "base_url",
+          "label": "OpenAI API base URL",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Audit-logs API re-verified live 2026-06-13 (platform.openai.com/docs/api-reference/audit-logs): GET /v1/organization/audit_logs, Authorization: Bearer Admin key; each event {id, type, effective_at, project, actor, <detail>}. MATCHES parse_audit_log; the connector reads only the non-PII type/project/actor.type/effective_at.",
+        "PII: actor identity (email/id/IP) DROPPED at parse (never read) -- the SOLE control, since FX-SEC-001 does not screen generic email/IP and redact() has no IPv4 scrub. Only the non-PII actor.type is surfaced; excerpt redact()-ed defensively. FX-SEC-001 backstops secret/PHI/PAN.",
+        "The live REST poll + Bearer Admin-key resolution are operator-runtime; org logging must be enabled in Data Controls (irreversible). No live network this cycle. Live flip gated on operator review + a real audit-log poll with an Admin key (ADR-0012)."
+      ]
+    },
+    "osv": {
+      "available": true,
+      "category": "security/compliance-evidence",
+      "channel": "beta",
+      "credentials": [],
+      "data": {
+        "emits": [
+          "vulnerability"
+        ],
+        "pii_posture": "OSV records are PUBLIC technical vulnerability data (CVE/GHSA ids, package names, severity scores). The free-text summary + details are redact-and-passed (secret/PHI/PAN + email/phone scrubbed) for parity -- a description can embed a contributor email or a tokened URL, and redaction is non-destructive. The opaque vuln id floor is NOT redacted; severity/packages/aliases metadata is technical. No person attribution (no author field). FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "redact-and-pass (summary + details); opaque id floor un-redacted; technical metadata kept; no author; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "OSV.dev open-source vulnerability records as redact-and-pass governed evidence (free unauthenticated query API; public technical vuln data).",
+      "id": "osv",
+      "instructions": [
+        {
+          "action": "configure",
+          "ref": "connectors/osv/auth.md (OSV Auth)",
+          "text": "Set the operator runtime's OSV query scope (package + ecosystem, commit, or purl) and confirm the API host pin. There are no credentials -- OSV.dev is free and unauthenticated."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a query for a known-vulnerable package should return one or more emissions (summary + details redact-and-passed; opaque vuln id floor)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + redact-and-pass are built and harness-proven; summary/details redact-and-passed, opaque vuln id floor. No credentials (free unauthenticated API). Gated on operator review + wiring the live query client (host-pinned to api.osv.dev) to a GatewaySink. To flip: set the query scope; wire the runtime query client; run a real query; review before promoting.",
+      "modes": [
+        "active"
+      ],
+      "name": "OSV",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://google.github.io/osv.dev/api/"
+        },
+        {
+          "kind": "schema",
+          "url": "https://ossf.github.io/osv-schema/"
+        },
+        {
+          "kind": "auth",
+          "url": "connectors/osv/auth.md"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "What the operator runtime queries OSV.dev for — e.g. a package + ecosystem, a commit, or a purl. The live query client (POST /v1/query, /v1/querybatch, GET /v1/vulns/{id}) is operator-runtime.",
+          "key": "query",
+          "label": "Query scope (package / ecosystem / commit)",
+          "required": true
+        },
+        {
+          "default": "https://api.osv.dev",
+          "description": "Host the query client pins to (anti-SSRF). Default is the public OSV.dev API.",
+          "key": "base_url",
+          "label": "OSV API base URL",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "OSV schema re-verified live 2026-06-13 (ossf.github.io/osv-schema): id+modified required, all else optional; summary/details free-text, severity[{type,score}], affected[].package.name, references[].url, aliases[] -- every field parse_vuln reads MATCHES. No drift.",
+        "PII: summary + details redact-and-passed (secret/PHI/PAN + email/phone); opaque vuln id floor un-redacted; technical metadata kept; no author. OSV is public data. FX-SEC-001 backstops secret/PHI/PAN.",
+        "The live OSV.dev query client (POST /v1/query, /v1/querybatch, GET /v1/vulns/{id}) is operator-runtime; no live network this cycle. Live flip gated on operator review + a real query against the public API (ADR-0012)."
+      ]
+    },
+    "pagerduty": {
+      "available": true,
+      "category": "observability/incident-evidence",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "X-PagerDuty-Signature (comma-separated v1=<hex> HMAC-SHA256 set over the raw body; accept if ANY matches, for zero-downtime rotation)",
+          "key": "pagerduty_webhook",
+          "label": "Webhook signing secret",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "Create a V3 webhook subscription in PagerDuty; capture the signing secret it generates.",
+              "Bicameral verifies X-PagerDuty-Signature = a v1=<hex>,v1=<hex> HMAC-SHA256 set over the raw body (accept if ANY candidate matches), constant-time, fail-closed (header confirmed live 2026-06-13; SG-2026-06-13-D)."
+            ],
+            "url": "https://support.pagerduty.com/main/docs/webhooks"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        }
+      ],
+      "data": {
+        "emits": [
+          "incident"
+        ],
+        "pii_posture": "The incident TITLE/SUMMARY is emitted via redact-and-pass -- secret/PHI/PAN + email/phone scrubbed to placeholders, because an incident title can carry customer PII (e.g. 'High latency for jane@acme.com'; FX-SEC-001 backstops only secret/PHI/PAN). The opaque incident id floor is NOT redacted. NO actor/assignee identity is surfaced -- only status/urgency/event_type ride in metadata. FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "redact-and-pass (incident title/summary); opaque id floor un-redacted; no actor/assignee surfaced; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "PagerDuty v3 incident webhook events as redact-and-pass governed evidence (incident title/summary scrubbed; no actor/assignee identity surfaced).",
+      "id": "pagerduty",
+      "instructions": [
+        {
+          "action": "register_webhook",
+          "link": "https://support.pagerduty.com/main/docs/webhooks",
+          "ref": "connectors/pagerduty/auth.md (PagerDuty Auth)",
+          "text": "Create a PagerDuty V3 webhook subscription on incident events pointing at your Bicameral receiver URL; capture the signing secret."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the PagerDuty webhook signing secret (signs X-PagerDuty-Signature)."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a signed V3 incident webhook delivery should produce one emission (title/summary redact-and-passed; opaque id floor; dedup on replay)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + multi-signature v1= membership verify + dedup are built and harness-proven; incident title/summary redact-and-passed, no actor identity surfaced. Gated on operator review + a signed live delivery. To flip: create the V3 webhook subscription + signing secret + a Bicameral receiver URL; wire GatewaySink; send a signed test delivery; review before promoting.",
+      "modes": [
+        "webhook"
+      ],
+      "name": "PagerDuty",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://developer.pagerduty.com/api-reference/"
+        },
+        {
+          "kind": "webhooks",
+          "url": "https://support.pagerduty.com/main/docs/webhooks"
+        },
+        {
+          "kind": "webhook-verify",
+          "url": "https://developer.pagerduty.com/docs/webhooks/webhook-signatures/"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "incident"
+        ],
+        "header": "X-PagerDuty-Signature",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "In PagerDuty, create a V3 webhook subscription scoped to incident events.",
+            "Set its delivery URL to your Bicameral webhook receiver (see receiver below)."
+          ],
+          "url": "https://support.pagerduty.com/main/docs/webhooks"
+        },
+        "signature_scheme": "X-PagerDuty-Signature = a comma-separated v1=<hex>,v1=<hex> set of HMAC-SHA256 digests over the raw request body (one per active signing secret during rotation); accept if ANY v1= candidate matches (constant-time, fail-closed). PagerDuty documents no replay-timestamp window -> best-effort dedup (envelope event.id -> body-hash) is the replay guard."
+      },
+      "wire_gates": [
+        "Webhook signature: the V3 x-pagerduty-signature header was confirmed live 2026-06-13 (support.pagerduty.com); the dedicated v1= format page (developer.pagerduty.com/docs/webhooks/webhook-signatures) is a JS-SPA that rendered empty to a server-side fetch, so the v1=<hex> HMAC-SHA256 membership scheme was substantiated from the harness-proven verified contract + verify_hmac_hex_multi (SG-2026-06-13-D). No drift on the supported path. Built verify_hmac_hex_multi accepts if ANY v1= candidate matches the raw body (constant-time, fail-closed).",
+        "PII: incident title/summary redact-and-passed (secret/PHI/PAN + email/phone); opaque id floor un-redacted; no actor/assignee surfaced. FX-SEC-001 backstops secret/PHI/PAN.",
+        "Webhook RECEIPT + the REST incident fetch (active fallback) are operator-runtime; the REST fetch is DEFERRED this cycle (webhook is the built + verified path). Live flip gated on operator review + a signed live delivery (ADR-0012)."
+      ]
+    },
+    "sarif": {
+      "available": true,
+      "category": "security/compliance-evidence",
+      "channel": "beta",
+      "credentials": [],
+      "data": {
+        "emits": [
+          "finding"
+        ],
+        "pii_posture": "The SARIF schema carries no user PII by design, but a SECURITY-SCANNER finding's message.text can quote the very secret it flags (a secret-scanner emits 'Detected AWS key AKIA... in config.py'). So message.text is redact-and-passed -- redact() scrubs the CATALOG secret formats (AWS, classic + fine-grained GitHub, Azure, PEM, JWT, Slack, Google API key, Stripe live, GitLab, npm, OpenAI -- broadened by purple-team #185 / SG-2026-06-13-F) + PHI/PAN + email/phone. This is the security-correct choice (SG-2026-06-13-E): emitted RAW, FX-SEC-001 would HARD-REJECT a catalog secret and the security signal would be LOST; redact-and-pass scrubs the secret VALUE and PRESERVES the finding ('Detected AWS key [redacted:secret] in config.py'). RESIDUAL: a prefix-less high-entropy token (e.g. a bare 40-char AWS *secret* key) is not regex-matchable by redact() OR FX-SEC-001 -- a documented residual, not universal coverage. The connector reads the finding MESSAGE only, NEVER the raw code snippet (region.snippet.text) -- data minimization. The ruleId/ref floor is not redacted. FX-SEC-001 (same catalog) is the fail-closed backstop.",
+        "redaction": "redact-and-pass (result message.text) over the shared secret catalog (broadened #185) + PHI/PAN/email/phone; prefix-less high-entropy token is a documented residual; snippet (region.snippet.text) never read; ruleId/ref floor un-redacted; FX-SEC-001 backstops the catalog classes"
+      },
+      "description": "SARIF 2.1.0 static-analysis findings (file import) as redact-and-pass governed evidence — a secret-scanner finding's message is scrubbed but preserved, not dropped.",
+      "id": "sarif",
+      "instructions": [
+        {
+          "action": "configure",
+          "ref": "connectors/sarif/auth.md (SARIF 2.1.0 Auth)",
+          "text": "Point the operator runtime at the SARIF 2.1.0 report file or CI-artifact glob to ingest. This is a file import -- there are no credentials and no network."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: ingesting a SARIF report should produce one emission per result (message redact-and-passed; a secret in a finding message is scrubbed but the finding survives; the code snippet is never read)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + redact-and-pass are built and harness-proven; the result message is redact-and-passed (a secret-bearing finding becomes scrubbed-evidence rather than being dropped), the raw snippet is never read. No credentials (file import). Gated on operator review + wiring the live file-watch / CI-collection path to a GatewaySink. To flip: set the SARIF report path/glob; wire the runtime ingest; ingest a real report; review before promoting.",
+      "modes": [
+        "passive"
+      ],
+      "name": "SARIF",
+      "references": [
+        {
+          "kind": "spec",
+          "url": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html"
+        },
+        {
+          "kind": "spec-repo",
+          "url": "https://github.com/oasis-tcs/sarif-spec"
+        },
+        {
+          "kind": "auth",
+          "url": "connectors/sarif/auth.md"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "Path (or glob) to the SARIF 2.1.0 report(s) the operator runtime ingests — e.g. a CI scan artifact. File import only; no network, no credential.",
+          "key": "report_path",
+          "label": "SARIF file / CI-artifact glob",
+          "required": true
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T0",
+      "version": "0.1.0",
+      "wire_gates": [
+        "SARIF 2.1.0 is a FROZEN OASIS standard (no version drift): the result paths runs[].results[].{ruleId, level, message.text, locations[].physicalLocation.{artifactLocation.uri, region.startLine}} + runs[].tool.driver.name were verified against the OASIS schema 2026-06-08 and re-affirmed 2026-06-13.",
+        "PII/SECRET: result message.text redact-and-passed (secret/PHI/PAN + email/phone) -- converts an FX-SEC-001 hard-reject of a secret-bearing finding into scrubbed-evidence so the security signal survives (SG-2026-06-13-E). The raw code snippet (region.snippet.text) is NEVER read. ruleId/ref floor un-redacted. FX-SEC-001 backstops secret/PHI/PAN.",
+        "Live file-watch / CI-collection path is operator-runtime; no live ingest this cycle. Live flip gated on operator review + a real SARIF report ingest (ADR-0012)."
+      ]
+    },
+    "sentry": {
+      "available": true,
+      "category": "observability/incident-evidence",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Sentry-Hook-Signature (hex HMAC-SHA256 over the raw body, signed with the integration Client Secret)",
+          "key": "sentry_webhook",
+          "label": "Integration Client Secret",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "Create an Internal/Public Integration in Sentry (Settings -> Developer Settings) and enable the Issue webhook; capture its Client Secret.",
+              "Bicameral verifies Sentry-Hook-Signature = hex HMAC-SHA256 over the raw body with that Client Secret, constant-time, fail-closed (verified 2026-06-13)."
+            ],
+            "url": "https://docs.sentry.io/organization/integrations/integration-platform/webhooks/"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        }
+      ],
+      "data": {
+        "emits": [
+          "issue"
+        ],
+        "pii_posture": "The issue TITLE (the exception message) + CULPRIT (a code frame) are emitted via redact-and-pass -- secret/PHI/PAN + email/phone scrubbed to placeholders, because error messages routinely embed connection strings, emails, and tokens (FX-SEC-001 backstops only secret/PHI/PAN). The opaque shortId/id floor is NOT redacted. The FULL STACK TRACE / event body is never read (data minimization) and there is NO person attribution (no author field). FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "redact-and-pass (issue title + culprit); opaque shortId/id floor un-redacted; full stack trace never read; no author; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "Sentry issue webhook events as redact-and-pass governed evidence (exception message + culprit scrubbed; full stack trace never read; no person attribution).",
+      "id": "sentry",
+      "instructions": [
+        {
+          "action": "register_webhook",
+          "link": "https://docs.sentry.io/organization/integrations/integration-platform/webhooks/",
+          "ref": "connectors/sentry/auth.md (Sentry Auth)",
+          "text": "In your Sentry Integration, enable the Issue webhook pointing at your Bicameral receiver URL; capture the integration Client Secret."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the Sentry integration Client Secret (signs Sentry-Hook-Signature)."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a signed Issue webhook delivery should produce one emission (title + culprit redact-and-passed; opaque shortId floor; dedup on replay)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + hex-HMAC verify + dedup are built and harness-proven; issue title + culprit redact-and-passed, full stack trace never read, no person attribution. Gated on operator review + a live signed delivery. To flip: create the Sentry Integration + Issue webhook + Client Secret + a Bicameral receiver URL; wire GatewaySink; send a signed test delivery; review before promoting.",
+      "modes": [
+        "webhook"
+      ],
+      "name": "Sentry",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://docs.sentry.io/api/"
+        },
+        {
+          "kind": "webhooks",
+          "url": "https://docs.sentry.io/organization/integrations/integration-platform/webhooks/"
+        },
+        {
+          "kind": "webhook-issues",
+          "url": "https://docs.sentry.io/organization/integrations/integration-platform/webhooks/issues/"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "issue"
+        ],
+        "header": "Sentry-Hook-Signature",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "In your Sentry Integration, subscribe to the Issue resource webhook.",
+            "Set the webhook URL to your Bicameral webhook receiver (see receiver below)."
+          ],
+          "url": "https://docs.sentry.io/organization/integrations/integration-platform/webhooks/"
+        },
+        "signature_scheme": "Sentry-Hook-Signature = hex HMAC-SHA256 over the RAW request body, signed with the integration Client Secret; constant-time, fail-closed. Sentry documents no replay-timestamp window -> best-effort dedup (Request-ID header -> issue.id -> body-hash) is the replay guard. The connector verifies the raw received bytes (more robust than re-serializing the JSON, which risks key-order drift)."
+      },
+      "wire_gates": [
+        "Webhook signature re-verified live 2026-06-13 (docs.sentry.io integration-platform webhooks): Sentry-Hook-Signature = hex HMAC-SHA256 over the body with the integration Client Secret. Built verify_hmac_hex over the RAW received bytes MATCHES (more robust than the doc's JSON.stringify example -- avoids re-serialization key-order drift). No replay window -> dedup (Request-ID -> issue.id -> body-hash).",
+        "PII: issue title (exception message) + culprit redact-and-passed (secret/PHI/PAN + email/phone); opaque shortId/id floor un-redacted; full stack trace / event body never read; no author. FX-SEC-001 backstops secret/PHI/PAN.",
+        "Webhook RECEIPT + the REST issue fetch (active fallback) are operator-runtime; the REST fetch is DEFERRED this cycle (webhook is the built + verified path). Live flip gated on operator review + a signed live delivery (ADR-0012)."
+      ]
+    },
+    "servicenow": {
+      "available": true,
+      "category": "itsm",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "Authorization: Basic (integration username:password)",
+          "key": "servicenow",
+          "label": "Integration-user password",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "Create a dedicated integration user with `rest_service` + the incident table-read roles (least privilege).",
+              "The password is the resolved secret; the instance host + username are non-secret runtime config (below)."
+            ],
+            "url": "https://docs.servicenow.com/bundle/xanadu-platform-administration/page/integrate/inbound-rest/concept/c_TableAPI.html"
+          },
+          "required": true,
+          "type": "basic"
+        }
+      ],
+      "data": {
+        "emits": [
+          "incident"
+        ],
+        "pii_posture": "Incident description/short_description are free-text that routinely carry secrets/PII -> passed through adapter.core.redaction.redact (redact-and-pass: scrubs secret/PHI/PAN + email/phone). The caller_id/caller identity field is NEVER read. number/state/priority are the non-PII metadata surface. FX-SEC-001 is the un-bypassable backstop.",
+        "redaction": "redact-and-pass (description + short_description); caller identity never read"
+      },
+      "description": "ServiceNow ITSM incidents (Table API) as redact-and-pass governed evidence.",
+      "id": "servicenow",
+      "instructions": [
+        {
+          "action": "open_url",
+          "link": "https://docs.servicenow.com/bundle/xanadu-platform-administration/page/integrate/inbound-rest/concept/c_TableAPI.html",
+          "ref": "connectors/servicenow/auth.md (Expected secret keys)",
+          "text": "Create a least-privilege ServiceNow integration user (rest_service + incident table-read roles)."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the integration-user password (Basic auth)."
+        },
+        {
+          "action": "configure",
+          "ref": "connectors/servicenow/auth.md (Live path — reference poll client)",
+          "text": "Provide the instance host + integration username (non-secret runtime config)."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: an active poll returns recent incidents with description redact-and-passed; caller identity is never read."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + redact-and-pass surface + the live fetch-half (build_servicenow_spec, Basic + offset pagination) are built and harness-proven against recorded 2-page fixtures; the SSRF-4 URL-injection gap is fixed (#133). Gated on operator review + a live poll with a real integration-user credential. To flip: provide the password + instance + username; wire GatewaySink; run the live poll; review before promoting.",
+      "modes": [
+        "active"
+      ],
+      "name": "ServiceNow",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://docs.servicenow.com/bundle/xanadu-platform-administration/page/integrate/inbound-rest/concept/c_TableAPI.html"
+        }
+      ],
+      "runtime_config": [
+        {
+          "description": "Bare hostname, e.g. acme.service-now.com (host-validated before the URL is built; no path/query injection).",
+          "key": "instance",
+          "label": "ServiceNow instance host",
+          "required": true
+        },
+        {
+          "description": "Non-secret Basic-auth username for the integration user (paired with the resolved password).",
+          "key": "username",
+          "label": "Integration-user username",
+          "required": true
+        },
+        {
+          "default": 100,
+          "description": "Rows per page; sysparm_offset advances by this until a short page (offset pagination).",
+          "key": "limit",
+          "label": "Page size (sysparm_limit)",
+          "required": false
+        },
+        {
+          "description": "Optional field selection (urlencoded; cannot inject sibling query params).",
+          "key": "fields",
+          "label": "sysparm_fields (comma list)",
+          "required": false
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "wire_gates": [
+        "Table API documented shape: GET https://<instance>/api/now/table/incident, HTTP Basic, `{result:[...]}` envelope, sysparm_offset/sysparm_limit offset pagination (stop-on-short-page). instance is host-validated + the URL is urllib-built (SSRF-4 fix, #133) so instance/fields cannot inject host/path/query.",
+        "OAuth 2.0 is a deferred alternative; Basic auth this cycle.",
+        "Live flip gated on operator human review + a live Table-API poll with a real integration-user credential (ADR-0012)."
+      ]
+    },
+    "slack": {
+      "available": true,
+      "category": "communication",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "X-Slack-Signature (v0= hex HMAC-SHA256 over 'v0:{timestamp}:{raw_body}') + X-Slack-Request-Timestamp",
+          "key": "slack_webhook",
+          "label": "Slack signing secret",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "In your Slack app's Basic Information, copy the Signing Secret.",
+              "Bicameral verifies X-Slack-Signature (v0= HMAC-SHA256 over 'v0:{ts}:{body}') with a 5-minute replay window, constant-time, fail-closed."
+            ],
+            "url": "https://api.slack.com/authentication/verifying-requests-from-slack"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        }
+      ],
+      "data": {
+        "emits": [
+          "message"
+        ],
+        "pii_posture": "Message text is PII-dense human communication -> passed through adapter.core.redaction.redact (redact-and-pass: scrubs secret/PHI/PAN + email/phone). author is the OPAQUE Slack user id (e.g. U0123ABC) -- pseudonymous (the operator holds the id->identity mapping; SG-2026-06-05-D), not a name/email. FX-SEC-001 is the un-bypassable backstop.",
+        "redaction": "redact-and-pass (message text); opaque Slack user id surfaced (pseudonymous)"
+      },
+      "description": "Slack message events as redact-and-pass governed evidence (read/ingest).",
+      "id": "slack",
+      "ingestion_gate": {
+        "empty_state": "No Slack evidence has produced candidates yet.",
+        "evidence_labels": {
+          "message": "Message",
+          "permalink": "Slack permalink",
+          "thread": "Thread"
+        },
+        "source_title_template": "Slack: {channel_name}",
+        "source_type_label": "Slack message",
+        "summary_fields": [
+          "channel_name",
+          "author_ref",
+          "message_excerpt"
+        ]
+      },
+      "instructions": [
+        {
+          "action": "register_webhook",
+          "link": "https://api.slack.com/apis/connections/events-api",
+          "ref": "connectors/slack/auth.md (Verification)",
+          "text": "Create a Slack app with Event Subscriptions on message events, pointing the Request URL at your Bicameral receiver."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the Slack app Signing Secret."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a signed message event should produce one emission (text redact-and-passed); the url_verification handshake + replays are dropped."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + X-Slack-Signature verify (v0, 5-min replay) + handshake/dedup are built and harness-proven; message text redact-and-passed, opaque user id surfaced. Gated on operator review + a live signed event with a real signing secret + a provisioned receiver. To flip: create the app + signing secret + Request URL receiver; wire GatewaySink; send a signed test event; review before promoting.",
+      "modes": [
+        "webhook"
+      ],
+      "name": "Slack",
+      "references": [
+        {
+          "kind": "events-api",
+          "url": "https://api.slack.com/apis/connections/events-api"
+        },
+        {
+          "kind": "verify",
+          "url": "https://api.slack.com/authentication/verifying-requests-from-slack"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T2",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "message"
+        ],
+        "header": "X-Slack-Signature",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "Create a Slack app, enable Event Subscriptions, subscribe to message events.",
+            "Set the Request URL to your Bicameral webhook receiver (see receiver below); the url_verification handshake is handled."
+          ],
+          "url": "https://api.slack.com/apis/connections/events-api"
+        },
+        "signature_scheme": "v0= hex HMAC-SHA256 over 'v0:{X-Slack-Request-Timestamp}:{raw_body}', 5-minute replay window"
+      },
+      "wire_gates": [
+        "Webhook path built + verified: X-Slack-Signature v0= HMAC-SHA256 over 'v0:{ts}:{body}' + 5-minute replay window (constant-time, fail-closed); url_verification handshake + unverified deliveries normalize to []. Message text redact-and-passed; opaque user id (pseudonymous) surfaced.",
+        "Trust tier T2 (read/ingest). Notify/write (T3+) is deferred (ADR-0008, evidence-before-action).",
+        "Webhook RECEIPT is operator-runtime (receiver URL + slack_webhook injection). Live flip gated on operator review + a signed live event (ADR-0012)."
+      ]
+    },
+    "zendesk": {
+      "available": true,
+      "category": "support / customer-success",
+      "channel": "beta",
+      "credentials": [
+        {
+          "header": "X-Zendesk-Webhook-Signature (base64 HMAC-SHA256 over {timestamp}{body}, companion X-Zendesk-Webhook-Signature-Timestamp)",
+          "key": "zendesk_webhook",
+          "label": "Webhook signing secret",
+          "modes": [
+            "webhook"
+          ],
+          "obtain": {
+            "steps": [
+              "Create the webhook in Zendesk Admin Center; Zendesk generates a per-webhook signing secret (a static test secret applies before creation).",
+              "Copy it — Bicameral verifies X-Zendesk-Webhook-Signature = base64(HMAC-SHA256(secret, timestamp + body)), constant-time, fail-closed (verified 2026-06-13)."
+            ],
+            "url": "https://developer.zendesk.com/documentation/webhooks/verifying/"
+          },
+          "required": true,
+          "type": "webhook_secret"
+        },
+        {
+          "header": "Authorization: Basic base64('{email}/token:{api_token}')",
+          "key": "zendesk",
+          "label": "API token (active REST poll — deferred)",
+          "modes": [
+            "active"
+          ],
+          "obtain": {
+            "steps": [
+              "In Zendesk Admin Center, enable token access and create an API token (Apps and integrations -> APIs -> Zendesk API).",
+              "The active REST poll (/api/v2) is operator-runtime and DEFERRED this cycle; the webhook is the built + verified path. Wiring the token/OAuth exchange needs operator oversight."
+            ],
+            "url": "https://developer.zendesk.com/api-reference/introduction/security-and-auth/"
+          },
+          "required": false,
+          "type": "api_key",
+          "wiring_oversight": true
+        }
+      ],
+      "data": {
+        "emits": [
+          "ticket"
+        ],
+        "pii_posture": "Ticket SUBJECT + BODY (detail.description) are PII-dense free text -> redact-and-passed (secret/PHI/PAN + email/phone scrubbed to placeholders). The requester is surfaced only as detail.requester_id, an OPAQUE numeric id -- never a requester name or email (a deliberate identity-minimization choice); requester_id is itself redact-and-passed so a numeric id passes unchanged while a stray email/phone is scrubbed -- the opacity guarantee is enforced, not merely trusted (purple-team #170). Comment threads and attachments are excluded (first description only). FX-SEC-001 hard-screens secret/PHI/PAN as the un-bypassable backstop.",
+        "redaction": "redact-and-pass (subject + body + requester_id); requester surfaced as opaque id (numeric passes unchanged, email/phone scrubbed); comments + attachments excluded; FX-SEC-001 rejects secret/PHI/PAN"
+      },
+      "description": "Zendesk support-ticket webhook events as redact-and-pass governed evidence (subject + body scrubbed; requester surfaced as an opaque id, never a name/email).",
+      "id": "zendesk",
+      "instructions": [
+        {
+          "action": "register_webhook",
+          "link": "https://developer.zendesk.com/documentation/webhooks/",
+          "ref": "connectors/zendesk/auth.md (Webhook signature)",
+          "text": "Create a Zendesk webhook (with a trigger/automation firing on ticket events) pointing at your Bicameral receiver URL; capture the signing secret."
+        },
+        {
+          "action": "paste_secret",
+          "text": "Paste the Zendesk webhook signing secret."
+        },
+        {
+          "action": "open_url",
+          "link": "https://developer.zendesk.com/api-reference/introduction/security-and-auth/",
+          "ref": "connectors/zendesk/auth.md (Deferred)",
+          "text": "Optional (deferred): create an API token for the active REST poll. The webhook is the built + verified path; the REST poll is operator-runtime and not wired this cycle."
+        },
+        {
+          "action": "verify",
+          "text": "Test the connection: a signed ticket webhook delivery should produce one emission (subject + body redact-and-passed; requester an opaque id; dedup on replay)."
+        }
+      ],
+      "live_readiness": "Flip-ready, NOT yet Live. Parse + Base64-HMAC webhook verify + dedup are built and harness-proven; ticket subject + body redact-and-passed, requester an opaque id. The active REST poll is deferred (operator-runtime). Gated on operator review + a live signed delivery. To flip: create the webhook + trigger + signing secret + a Bicameral receiver URL; wire GatewaySink; send a signed test delivery; review before promoting.",
+      "modes": [
+        "webhook",
+        "active"
+      ],
+      "name": "Zendesk",
+      "references": [
+        {
+          "kind": "api",
+          "url": "https://developer.zendesk.com/api-reference/ticketing/introduction/"
+        },
+        {
+          "kind": "webhooks",
+          "url": "https://developer.zendesk.com/documentation/webhooks/"
+        },
+        {
+          "kind": "webhook-verify",
+          "url": "https://developer.zendesk.com/documentation/webhooks/verifying/"
+        },
+        {
+          "kind": "auth",
+          "url": "https://developer.zendesk.com/api-reference/introduction/security-and-auth/"
+        }
+      ],
+      "status": "live-ready",
+      "trust_tier": "T1",
+      "version": "0.1.0",
+      "webhook": {
+        "events": [
+          "ticket"
+        ],
+        "header": "X-Zendesk-Webhook-Signature",
+        "receiver": {
+          "label": "Bicameral webhook receiver URL (operator-provisioned)",
+          "provisioned_by": "operator",
+          "required": true
+        },
+        "setup": {
+          "steps": [
+            "In Zendesk Admin Center, create a webhook (and a trigger/automation that fires it on ticket events).",
+            "Set its endpoint URL to your Bicameral webhook receiver (see receiver below)."
+          ],
+          "url": "https://developer.zendesk.com/documentation/webhooks/"
+        },
+        "signature_scheme": "base64 HMAC-SHA256 over '{timestamp}{body}' (no separator) with companion X-Zendesk-Webhook-Signature-Timestamp; constant-time; Zendesk documents no replay window, so best-effort dedup (envelope id -> detail.id -> body-hash) is the replay guard"
+      },
+      "wire_gates": [
+        "Webhook signature re-verified live 2026-06-13 (developer.zendesk.com/documentation/webhooks/verifying): X-Zendesk-Webhook-Signature = base64(HMAC-SHA256(secret, timestamp + body)) with companion X-Zendesk-Webhook-Signature-Timestamp, constant-time. Built verify_zendesk_signature MATCHES (no separator; Base64 not hex). No documented replay window -> best-effort dedup (envelope id -> detail.id -> body-hash fallback) is the only replay guard.",
+        "PII: subject + body redact-and-passed (secret/PHI/PAN + email/phone); requester surfaced as opaque requester_id (no name/email); comments + attachments excluded. FX-SEC-001 backstops secret/PHI/PAN.",
+        "Webhook RECEIPT + the active REST poll (/api/v2, API token or OAuth) are operator-runtime; the REST poll is DEFERRED this cycle (webhook is the built + verified path). Live flip gated on operator review + a signed live delivery (ADR-0012)."
+      ]
+    }
+  }
+}

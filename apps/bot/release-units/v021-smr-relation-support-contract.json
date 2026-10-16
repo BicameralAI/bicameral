@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v021-smr-relation-support-contract",
+  "label": "SMR relation support provenance contract",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#937",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.2.1",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-10T21:35:29Z",
+  "proposal_digest": "sha256:bb1d518f7d4add230b7eec6efda7b01307440a8c129f80209d63320afdc8b5d6"
+}

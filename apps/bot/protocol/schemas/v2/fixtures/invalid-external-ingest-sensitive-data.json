@@ -1,0 +1,16 @@
+{
+  "_comment": "INVALID: External ingest payload containing sensitive data (AWS access key). The gateway sensitive-data HARD gate must reject this before materialization.",
+  "_expected_behavior": "rejected — sensitive_data: class=secret, pattern=aws-access-key",
+  "title": "Deploy configuration for staging",
+  "description": "Staging environment uses AWS credentials for S3 access",
+  "source": "https://slack.com/archives/C01/p9999999999",
+  "source_type": "slack",
+  "evidence": [
+    {
+      "excerpt": "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE, bucket=staging-artifacts",
+      "span_start": 0,
+      "span_end": 60,
+      "confidence": 0.9
+    }
+  ]
+}

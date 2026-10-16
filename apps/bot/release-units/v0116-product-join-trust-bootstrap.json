@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0116-product-join-trust-bootstrap",
+  "label": "Bootstrap operator daemon product.join trust anchors (bot#1012)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1012",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.16",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-01T21:00:00Z",
+  "proposal_digest": "sha256:1cd8c06be445b7cd53f422d09301d479bae03339df34f3da0c8495df0e62868c"
+}

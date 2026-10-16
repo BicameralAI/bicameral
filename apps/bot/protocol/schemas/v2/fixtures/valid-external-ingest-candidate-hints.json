@@ -1,0 +1,36 @@
+{
+  "_comment": "Valid ExternalIngestEnvelope with candidate_hints. Demonstrates the full contract including advisory candidate suggestions.",
+  "_expected_behavior": "accepted — creates source, snapshot, evidence, and advisory candidate records",
+  "source_system": "linear",
+  "source_uri": "https://linear.app/team/issue/ENG-142",
+  "content": "ENG-142: Migrate user sessions to Redis. Acceptance: session TTL must be configurable per environment. Architecture: use Redis Cluster with read replicas for HA.",
+  "content_hash": "sha256:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  "evidence": [
+    {
+      "excerpt": "session TTL must be configurable per environment",
+      "span_start": 50,
+      "span_end": 98,
+      "confidence": 0.92
+    },
+    {
+      "excerpt": "use Redis Cluster with read replicas for HA",
+      "span_start": 114,
+      "span_end": 157,
+      "confidence": 0.85
+    }
+  ],
+  "candidate_hints": [
+    {
+      "title": "Session TTL must be environment-configurable",
+      "body": "User session expiry (TTL) must be configurable per deployment environment, not hard-coded.",
+      "level": "architecture",
+      "labels": ["sessions", "configuration"]
+    },
+    {
+      "title": "Use Redis Cluster for session HA",
+      "body": "Session storage should use Redis Cluster with read replicas to achieve high availability.",
+      "level": "architecture",
+      "labels": ["redis", "ha"]
+    }
+  ]
+}

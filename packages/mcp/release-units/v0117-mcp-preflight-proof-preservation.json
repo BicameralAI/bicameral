@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0117-mcp-preflight-proof-preservation",
+  "label": "v0.1.17 MCP preserve daemon preflight proof fields (mcp#797)",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#797",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.17",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-02T23:39:44Z",
+  "proposal_digest": "sha256:a63d0f70a9a5d40117fa5e5854c645b03df51a66ce3aaa7b3623e85dbd25a47a"
+}

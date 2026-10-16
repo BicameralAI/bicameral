@@ -1,0 +1,1338 @@
+{
+  "$schema": "https://github.com/BicameralAI/bicameral-factory/schemas/runtime-architecture-contract.schema.json",
+  "schema_version": 1,
+  "spec_id": "RUNTIME-SPEC-HOSTED-DEVICE-PAIRING-HANDSHAKE",
+  "title": "Runtime Architecture: Hosted Device Pairing Handshake",
+  "components": [
+    {
+      "id": "ELM-OPERATOR",
+      "c4_kind": "person",
+      "name": "Signed-in operator",
+      "responsibility": "Initiate Cloud /connect or /restore, paste or confirm the pairing code locally, and use Bot /app only after a live daemon-minted session_token handoff.",
+      "process_boundary": "Human interaction with Cloud bootstrap pages, local CLI approve, and the Bot /app shell.",
+      "repository_runtime": "External person.",
+      "deployment_location": "Operator workstation and browser.",
+      "authority_role": "Sole authority for the local approve or deny decision; not an authority that mints session_token or enrollment grants.",
+      "inputs": [
+        "pairing code",
+        "pending pairing confirmation",
+        "Cloud sign-in session"
+      ],
+      "outputs": [
+        "local approve or deny decision",
+        "browser navigation to /app after handoff"
+      ],
+      "state_ids": [
+        "STATE-PENDING-PAIR"
+      ],
+      "multiplicity": "One human operator per pairing ceremony.",
+      "prohibited_authority": [
+        "Treat possession of the pairing code as approval",
+        "Approve through Cloud or the SPA",
+        "Treat Cloud HostedSession or DaemonPairing as /app success",
+        "Mint or forge session_token or enrollment authorization"
+      ]
+    },
+    {
+      "id": "ELM-CLOUD-CONNECT",
+      "c4_kind": "container",
+      "name": "Cloud /connect and /restore HTML",
+      "responsibility": "Serve the sole production fresh-pair bootstrap at /connect and the quiet cross-visit /restore surface; browser JS requests and polls the local daemon but never approves.",
+      "process_boundary": "Cloud-hosted HTML and inline JS for /connect and /restore only.",
+      "repository_runtime": "BicameralAI/bicameral-cloud dashboard routes.",
+      "deployment_location": "Hosted Cloud origin (app/staging).",
+      "authority_role": "Coordinator and UI host for request/poll/restore; not pairing approval authority and not session_token mint authority.",
+      "inputs": [
+        "signed-in cloud_account_id",
+        "CSRF token",
+        "client_protocol_version",
+        "bounded restore proof",
+        "resolved sole Alpha domain team_id (Cloud-issued opaque ID; idempotent auto-create if zero + TEAM_CREATED; distinct 409 repair path if >1)",
+        "transient cloud_access_token from the signed-in Cloud session (pending-record custody only)"
+      ],
+      "outputs": [
+        "pending pairing UI",
+        "sessionStorage handoff of session_token",
+        "redirect to Bot /app or back to /connect",
+        "POST /pair payload including team_id and cloud_access_token",
+        "SPA mapping of MissingTeamId / MissingCloudAccessToken 400 to return-to-/connect"
+      ],
+      "state_ids": [
+        "STATE-PENDING-PAIR",
+        "STATE-RESTORE-PROOF",
+        "STATE-SESSION-TOKEN"
+      ],
+      "multiplicity": "One Cloud bootstrap surface family per hosted origin.",
+      "prohibited_authority": [
+        "Call POST /pair/decision",
+        "Return or invent session_token before daemon approve",
+        "Treat DaemonPairing or HostedSession as bridge approval",
+        "Write session_token to durable browser storage",
+        "Couple pairing to Google OAuth or Drive tokens"
+      ]
+    },
+    {
+      "id": "ELM-SPA-APP",
+      "c4_kind": "container",
+      "name": "Bot /app after handoff",
+      "responsibility": "Run the post-pair product shell only when a live daemon-minted session_token is present; otherwise leave to /restore or /connect.",
+      "process_boundary": "Bot dashboard SPA after Cloud handoff.",
+      "repository_runtime": "BicameralAI/bicameral-bot dashboard.",
+      "deployment_location": "Operator browser against Bot /app.",
+      "authority_role": "Consumer of live session_token for hosted-bridge reads; never the mint or approve authority.",
+      "inputs": [
+        "sessionStorage session_token",
+        "daemon origin",
+        "hosted-bridge capability responses"
+      ],
+      "outputs": [
+        "product shell rendering",
+        "redirect to /restore or /connect when unpaired"
+      ],
+      "state_ids": [
+        "STATE-SESSION-TOKEN"
+      ],
+      "multiplicity": "Zero or more browser tabs; none is paired without a live token.",
+      "prohibited_authority": [
+        "Re-host the /connect pairing wizard",
+        "Treat Cloud HostedSession or DaemonPairing alone as paired-enough for /app",
+        "Approve pairing decisions",
+        "Persist session_token in localStorage"
+      ]
+    },
+    {
+      "id": "ELM-DAEMON-GATEWAY",
+      "c4_kind": "software_system",
+      "name": "Local daemon hosted-bridge gateway",
+      "responsibility": "Accept pending-first pair requests, enforce LOCAL-only decisions, mint opaque pairing_id plus ephemeral session_token and enrollment authorization at approve, and re-mint session_token from durable pairing_id after restart without a new code.",
+      "process_boundary": "Local bicameral-gateway hosted-bridge routes (/api/v1/hosted-bridge/pair*).",
+      "repository_runtime": "BicameralAI/bicameral-bot crates/bicameral-gateway and bicameral-api.",
+      "deployment_location": "Operator workstation loopback daemon.",
+      "authority_role": "Sole authority for pair approve/deny, pairing_id issuance, session_token mint/remint, and enrollment-authorization mint.",
+      "inputs": [
+        "pair request with origin, cloud_account_id, non-empty team_id, and cloud_access_token",
+        "local approve or deny with nonce",
+        "pair status poll with request_handle and poll_proof",
+        "durable pairing relationship"
+      ],
+      "outputs": [
+        "202 pending without session_token",
+        "400 with typed kind MissingTeamId or MissingCloudAccessToken when team_id or cloud_access_token is missing or empty on POST /pair",
+        "opaque pairing_id",
+        "ephemeral session_token",
+        "enrollment authorization",
+        "typed deny expire revoke or update_required outcomes"
+      ],
+      "state_ids": [
+        "STATE-PENDING-PAIR",
+        "STATE-PAIRING-RELATIONSHIP",
+        "STATE-SESSION-TOKEN",
+        "STATE-ENROLLMENT-AUTH",
+        "STATE-PAIRING-TERMINAL"
+      ],
+      "multiplicity": "One active daemon instance identity per operator product home.",
+      "prohibited_authority": [
+        "Accept remote Origin for /pair/decision",
+        "Return session_token on pending POST /pair",
+        "Accept pending POST /pair without non-empty team_id",
+        "Accept pending POST /pair without non-empty cloud_access_token",
+        "Persist, log, or return cloud_access_token outside pending-record custody",
+        "Treat Cloud HostedSession as enrollment grant",
+        "Require a new pairing code after daemon restart when durable pairing_id remains valid",
+        "Adopt Dogwood TRACE or UOR as Alpha runtime dependency for this hop"
+      ]
+    },
+    {
+      "id": "ELM-PAIRING-STORE",
+      "c4_kind": "datastore",
+      "name": "Durable local pairing_id relationship store",
+      "responsibility": "Persist the opaque pairing_id relationship bound to cloud_account_id, approved origin, protocol/profile version, and daemon instance identity across daemon process death.",
+      "process_boundary": "Operator-local durable store owned by the daemon (new relative to today's in-memory sessions).",
+      "repository_runtime": "BicameralAI/bicameral-bot local daemon persistence (not yet shipped as durable pairing_id store).",
+      "deployment_location": "Operator workstation.",
+      "authority_role": "Persistence owner for pairing_id relationships; writers remain the daemon gateway.",
+      "inputs": [
+        "LOCAL_APPROVED binding metadata",
+        "daemon instance identity",
+        "revoke or expiry signals"
+      ],
+      "outputs": [
+        "durable pairing_id relationship",
+        "reattach lookup for session_token remint"
+      ],
+      "state_ids": [
+        "STATE-PAIRING-RELATIONSHIP",
+        "STATE-PAIRING-TERMINAL"
+      ],
+      "multiplicity": "One relationship record per opaque pairing_id.",
+      "prohibited_authority": [
+        "Mint session_token without daemon gateway policy",
+        "Share storage with Google OAuth or Drive token material",
+        "Treat restore proof alone as durable pairing_id"
+      ]
+    },
+    {
+      "id": "ELM-SESSION-MEMORY",
+      "c4_kind": "datastore",
+      "name": "Ephemeral hosted-bridge session and pending memory",
+      "responsibility": "Hold short-TTL pending pair requests and live HostedBridgePairingSession / session_token material in process memory (and browser sessionStorage for the handoff copy).",
+      "process_boundary": "Daemon process memory for pending and live sessions; browser sessionStorage for the token handoff only.",
+      "repository_runtime": "BicameralAI/bicameral-bot gateway state plus Cloud/Bot browser sessionStorage.",
+      "deployment_location": "Daemon process and operator browser tab.",
+      "authority_role": "Ephemeral persistence only; not the durable pairing relationship authority.",
+      "inputs": [
+        "pending pair record",
+        "approved live session",
+        "status poll release"
+      ],
+      "outputs": [
+        "pending request_handle and poll_proof",
+        "live session_token until expiry revoke or process death"
+      ],
+      "state_ids": [
+        "STATE-PENDING-PAIR",
+        "STATE-SESSION-TOKEN"
+      ],
+      "multiplicity": "One pending or live session record per request_handle / session while alive.",
+      "prohibited_authority": [
+        "Survive daemon restart as the pairing relationship",
+        "Act as enrollment authorization",
+        "Be written to durable browser localStorage as authority"
+      ]
+    },
+    {
+      "id": "ELM-CLI-PAIRING",
+      "c4_kind": "component",
+      "name": "bicameral pairing approve CLI",
+      "responsibility": "List or look up local pending pairing requests and submit LOCAL-only approve or deny decisions with the confirmation nonce.",
+      "process_boundary": "Foreground local Bot CLI pairing commands.",
+      "repository_runtime": "BicameralAI/bicameral-bot src/commands/pairing.rs.",
+      "deployment_location": "Operator workstation.",
+      "authority_role": "Local decision transport for the operator; daemon remains commit authority.",
+      "inputs": [
+        "pairing code",
+        "operator approve or deny",
+        "local pending lookup"
+      ],
+      "outputs": [
+        "LOCAL POST /pair/decision"
+      ],
+      "state_ids": [
+        "STATE-PENDING-PAIR"
+      ],
+      "multiplicity": "One CLI decision transaction per pending request.",
+      "prohibited_authority": [
+        "Approve from a remote Cloud caller",
+        "Return session_token in the decision response",
+        "Bypass nonce or loopback Origin checks"
+      ]
+    },
+    {
+      "id": "ELM-LOCAL-APPROVAL-PAGE",
+      "c4_kind": "component",
+      "name": "Daemon-served local approval page",
+      "responsibility": "Render a pending pairing request (requesting origin, Cloud account, capability summary, expiry) on loopback and submit the operator's explicit approve or deny through the same LOCAL-only decision endpoint the CLI uses.",
+      "process_boundary": "Static page and script served by the local daemon at /local/pairing on the loopback gateway; no CORS, framing denied.",
+      "repository_runtime": "BicameralAI/bicameral-bot crates/bicameral-gateway/src/local_approval.rs and crates/bicameral-gateway/assets/local-pairing.*.",
+      "deployment_location": "Operator workstation (loopback only).",
+      "authority_role": "Local decision transport for the operator; daemon remains commit authority. Cloud may open the page via local_confirmation_url but cannot read, frame, or submit it.",
+      "inputs": [
+        "request_handle (from local_confirmation_url or local pending list)",
+        "operator approve or deny"
+      ],
+      "outputs": [
+        "LOCAL POST /pair/decision from loopback Origin with confirmation nonce"
+      ],
+      "state_ids": [
+        "STATE-PENDING-PAIR"
+      ],
+      "multiplicity": "One decision transaction per pending request; terminal requests render read-only.",
+      "prohibited_authority": [
+        "Approve from a remote Cloud caller",
+        "Approve without an explicit operator click on the loopback page",
+        "Return session_token in the decision response",
+        "Bypass nonce or loopback Origin checks",
+        "Serve under a non-loopback Host header or with CORS headers"
+      ]
+    },
+    {
+      "id": "ELM-CLOUD-ENROLLMENT",
+      "c4_kind": "software_system",
+      "name": "Cloud enrollment consumer",
+      "responsibility": "Consume the distinct enrollment authorization minted at local approve; adjacent row-12 verify/persist owner that must never treat HostedSession or DaemonPairing as the enrollment grant.",
+      "process_boundary": "Cloud enrollment verify and trusted-key persistence (out of mint scope for this contract).",
+      "repository_runtime": "BicameralAI/bicameral-cloud enrollment surfaces (row 12 consumer).",
+      "deployment_location": "Hosted Cloud.",
+      "authority_role": "Consumer of one-shot enrollment authorization; not mint authority and not /app pairing witness authority.",
+      "inputs": [
+        "enrollment authorization",
+        "pairing_id",
+        "daemon instance identity evidence"
+      ],
+      "outputs": [
+        "consumed enrollment mark",
+        "Cloud-trusted enrolled key record"
+      ],
+      "state_ids": [
+        "STATE-ENROLLMENT-AUTH",
+        "STATE-ENROLLMENT-CONSUMED"
+      ],
+      "multiplicity": "One consume attempt per enrollment authorization.",
+      "prohibited_authority": [
+        "Treat HostedSession or DaemonPairing as enrollment grant",
+        "Mint pairing_id or session_token",
+        "Extend enrollment authorization TTL by Cloud policy alone",
+        "Reuse a consumed enrollment authorization"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL-OPERATOR-CONNECT",
+      "source_id": "ELM-OPERATOR",
+      "destination_id": "ELM-CLOUD-CONNECT",
+      "interaction": "Opens Cloud /connect for a fresh pair or /restore when a bounded restore proof may still be valid.",
+      "medium": "HTTPS browser navigation on the hosted Cloud origin.",
+      "handoff": "Signed-in operator context enters the bootstrap or restore surface.",
+      "state_ids": [
+        "STATE-PENDING-PAIR",
+        "STATE-RESTORE-PROOF"
+      ],
+      "payloads": [
+        "cloud_account_id",
+        "Cloud auth session"
+      ],
+      "authority_boundaries": [
+        "Opening /connect is not approval.",
+        "/restore must not present a second pairing wizard."
+      ]
+    },
+    {
+      "id": "REL-CONNECT-PAIR-REQUEST",
+      "source_id": "ELM-CLOUD-CONNECT",
+      "destination_id": "ELM-DAEMON-GATEWAY",
+      "interaction": "Browser JS POSTs pending-first /api/v1/hosted-bridge/pair with origin, cloud_account_id, CSRF, client_protocol_version, non-empty team_id, and cloud_access_token.",
+      "medium": "Loopback HTTPS/HTTP to the local daemon with browser Origin.",
+      "handoff": "202 pending record with request_handle, poll_proof, pairing_code, and expiry — never session_token. Missing/empty team_id or cloud_access_token yields HTTP 400 with typed kind MissingTeamId or MissingCloudAccessToken.",
+      "state_ids": [
+        "STATE-PENDING-PAIR"
+      ],
+      "payloads": [
+        "origin",
+        "cloud_account_id",
+        "csrf_token",
+        "client_protocol_version",
+        "team_id",
+        "cloud_access_token",
+        "request_handle",
+        "poll_proof",
+        "pairing_code"
+      ],
+      "authority_boundaries": [
+        "Protocol floor is 4.",
+        "Immediate-token legacy responses are rejected by the Cloud bootstrap.",
+        "Cloud cannot approve on this relationship.",
+        "Alpha: exactly one domain-scoped team (idempotent auto-create if zero + TEAM_CREATED; distinct 409 with operator repair path if >1); Product selection is out of this hop.",
+        "Verified domain is Supabase-verified plus design-partner allowlist; consumer/shared domains are never allowlisted; team_id is a Cloud-issued opaque ID.",
+        "Client-supplied team_id is not enrollment trust alone; Cloud must verify bearer identity, allowlist, domain eligibility, and team_id/cloud_account_id binding at pairing create and enrollment.",
+        "Allowlisted-domain eligibility authorizes create/enroll of the caller's own pairing; team_owner is not required."
+      ]
+    },
+    {
+      "id": "REL-OPERATOR-CLI",
+      "source_id": "ELM-OPERATOR",
+      "destination_id": "ELM-CLI-PAIRING",
+      "interaction": "Operator pastes the pairing code and confirms approve or deny in the local CLI.",
+      "medium": "Foreground local terminal.",
+      "handoff": "Explicit local human decision bound to the displayed pending request.",
+      "state_ids": [
+        "STATE-PENDING-PAIR"
+      ],
+      "payloads": [
+        "pairing code",
+        "approve or deny"
+      ],
+      "authority_boundaries": [
+        "Code possession is not approval.",
+        "Only the local operator may authorize the CLI decision."
+      ]
+    },
+    {
+      "id": "REL-CLI-DECISION",
+      "source_id": "ELM-CLI-PAIRING",
+      "destination_id": "ELM-DAEMON-GATEWAY",
+      "interaction": "CLI submits LOCAL-only POST /pair/decision with approve|deny and confirmation nonce.",
+      "medium": "Loopback HTTP to the daemon with missing/empty/loopback Origin only.",
+      "handoff": "Daemon commits LOCAL_APPROVED or terminal deny; decision response never returns session_token.",
+      "state_ids": [
+        "STATE-PENDING-PAIR",
+        "STATE-PAIRING-RELATIONSHIP",
+        "STATE-SESSION-TOKEN",
+        "STATE-ENROLLMENT-AUTH",
+        "STATE-PAIRING-TERMINAL"
+      ],
+      "payloads": [
+        "request_handle",
+        "decision",
+        "confirmation nonce"
+      ],
+      "authority_boundaries": [
+        "Remote Origin callers are rejected.",
+        "One ceremony mints session_token and enrollment authorization as distinct artifacts.",
+        "Alpha TOFU binds daemon instance identity at first approve."
+      ]
+    },
+    {
+      "id": "REL-LOCAL-PAGE-DECISION",
+      "source_id": "ELM-LOCAL-APPROVAL-PAGE",
+      "destination_id": "ELM-DAEMON-GATEWAY",
+      "interaction": "Operator opens the daemon-served page (from Cloud's Open local approval action or directly), reviews the request, and clicks Approve or Deny; the page submits LOCAL-only POST /pair/decision with the confirmation nonce.",
+      "medium": "Same-origin loopback HTTP from http://127.0.0.1|localhost:<gateway port>.",
+      "handoff": "Daemon commits LOCAL_APPROVED or terminal deny exactly as for the CLI; decision response never returns session_token; the initiating browser learns the outcome only through its own /pair/status poll.",
+      "state_ids": [
+        "STATE-PENDING-PAIR",
+        "STATE-PAIRING-RELATIONSHIP",
+        "STATE-SESSION-TOKEN",
+        "STATE-ENROLLMENT-AUTH",
+        "STATE-PAIRING-TERMINAL"
+      ],
+      "payloads": [
+        "request_handle",
+        "approve or deny",
+        "local_confirmation_nonce"
+      ],
+      "authority_boundaries": [
+        "Opening the page is not approval.",
+        "Only an explicit local operator click submits a decision.",
+        "Cloud cannot read the nonce (no CORS) or frame the page (frame-ancestors 'none')."
+      ]
+    },
+    {
+      "id": "REL-CONNECT-STATUS",
+      "source_id": "ELM-CLOUD-CONNECT",
+      "destination_id": "ELM-DAEMON-GATEWAY",
+      "interaction": "Browser polls GET /pair/status with request_handle, poll_proof, and cloud_account_id until approved or terminal.",
+      "medium": "Loopback HTTP status poll from Cloud bootstrap JS.",
+      "handoff": "On approved + live session, transient session_token (+ expires_at) is released to the browser; pending/denied/expired yield no token.",
+      "state_ids": [
+        "STATE-PENDING-PAIR",
+        "STATE-SESSION-TOKEN",
+        "STATE-PAIRING-TERMINAL"
+      ],
+      "payloads": [
+        "request_handle",
+        "poll_proof",
+        "cloud_account_id",
+        "session_token",
+        "expires_at"
+      ],
+      "authority_boundaries": [
+        "Token is released only after local approve and only via status.",
+        "Retry-safe polls must not re-mint a new token while the session is live."
+      ]
+    },
+    {
+      "id": "REL-HANDOFF-APP",
+      "source_id": "ELM-CLOUD-CONNECT",
+      "destination_id": "ELM-SPA-APP",
+      "interaction": "After approved status, Cloud writes session_token into sessionStorage and navigates to Bot /app.",
+      "medium": "Browser sessionStorage handoff plus same-browser navigation.",
+      "handoff": "Ephemeral session_token available to /app for live bridge use.",
+      "state_ids": [
+        "STATE-SESSION-TOKEN",
+        "STATE-RESTORE-PROOF"
+      ],
+      "payloads": [
+        "session_token",
+        "daemon URL",
+        "bounded restore proof fields"
+      ],
+      "authority_boundaries": [
+        "session_token must not be written to localStorage.",
+        "/app success witness is the live daemon token only."
+      ]
+    },
+    {
+      "id": "REL-APP-GATEWAY",
+      "source_id": "ELM-SPA-APP",
+      "destination_id": "ELM-DAEMON-GATEWAY",
+      "interaction": "Paired SPA calls hosted-bridge data-plane routes authorized by the live session_token.",
+      "medium": "Loopback hosted-bridge HTTP with session token and Origin allowlist.",
+      "handoff": "Authorized local projections and governed requests subject to daemon policy.",
+      "state_ids": [
+        "STATE-SESSION-TOKEN"
+      ],
+      "payloads": [
+        "session_token",
+        "hosted-bridge requests"
+      ],
+      "authority_boundaries": [
+        "Missing expired or revoked token forces leave to /restore or /connect.",
+        "Bridge pairing is not Product membership or workspace binding."
+      ]
+    },
+    {
+      "id": "REL-GATEWAY-PAIRING-STORE",
+      "source_id": "ELM-DAEMON-GATEWAY",
+      "destination_id": "ELM-PAIRING-STORE",
+      "interaction": "At LOCAL_APPROVED, persist opaque pairing_id and bound metadata; on restart, look up the relationship to remint session_token without a new code.",
+      "medium": "Operator-local durable store I/O.",
+      "handoff": "Durable pairing relationship available across daemon process death until revoke or binding mismatch.",
+      "state_ids": [
+        "STATE-PAIRING-RELATIONSHIP",
+        "STATE-PAIRING-TERMINAL"
+      ],
+      "payloads": [
+        "pairing_id",
+        "cloud_account_id",
+        "approved origin",
+        "protocol or profile version",
+        "daemon instance identity"
+      ],
+      "authority_boundaries": [
+        "pairing_id is daemon-issued opaque Model B, not content-derived.",
+        "Store must not hold Google OAuth or Drive tokens."
+      ]
+    },
+    {
+      "id": "REL-GATEWAY-SESSION-MEMORY",
+      "source_id": "ELM-DAEMON-GATEWAY",
+      "destination_id": "ELM-SESSION-MEMORY",
+      "interaction": "Create pending records and live HostedBridgePairingSession material; release token copies only through status after approve.",
+      "medium": "In-process daemon memory and browser sessionStorage handoff.",
+      "handoff": "Ephemeral pending and session artifacts with short process lifetime.",
+      "state_ids": [
+        "STATE-PENDING-PAIR",
+        "STATE-SESSION-TOKEN"
+      ],
+      "payloads": [
+        "PendingPairingRecord",
+        "HostedBridgePairingSession",
+        "session_token"
+      ],
+      "authority_boundaries": [
+        "Process memory is not the durable pairing_id relationship.",
+        "Decision responses must not include session_token."
+      ]
+    },
+    {
+      "id": "REL-GATEWAY-ENROLLMENT-MINT",
+      "source_id": "ELM-DAEMON-GATEWAY",
+      "destination_id": "ELM-CLOUD-ENROLLMENT",
+      "interaction": "Same local approve mints a distinct short-TTL one-shot enrollment authorization bound to pairing_id and daemon instance identity for Cloud consume.",
+      "medium": "Enrollment authorization artifact handoff (PairingAuthorizationV1 local semantics; TRACE reference only).",
+      "handoff": "Unconsumed enrollment authorization available to the row-12 Cloud consumer.",
+      "state_ids": [
+        "STATE-ENROLLMENT-AUTH",
+        "STATE-ENROLLMENT-CONSUMED"
+      ],
+      "payloads": [
+        "enrollment authorization",
+        "pairing_id",
+        "daemon instance identity",
+        "TTL"
+      ],
+      "authority_boundaries": [
+        "HostedSession and DaemonPairing are not enrollment grants.",
+        "Enrollment verify/persistence remains row 12 consumer scope.",
+        "Dogwood-backed reducer is parked for Alpha."
+      ]
+    },
+    {
+      "id": "REL-RESTORE-STATUS",
+      "source_id": "ELM-CLOUD-CONNECT",
+      "destination_id": "ELM-DAEMON-GATEWAY",
+      "interaction": "Cloud /restore revalidates Cloud auth and presents the bounded restore proof to retry-safe pair status for token re-release while the daemon session or durable relationship still authorizes it.",
+      "medium": "HTTPS Cloud page plus loopback status exchange.",
+      "handoff": "Re-released ephemeral session_token or fail-closed return to /connect.",
+      "state_ids": [
+        "STATE-RESTORE-PROOF",
+        "STATE-SESSION-TOKEN",
+        "STATE-PAIRING-RELATIONSHIP",
+        "STATE-PAIRING-TERMINAL"
+      ],
+      "payloads": [
+        "request_handle",
+        "poll_proof",
+        "cloud_account_id",
+        "daemon URL",
+        "session_token"
+      ],
+      "authority_boundaries": [
+        "Restore proof is a continuity witness, not approval authority.",
+        "Account mismatch expiry or revocation fails closed to /connect.",
+        "/restore is not Drive OAuth and not enrollment consume."
+      ]
+    }
+  ],
+  "states": [
+    {
+      "id": "STATE-PENDING-PAIR",
+      "artifact": "Pending hosted-bridge pair request (request_handle, poll_proof, pairing_code, team_id, short-TTL cloud_access_token custody, short TTL)",
+      "classification": "local_scratch",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-SESSION-MEMORY"
+      ],
+      "persistence_location": "Daemon process memory; pending TTL on the order of minutes.",
+      "reader_ids": [
+        "ELM-CLOUD-CONNECT",
+        "ELM-CLI-PAIRING",
+        "ELM-OPERATOR"
+      ],
+      "routing_key": "request_handle + poll_proof + cloud_account_id + origin + team_id",
+      "mutation_path": "POST /pair creates pending only when team_id and cloud_access_token are non-empty; LOCAL /pair/decision or expiry/deny terminates it; cloud_access_token is pending-record custody only and is cleared on approve/deny/expiry; it is never persisted, logged, or returned.",
+      "lifecycle": "Created pending-first without session_token; ends at approve, deny, or expiry.",
+      "prohibited_fallbacks": [
+        "Return session_token while pending",
+        "Treat pending as durable pairing_id",
+        "Allow Cloud to approve the pending request",
+        "Accept pending without non-empty team_id",
+        "Accept pending without non-empty cloud_access_token",
+        "Persist, log, or return cloud_access_token"
+      ]
+    },
+    {
+      "id": "STATE-PAIRING-RELATIONSHIP",
+      "artifact": "Durable opaque pairing_id relationship bound at LOCAL_APPROVED",
+      "classification": "canonical_state",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-PAIRING-STORE"
+      ],
+      "persistence_location": "Operator-local durable pairing store (required by this freeze; missing in today's in-memory Alpha).",
+      "reader_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CLOUD-ENROLLMENT"
+      ],
+      "routing_key": "pairing_id",
+      "mutation_path": "Minted at local approve with cloud_account_id + approved origin + protocol/profile version + daemon instance identity; revoked or invalidated on binding mismatch.",
+      "lifecycle": "Survives daemon restart until revoke, expiry policy, or account/origin/daemon identity mismatch.",
+      "prohibited_fallbacks": [
+        "Derive pairing_id from content/UOR for Alpha",
+        "Lose relationship on daemon restart and force a new code when still valid",
+        "Share the store with OAuth/Drive tokens"
+      ]
+    },
+    {
+      "id": "STATE-SESSION-TOKEN",
+      "artifact": "Ephemeral HostedBridgePairingSession session_token",
+      "classification": "local_scratch",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-SESSION-MEMORY"
+      ],
+      "persistence_location": "Daemon process memory plus browser sessionStorage handoff only.",
+      "reader_ids": [
+        "ELM-CLOUD-CONNECT",
+        "ELM-SPA-APP"
+      ],
+      "routing_key": "session_token + daemon origin",
+      "mutation_path": "Minted or reminted by daemon after approve or durable reattach; released only via /pair/status; expires or revokes with the live session.",
+      "lifecycle": "Ephemeral; required live witness for /app; may be reminted from durable pairing_id after daemon restart without a new code.",
+      "prohibited_fallbacks": [
+        "Treat Cloud HostedSession or DaemonPairing as this token",
+        "Persist in localStorage as authority",
+        "Return on pending POST /pair or in /pair/decision response"
+      ]
+    },
+    {
+      "id": "STATE-ENROLLMENT-AUTH",
+      "artifact": "Unconsumed enrollment authorization minted at local approve",
+      "classification": "evidence",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_location": "Daemon-minted short-TTL grant artifact (PairingAuthorizationV1 local semantics).",
+      "reader_ids": [
+        "ELM-CLOUD-ENROLLMENT"
+      ],
+      "routing_key": "enrollment authorization id bound to pairing_id + daemon instance identity",
+      "mutation_path": "Minted in the same approve ceremony as session_token; one-shot consume by Cloud enrollment consumer; expires on short TTL.",
+      "lifecycle": "Unconsumed until one-shot Cloud consume, TTL expiry, or revoke of the parent relationship.",
+      "prohibited_fallbacks": [
+        "Reuse HostedSession as the enrollment grant",
+        "Unlimited TTL or multi-consume",
+        "Require Dogwood reducer for Alpha mint"
+      ]
+    },
+    {
+      "id": "STATE-ENROLLMENT-CONSUMED",
+      "artifact": "Cloud-trusted enrolled proof-signing key after enrollment authorization consume",
+      "classification": "canonical_state",
+      "authoritative_writer_ids": [
+        "ELM-CLOUD-ENROLLMENT"
+      ],
+      "persistence_owner_ids": [
+        "ELM-CLOUD-ENROLLMENT"
+      ],
+      "persistence_location": "Cloud enrollment trust material (row 12 consumer; adjacent witness for this mint-side contract).",
+      "reader_ids": [
+        "ELM-CLOUD-ENROLLMENT"
+      ],
+      "routing_key": "enrolled key identity bound to pairing_id / daemon instance",
+      "mutation_path": "Written only by successful one-shot consume of enrollment authorization; survives Cloud/daemon restarts until key revoke.",
+      "lifecycle": "Remains trusted across restarts until explicit key revoke; not established by HostedSession alone.",
+      "prohibited_fallbacks": [
+        "Enroll from HostedSession or DaemonPairing alone",
+        "Treat /app session_token as enrollment evidence"
+      ]
+    },
+    {
+      "id": "STATE-RESTORE-PROOF",
+      "artifact": "Bounded cross-visit restore proof (request_handle, poll_proof, account, daemon URL, expires_at)",
+      "classification": "evidence",
+      "authoritative_writer_ids": [
+        "ELM-CLOUD-CONNECT"
+      ],
+      "persistence_owner_ids": [
+        "ELM-CLOUD-CONNECT"
+      ],
+      "persistence_location": "Browser durable restore record coordinated by Cloud; never contains session_token.",
+      "reader_ids": [
+        "ELM-CLOUD-CONNECT",
+        "ELM-SPA-APP"
+      ],
+      "routing_key": "request_handle + poll_proof + cloud_account_id",
+      "mutation_path": "Written after successful pair handoff; cleared on sign-out, re-pair, expiry, revocation, or account mismatch.",
+      "lifecycle": "Continuity witness for /restore while daemon policy still authorizes re-release; cannot extend daemon authority.",
+      "prohibited_fallbacks": [
+        "Treat restore proof as /app success without live session_token",
+        "Store session_token inside the restore record",
+        "Use restore proof as enrollment authorization"
+      ]
+    },
+    {
+      "id": "STATE-PAIRING-TERMINAL",
+      "artifact": "Revoked, denied, expired, or binding-mismatched pairing outcome",
+      "classification": "accepted_event",
+      "authoritative_writer_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "persistence_owner_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-PAIRING-STORE"
+      ],
+      "persistence_location": "Daemon decision/expiry records and durable store revocation marks.",
+      "reader_ids": [
+        "ELM-CLOUD-CONNECT",
+        "ELM-SPA-APP",
+        "ELM-CLI-PAIRING"
+      ],
+      "routing_key": "request_handle or pairing_id terminal reason",
+      "mutation_path": "Entered by deny, pending expiry, session/relationship revoke, or account/origin/daemon mismatch.",
+      "lifecycle": "Terminal for the pending request or relationship; forces new code only when relationship is no longer valid.",
+      "prohibited_fallbacks": [
+        "Silently reopen /app from Cloud session after terminal pairing",
+        "Remint session_token from a revoked pairing_id"
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "TRANS-PAIR-REQUESTED",
+      "trigger": "Signed-in browser POSTs pending-first /pair from Cloud /connect with non-empty team_id and cloud_access_token.",
+      "actor_ids": [
+        "ELM-CLOUD-CONNECT",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "source_state_id": null,
+      "destination_state_id": "STATE-PENDING-PAIR",
+      "relationship_ids": [
+        "REL-CONNECT-PAIR-REQUEST",
+        "REL-GATEWAY-SESSION-MEMORY"
+      ],
+      "persistence_effect": "Creates short-TTL pending record in daemon memory with no session_token; retains team_id and request-scoped cloud_access_token for approve-time enroll."
+    },
+    {
+      "id": "TRANS-LOCAL-APPROVED",
+      "trigger": "Operator locally approves via CLI; daemon accepts LOCAL-only /pair/decision.",
+      "actor_ids": [
+        "ELM-OPERATOR",
+        "ELM-CLI-PAIRING",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "source_state_id": "STATE-PENDING-PAIR",
+      "destination_state_id": "STATE-PAIRING-RELATIONSHIP",
+      "relationship_ids": [
+        "REL-OPERATOR-CLI",
+        "REL-CLI-DECISION",
+        "REL-GATEWAY-PAIRING-STORE"
+      ],
+      "persistence_effect": "Commits opaque durable pairing_id with bound account, team_id, origin, protocol/profile version, and TOFU daemon instance identity."
+    },
+    {
+      "id": "TRANS-SESSION-MINTED",
+      "trigger": "Same local approve mints ephemeral HostedBridgePairingSession / session_token.",
+      "actor_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "source_state_id": "STATE-PENDING-PAIR",
+      "destination_state_id": "STATE-SESSION-TOKEN",
+      "relationship_ids": [
+        "REL-CLI-DECISION",
+        "REL-GATEWAY-SESSION-MEMORY"
+      ],
+      "persistence_effect": "Writes live session into process memory only; not returned on the decision response."
+    },
+    {
+      "id": "TRANS-ENROLLMENT-ISSUED",
+      "trigger": "Same local approve mints distinct short-TTL one-shot enrollment authorization.",
+      "actor_ids": [
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "source_state_id": "STATE-PENDING-PAIR",
+      "destination_state_id": "STATE-ENROLLMENT-AUTH",
+      "relationship_ids": [
+        "REL-CLI-DECISION",
+        "REL-GATEWAY-ENROLLMENT-MINT"
+      ],
+      "persistence_effect": "Creates unconsumed enrollment authorization bound to pairing_id and daemon instance identity."
+    },
+    {
+      "id": "TRANS-TOKEN-HANDOFF",
+      "trigger": "Browser polls /pair/status after approve and receives live session_token into sessionStorage.",
+      "actor_ids": [
+        "ELM-CLOUD-CONNECT",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "source_state_id": "STATE-SESSION-TOKEN",
+      "destination_state_id": "STATE-SESSION-TOKEN",
+      "relationship_ids": [
+        "REL-CONNECT-STATUS",
+        "REL-HANDOFF-APP"
+      ],
+      "persistence_effect": "Releases the same live token to sessionStorage; may also persist bounded restore proof without the token."
+    },
+    {
+      "id": "TRANS-APP-ENTERED",
+      "trigger": "Bot /app accepts only a live daemon-minted session_token as paired-enough success witness.",
+      "actor_ids": [
+        "ELM-SPA-APP",
+        "ELM-OPERATOR"
+      ],
+      "source_state_id": "STATE-SESSION-TOKEN",
+      "destination_state_id": "STATE-SESSION-TOKEN",
+      "relationship_ids": [
+        "REL-HANDOFF-APP",
+        "REL-APP-GATEWAY"
+      ],
+      "persistence_effect": "No new authority; /app consumes the live token and must not treat Cloud HostedSession as sufficient."
+    },
+    {
+      "id": "TRANS-RESTORE-REATTACH",
+      "trigger": "Browser cold start uses Cloud /restore with valid restore proof and daemon still authorizing re-release.",
+      "actor_ids": [
+        "ELM-CLOUD-CONNECT",
+        "ELM-DAEMON-GATEWAY",
+        "ELM-SPA-APP"
+      ],
+      "source_state_id": "STATE-RESTORE-PROOF",
+      "destination_state_id": "STATE-SESSION-TOKEN",
+      "relationship_ids": [
+        "REL-OPERATOR-CONNECT",
+        "REL-RESTORE-STATUS",
+        "REL-HANDOFF-APP"
+      ],
+      "persistence_effect": "Re-releases ephemeral session_token without a new pairing code when proof and daemon policy still match."
+    },
+    {
+      "id": "TRANS-DAEMON-RESTART-REATTACH",
+      "trigger": "Daemon process restarts; durable pairing_id remains valid so daemon remints session_token without a new pairing code.",
+      "actor_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-PAIRING-STORE"
+      ],
+      "source_state_id": "STATE-PAIRING-RELATIONSHIP",
+      "destination_state_id": "STATE-SESSION-TOKEN",
+      "relationship_ids": [
+        "REL-GATEWAY-PAIRING-STORE",
+        "REL-GATEWAY-SESSION-MEMORY",
+        "REL-RESTORE-STATUS"
+      ],
+      "persistence_effect": "Reads durable pairing_id relationship and creates a new ephemeral session in process memory."
+    },
+    {
+      "id": "TRANS-ENROLLMENT-CONSUMED",
+      "trigger": "Cloud enrollment consumer one-shot consumes the enrollment authorization and trusts the enrolled key.",
+      "actor_ids": [
+        "ELM-CLOUD-ENROLLMENT"
+      ],
+      "source_state_id": "STATE-ENROLLMENT-AUTH",
+      "destination_state_id": "STATE-ENROLLMENT-CONSUMED",
+      "relationship_ids": [
+        "REL-GATEWAY-ENROLLMENT-MINT"
+      ],
+      "persistence_effect": "Marks authorization consumed; persists Cloud-trusted key until key revoke (row 12 consumer)."
+    },
+    {
+      "id": "TRANS-PAIRING-DENIED-OR-EXPIRED",
+      "trigger": "Operator denies, pending TTL expires, relationship is revoked, or binding mismatches.",
+      "actor_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CLI-PAIRING"
+      ],
+      "source_state_id": "STATE-PENDING-PAIR",
+      "destination_state_id": "STATE-PAIRING-TERMINAL",
+      "relationship_ids": [
+        "REL-CLI-DECISION",
+        "REL-CONNECT-STATUS",
+        "REL-GATEWAY-PAIRING-STORE"
+      ],
+      "persistence_effect": "Terminalizes pending or durable relationship; subsequent /app or restore must fail closed without a new valid ceremony."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "SCN-FIRST-PAIR",
+      "name": "First-time /connect pair to /app",
+      "trigger": "Signed-in operator opens Cloud /connect with no restorable relationship.",
+      "participant_ids": [
+        "ELM-OPERATOR",
+        "ELM-CLOUD-CONNECT",
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CLI-PAIRING",
+        "ELM-SPA-APP",
+        "ELM-PAIRING-STORE",
+        "ELM-SESSION-MEMORY"
+      ],
+      "relationship_ids": [
+        "REL-OPERATOR-CONNECT",
+        "REL-CONNECT-PAIR-REQUEST",
+        "REL-OPERATOR-CLI",
+        "REL-CLI-DECISION",
+        "REL-CONNECT-STATUS",
+        "REL-HANDOFF-APP",
+        "REL-GATEWAY-PAIRING-STORE",
+        "REL-GATEWAY-SESSION-MEMORY",
+        "REL-GATEWAY-ENROLLMENT-MINT"
+      ],
+      "state_read_ids": [],
+      "state_write_ids": [
+        "STATE-PENDING-PAIR",
+        "STATE-PAIRING-RELATIONSHIP",
+        "STATE-SESSION-TOKEN",
+        "STATE-ENROLLMENT-AUTH",
+        "STATE-RESTORE-PROOF"
+      ],
+      "transition_ids": [
+        "TRANS-PAIR-REQUESTED",
+        "TRANS-LOCAL-APPROVED",
+        "TRANS-SESSION-MINTED",
+        "TRANS-ENROLLMENT-ISSUED",
+        "TRANS-TOKEN-HANDOFF",
+        "TRANS-APP-ENTERED"
+      ],
+      "authority_boundaries": [
+        "Pending-first never returns session_token.",
+        "Only LOCAL approve commits.",
+        "One ceremony yields session_token and enrollment authorization as separate artifacts.",
+        "POST /pair requires non-empty team_id and cloud_access_token before pending is created.",
+        "Missing/empty team_id or cloud_access_token returns HTTP 400 with typed kind; SPA maps to return-to-/connect.",
+        "cloud_access_token never persists, logs, or returns outside pending-record custody."
+      ],
+      "expected_result": "Browser reaches /app with a live daemon-minted session_token; durable pairing_id and unconsumed enrollment authorization exist; enrollment mint carries the pending team_id.",
+      "failure_behavior": "Deny, expiry, protocol mismatch, CSRF/origin failure, or missing team_id or cloud_access_token on POST /pair (typed 400, return-to-/connect) leaves the operator unpaired and shows no token."
+    },
+    {
+      "id": "SCN-RESTORE",
+      "name": "Browser cold start via /restore",
+      "trigger": "Tab lost sessionStorage token but bounded restore proof and daemon authorization remain valid.",
+      "participant_ids": [
+        "ELM-OPERATOR",
+        "ELM-CLOUD-CONNECT",
+        "ELM-DAEMON-GATEWAY",
+        "ELM-SPA-APP"
+      ],
+      "relationship_ids": [
+        "REL-OPERATOR-CONNECT",
+        "REL-RESTORE-STATUS",
+        "REL-HANDOFF-APP",
+        "REL-APP-GATEWAY"
+      ],
+      "state_read_ids": [
+        "STATE-RESTORE-PROOF",
+        "STATE-SESSION-TOKEN",
+        "STATE-PAIRING-RELATIONSHIP"
+      ],
+      "state_write_ids": [
+        "STATE-SESSION-TOKEN"
+      ],
+      "transition_ids": [
+        "TRANS-RESTORE-REATTACH",
+        "TRANS-APP-ENTERED"
+      ],
+      "authority_boundaries": [
+        "Restore proof is not approval and not enrollment.",
+        "Cloud re-auth and account binding are required before status re-release."
+      ],
+      "expected_result": "Ephemeral session_token is re-released and /app resumes without a new pairing code.",
+      "failure_behavior": "Expired, revoked, malformed, or account-mismatched proof fails closed to /connect."
+    },
+    {
+      "id": "SCN-DAEMON-RESTART-REATTACH",
+      "name": "Durable reattach after daemon process restart",
+      "trigger": "Daemon OS process is killed and restarted while the durable pairing_id relationship remains valid.",
+      "participant_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-PAIRING-STORE",
+        "ELM-SESSION-MEMORY",
+        "ELM-CLOUD-CONNECT",
+        "ELM-SPA-APP"
+      ],
+      "relationship_ids": [
+        "REL-GATEWAY-PAIRING-STORE",
+        "REL-GATEWAY-SESSION-MEMORY",
+        "REL-RESTORE-STATUS",
+        "REL-HANDOFF-APP"
+      ],
+      "state_read_ids": [
+        "STATE-PAIRING-RELATIONSHIP",
+        "STATE-RESTORE-PROOF"
+      ],
+      "state_write_ids": [
+        "STATE-SESSION-TOKEN"
+      ],
+      "transition_ids": [
+        "TRANS-DAEMON-RESTART-REATTACH",
+        "TRANS-TOKEN-HANDOFF",
+        "TRANS-APP-ENTERED"
+      ],
+      "authority_boundaries": [
+        "No new pairing code is required when pairing_id is non-revoked and bindings still match.",
+        "In-memory-only Alpha behavior is non-conformant for this freeze."
+      ],
+      "expected_result": "Daemon remints a new live session_token from durable pairing_id; /app can reattach without re-approve.",
+      "failure_behavior": "Missing durable store, revoke, or account/origin/daemon mismatch forces a fresh /connect code ceremony."
+    },
+    {
+      "id": "SCN-FORBID-REMOTE-APPROVE",
+      "name": "Cloud or SPA cannot approve",
+      "trigger": "Remote browser or Cloud attempts POST /pair/decision or otherwise tries to approve.",
+      "participant_ids": [
+        "ELM-CLOUD-CONNECT",
+        "ELM-SPA-APP",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "relationship_ids": [
+        "REL-CLI-DECISION",
+        "REL-CONNECT-PAIR-REQUEST"
+      ],
+      "state_read_ids": [
+        "STATE-PENDING-PAIR"
+      ],
+      "state_write_ids": [],
+      "transition_ids": [],
+      "authority_boundaries": [
+        "Only missing/empty/loopback Origin may decide.",
+        "Code possession is not approval."
+      ],
+      "expected_result": "Decision is rejected; pending remains pending or expires without session_token.",
+      "failure_behavior": "Any accepted remote approve is a conformance failure."
+    },
+    {
+      "id": "SCN-FORBID-HOSTEDSESSION-ENROLL",
+      "name": "HostedSession must not enroll keys",
+      "trigger": "Cloud path attempts to treat HostedSession or DaemonPairing as enrollment authority.",
+      "participant_ids": [
+        "ELM-CLOUD-ENROLLMENT",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "relationship_ids": [
+        "REL-GATEWAY-ENROLLMENT-MINT"
+      ],
+      "state_read_ids": [
+        "STATE-ENROLLMENT-AUTH",
+        "STATE-SESSION-TOKEN",
+        "STATE-ENROLLMENT-CONSUMED"
+      ],
+      "state_write_ids": [],
+      "transition_ids": [],
+      "authority_boundaries": [
+        "Enrollment requires the distinct short-TTL one-shot authorization.",
+        "session_token / HostedSession open /app only."
+      ],
+      "expected_result": "Enrollment is refused without a valid unconsumed enrollment authorization.",
+      "failure_behavior": "cloud#303-class conflation is a cut-point invariant failure."
+    },
+    {
+      "id": "SCN-NO-OAUTH-COUPLING",
+      "name": "Pairing hop is not Google OAuth/Drive",
+      "trigger": "Operator completes device pairing.",
+      "participant_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-PAIRING-STORE",
+        "ELM-CLOUD-CONNECT"
+      ],
+      "relationship_ids": [
+        "REL-GATEWAY-PAIRING-STORE",
+        "REL-CONNECT-PAIR-REQUEST"
+      ],
+      "state_read_ids": [
+        "STATE-PAIRING-RELATIONSHIP",
+        "STATE-SESSION-TOKEN"
+      ],
+      "state_write_ids": [],
+      "transition_ids": [
+        "TRANS-LOCAL-APPROVED"
+      ],
+      "authority_boundaries": [
+        "No shared authority objects, store, or pairing_id with row 5 OAuth/Drive.",
+        "Journey order pair-then-Drive is UX only."
+      ],
+      "expected_result": "Pairing artifacts remain independent of Google OAuth client config and Drive token continuity.",
+      "failure_behavior": "Any shared mint/store that manufactures Drive connected state from bridge session fails this scenario."
+    }
+  ],
+  "conformance": [
+    {
+      "id": "CONF-PENDING-FIRST-01",
+      "status": "partial",
+      "source_ids": [
+        "ELM-DAEMON-GATEWAY",
+        "ELM-CLOUD-CONNECT",
+        "REL-CONNECT-PAIR-REQUEST",
+        "TRANS-PAIR-REQUESTED",
+        "SCN-FIRST-PAIR"
+      ],
+      "owner_module_or_seam": "bicameral-gateway hosted-bridge POST /pair and Cloud /connect inline JS",
+      "required_behavior": "POST /pair returns 202 pending with request_handle/poll_proof/pairing_code and never returns session_token before local approve.",
+      "prohibited_fallback": "Immediate-token legacy response accepted as success.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Producer and consumer tests assert pending-first payloads and Cloud refusal of immediate-token responses."
+      },
+      "implementation_evidence": [
+        "crates/bicameral-gateway hosted-bridge pair route pending-first behavior on origin/dev",
+        "Cloud dashboard.py /connect pending-first JS",
+        "hosted_bridge_e2e_conformance.rs and Cloud fake_daemon tests (not real browser+daemon)"
+      ]
+    },
+    {
+      "id": "CONF-PAIR-INIT-TEAM-01",
+      "status": "missing",
+      "source_ids": [
+        "ELM-CLOUD-CONNECT",
+        "ELM-DAEMON-GATEWAY",
+        "REL-CONNECT-PAIR-REQUEST",
+        "STATE-PENDING-PAIR",
+        "TRANS-PAIR-REQUESTED",
+        "SCN-FIRST-PAIR"
+      ],
+      "owner_module_or_seam": "Cloud /connect + SPA Connect team resolution and bicameral-gateway POST /pair initiation validation (bot#1290)",
+      "required_behavior": "Verified domain is Supabase-verified plus design-partner allowlist; consumer/shared domains are never allowlisted; team_id is a Cloud-issued opaque ID. Cloud resolves exactly one durable domain-scoped team (idempotent auto-create if zero eligible teams with TEAM_CREATED audit; distinct 409 with operator repair path if >1), and POSTs non-empty team_id plus cloud_access_token on /pair alongside origin/cloud_account_id/CSRF/protocol. Bot rejects missing/empty team_id or cloud_access_token with HTTP 400 typed kinds MissingTeamId / MissingCloudAccessToken; /connect and /app SPA map those to return-to-/connect. cloud_access_token is Alpha-appropriate as a raw Cloud access token; pending-record custody only; cleared on approve/deny/expiry; never persisted, logged, or returned. Any allowlisted-domain eligible user may create and enroll their own pairing; team_owner is not required. Design-partner domain allowlist is not team creation. Product selection remains out of the handshake. Client-supplied team_id is not enrollment trust alone; Cloud verifies bearer identity, allowlist, domain eligibility, and team_id/cloud_account_id binding at pairing create and enrollment.",
+      "prohibited_fallback": "Optional team_id or cloud_access_token on POST /pair with enroll-time fail-closed only; silent first-team pick; inventing a provisional team outside the Alpha auto-create rule; requiring Product selection before pair; requiring team_owner to create or enroll the caller's own pairing; persisting, logging, or returning cloud_access_token; treating a generic 4xx without typed kind as sufficient.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Cloud Connect fixture resolves/creates sole domain team and includes team_id + cloud_access_token; Bot /pair returns 400 MissingTeamId or MissingCloudAccessToken without those fields; SPA maps those kinds to /connect; HTTP approve path carries pending team_id into PairingAuthorizationV1 mint."
+      },
+      "implementation_evidence": [
+        "Surfaced production failure: team_id missing on pending pairing — Cloud enroll requires team_id (bot#1290)",
+        "Owner freeze-with-changes 2026-09-16 recorded on bot#1291; Bot #1292 and Cloud #323 are conformance slices, Cloud #323 still held on pairing_id carry / #306 served composition / split 409 /restore team_id"
+      ]
+    },
+    {
+      "id": "CONF-LOCAL-APPROVE-01",
+      "status": "partial",
+      "source_ids": [
+        "ELM-CLI-PAIRING",
+        "ELM-LOCAL-APPROVAL-PAGE",
+        "ELM-DAEMON-GATEWAY",
+        "REL-LOCAL-PAGE-DECISION",
+        "REL-CLI-DECISION",
+        "SCN-FORBID-REMOTE-APPROVE",
+        "TRANS-LOCAL-APPROVED"
+      ],
+      "owner_module_or_seam": "bicameral-gateway /pair/decision local-origin gate, daemon-served local approval page, and pairing CLI",
+      "required_behavior": "Only LOCAL/loopback decision callers may approve or deny; decision response never returns session_token.",
+      "prohibited_fallback": "Cloud or SPA remote Origin approval.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Reject non-local Origin decision attempts and prove approve/deny require confirmation nonce."
+      },
+      "implementation_evidence": [
+        "Gateway local-origin decision gate on origin/dev",
+        "src/commands/pairing.rs CLI approve path",
+        "In-process conformance; no real browser remote-approve e2e harness",
+        "crates/bicameral-gateway/tests/hosted_bridge_e2e_conformance.rs local_approval_page: page served loopback-only with no CORS and frame-ancestors 'none'; loopback-origin approval releases session to initiator; Cloud origin cannot read nonce or approve"
+      ]
+    },
+    {
+      "id": "CONF-APP-SESSION-TOKEN-01",
+      "status": "partial",
+      "source_ids": [
+        "ELM-SPA-APP",
+        "STATE-SESSION-TOKEN",
+        "TRANS-APP-ENTERED",
+        "REL-HANDOFF-APP",
+        "SCN-FIRST-PAIR"
+      ],
+      "owner_module_or_seam": "Bot /app handoff gate and Cloud sessionStorage handoff",
+      "required_behavior": "/app success witness is a daemon-minted live session_token only; Cloud HostedSession/DaemonPairing/code possession are insufficient.",
+      "prohibited_fallback": "Treat Cloud DaemonPairing or HostedSession alone as paired-enough for /app.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Assert /app remains unpaired without live session_token even when Cloud pairing/session rows exist."
+      },
+      "implementation_evidence": [
+        "sessionStorage handoff helpers and hostedRecoveryPath on origin/dev",
+        "PRD hosted-device-pairing-bootstrap path split",
+        "Full /app witness lock still needs frozen-contract alignment and real e2e"
+      ]
+    },
+    {
+      "id": "CONF-PAIRING-ID-01",
+      "status": "missing",
+      "source_ids": [
+        "STATE-PAIRING-RELATIONSHIP",
+        "ELM-PAIRING-STORE",
+        "TRANS-LOCAL-APPROVED",
+        "REL-GATEWAY-PAIRING-STORE"
+      ],
+      "owner_module_or_seam": "Daemon LOCAL_APPROVED mint of opaque pairing_id Model B",
+      "required_behavior": "At local approve, mint daemon-issued opaque pairing_id bound to cloud_account_id, team_id from the pending pair request, approved origin, protocol/profile version, and daemon instance identity (Alpha TOFU).",
+      "prohibited_fallback": "Content-derived or hybrid pairing_id; missing daemon instance identity at approve; minting pairing_id without team_id after CONF-PAIR-INIT-TEAM-01 is frozen.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Approve fixture asserts opaque pairing_id and exact bound metadata including TOFU daemon instance identity."
+      },
+      "implementation_evidence": [
+        "Today HostedBridgePairingSession/pending are process-local without durable opaque pairing_id store"
+      ]
+    },
+    {
+      "id": "CONF-ENROLLMENT-MINT-01",
+      "status": "missing",
+      "source_ids": [
+        "STATE-ENROLLMENT-AUTH",
+        "TRANS-ENROLLMENT-ISSUED",
+        "REL-GATEWAY-ENROLLMENT-MINT",
+        "SCN-FORBID-HOSTEDSESSION-ENROLL"
+      ],
+      "owner_module_or_seam": "Daemon approve ceremony enrollment-authorization mint (row 12 mint side)",
+      "required_behavior": "Same local approve mints a distinct short-TTL one-shot enrollment authorization carrying team_id from the pending pair request; PairingAuthorizationV1 local semantics win; TRACE is reference only; Dogwood parked.",
+      "prohibited_fallback": "Reuse session_token/HostedSession as enrollment grant; multi-consume or unbounded TTL; minting enrollment without pending team_id after CONF-PAIR-INIT-TEAM-01 is frozen.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Approve mint returns a distinct enrollment authorization with TTL and one-shot consume semantics separate from session_token, including team_id from the pending pair."
+      },
+      "implementation_evidence": [
+        "Enrollment authorization mint not shipped; Cloud verify remains adjacent row 12 consumer work",
+        "bot#1290: pending pair must carry team_id before mint can succeed"
+      ]
+    },
+    {
+      "id": "CONF-DURABLE-REATTACH-01",
+      "status": "missing",
+      "source_ids": [
+        "STATE-PAIRING-RELATIONSHIP",
+        "ELM-PAIRING-STORE",
+        "TRANS-DAEMON-RESTART-REATTACH",
+        "SCN-DAEMON-RESTART-REATTACH"
+      ],
+      "owner_module_or_seam": "Durable pairing store and daemon restart remint path",
+      "required_behavior": "Durable pairing_id survives daemon process death and remints session_token without a new pairing code when relationship is non-revoked and bindings match.",
+      "prohibited_fallback": "Force full code+approve after every daemon restart while relationship remains valid.",
+      "validation_obligation": {
+        "kind": "restart_replay",
+        "description": "Kill the real daemon OS process, restart it, and prove session_token remint from durable pairing_id without a new code."
+      },
+      "implementation_evidence": [
+        "Current Alpha loses in-memory pending/sessions on daemon restart"
+      ]
+    },
+    {
+      "id": "CONF-RESTORE-01",
+      "status": "partial",
+      "source_ids": [
+        "STATE-RESTORE-PROOF",
+        "REL-RESTORE-STATUS",
+        "TRANS-RESTORE-REATTACH",
+        "SCN-RESTORE"
+      ],
+      "owner_module_or_seam": "Cloud GET /restore and retry-safe pair status re-release",
+      "required_behavior": "Browser cold start uses /restore with bounded restore proof and Cloud re-auth; re-releases ephemeral token only while daemon policy still authorizes; otherwise /connect.",
+      "prohibited_fallback": "Treat restore proof as standing /app authority or as enrollment authorization.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Prove /restore happy path and fail-closed paths for expiry, revoke, malformed proof, and account mismatch."
+      },
+      "implementation_evidence": [
+        "Cloud /restore present on origin/dev",
+        "hosted-bridge-cross-visit-restore.md accepted decision",
+        "Not yet composed with durable pairing_id remint after daemon kill"
+      ]
+    },
+    {
+      "id": "CONF-NO-SESSION-ENROLL-01",
+      "status": "missing",
+      "source_ids": [
+        "ELM-CLOUD-ENROLLMENT",
+        "STATE-ENROLLMENT-AUTH",
+        "STATE-ENROLLMENT-CONSUMED",
+        "SCN-FORBID-HOSTEDSESSION-ENROLL"
+      ],
+      "owner_module_or_seam": "Cut-point between bridge session artifacts and Cloud enrollment consumer",
+      "required_behavior": "HostedSession and DaemonPairing alone must not enroll proof-signing keys; only the distinct enrollment authorization may.",
+      "prohibited_fallback": "cloud#303-class conflation of HostedSession/DaemonPairing with enrollment evidence.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Negative tests refuse enrollment when only HostedSession/DaemonPairing are presented without enrollment authorization."
+      },
+      "implementation_evidence": [
+        "Owner lock recorded 2026-09-02; Cloud enrollment verify enforcement is adjacent row 12 follow-on"
+      ]
+    },
+    {
+      "id": "CONF-E2E-BROWSER-DAEMON-01",
+      "status": "missing",
+      "source_ids": [
+        "SCN-FIRST-PAIR",
+        "SCN-RESTORE",
+        "SCN-DAEMON-RESTART-REATTACH",
+        "TRANS-DAEMON-RESTART-REATTACH",
+        "ELM-DAEMON-GATEWAY"
+      ],
+      "owner_module_or_seam": "Real browser + real daemon hosted pairing harness",
+      "required_behavior": "Compose real Cloud/browser + real bicameral-gateway daemon for first pair, /restore, and at least one daemon restart reattach.",
+      "prohibited_fallback": "In-process axum-only or fake_daemon tests as the sole e2e witness for row 3 lock.",
+      "validation_obligation": {
+        "kind": "topology",
+        "description": "HITL or automated topology run with real browser and real daemon covering pair, restore, and daemon kill/restart remint."
+      },
+      "implementation_evidence": [
+        "factory-901-row-3 inventory: no harness composes real browser + real daemon"
+      ]
+    },
+    {
+      "id": "CONF-NO-OAUTH-COUPLING-01",
+      "status": "partial",
+      "source_ids": [
+        "ELM-PAIRING-STORE",
+        "ELM-DAEMON-GATEWAY",
+        "SCN-NO-OAUTH-COUPLING",
+        "REL-GATEWAY-PAIRING-STORE"
+      ],
+      "owner_module_or_seam": "Boundary between row 3 pairing artifacts and row 5 Google OAuth/Drive continuity",
+      "required_behavior": "Device pairing shares no authority objects, store, or pairing_id with Google OAuth/Drive token continuity; journey order is UX only.",
+      "prohibited_fallback": "Manufacture Drive connected state from bridge session_token or pairing_id.",
+      "validation_obligation": {
+        "kind": "topology",
+        "description": "Inventory pairing and OAuth stores/APIs and assert no shared mint path or authority object between row 3 and row 5."
+      },
+      "implementation_evidence": [
+        "Owner lock 2026-09-02: OAuth unrelated hop; row 5 citation only",
+        "Separate Cloud Google app-config / Drive paths exist outside this handshake"
+      ]
+    }
+  ]
+}

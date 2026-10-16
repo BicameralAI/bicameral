@@ -1,0 +1,419 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/smr-claim-acceptance/v1/smr-claim-set-proposal.schema.json",
+  "title": "SmrClaimSetProposalV1",
+  "description": "Noncanonical SMR claim-set proposal staged in daemon-local working state by smr.claims.propose. Advisory until a human promotes it through the existing governed review path. Provider identity is provenance, never Claim identity. additionalProperties is false everywhere: the daemon fails closed on any field outside this contract. See docs/specs/state-machine-resolver-v1-runtime-architecture.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "proposal_schema_version",
+    "digest_profile_version",
+    "operation_id",
+    "routing",
+    "candidate",
+    "artifact_binding",
+    "base_event_position",
+    "normalized_claim_set",
+    "digests",
+    "evidence_refs"
+  ],
+  "properties": {
+    "proposal_schema_version": {
+      "const": 1,
+      "description": "Unknown values fail closed with unsupported_contract_version."
+    },
+    "digest_profile_version": {
+      "const": 1,
+      "description": "Digest profile governing every digest in this proposal."
+    },
+    "operation_id": {
+      "$ref": "#/definitions/Uuid",
+      "description": "Caller-supplied durable idempotency identity, unique per (product_id, actor_id). Distinct from the ToolRequest request_id and never aliased to it."
+    },
+    "routing": { "$ref": "#/definitions/Routing" },
+    "candidate": { "$ref": "#/definitions/CandidateRef" },
+    "artifact_binding": { "$ref": "#/definitions/ArtifactBinding" },
+    "base_event_position": {
+      "$ref": "#/definitions/EventPosition",
+      "description": "Canonical event log position of the last event included in the base projection. Required so smr_base_snapshot_digest is re-derivable on replay."
+    },
+    "normalized_claim_set": { "$ref": "#/definitions/NormalizedClaimSetV1" },
+    "digests": { "$ref": "#/definitions/ProposalDigests" },
+    "evidence_refs": {
+      "type": "array",
+      "description": "Exact ordered evidence references. May be empty.",
+      "items": { "$ref": "#/definitions/EvidenceRef" }
+    },
+    "codegraph_proof_bundle": {
+      "$ref": "#/definitions/CodeGraphProofBundle",
+      "description": "Optional opaque carrier. Silong-owned and unresolved through issue #936."
+    },
+    "provider_provenance": {
+      "$ref": "#/definitions/ProviderProvenance",
+      "description": "Provenance only. Never contributes to Claim identity or any semantic digest."
+    }
+  },
+  "definitions": {
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Digest profile v1 encoding: the literal prefix sha256: followed by exactly 64 lowercase hexadecimal characters."
+    },
+    "EventPosition": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unsigned 64-bit monotonic canonical event log position."
+    },
+    "SemanticId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "description": "Stable semantic identifier. Set-like arrays are deduplicated and sorted by this value before JCS canonicalization."
+    },
+    "Routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product_id"],
+      "description": "Product routing identity. Workspace paths, daemon working directory, MCP session identity, provider identity, and SQLite identity are never routing identity and must not appear here.",
+      "properties": {
+        "product_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Caller-supplied, authorization-checked stable Product identity."
+        },
+        "event_stream_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Daemon-derived from product_id. A caller-supplied value is rejected with routing_mismatch."
+        }
+      }
+    },
+    "CandidateRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "generation", "kind"],
+      "properties": {
+        "candidate_id": { "$ref": "#/definitions/Uuid" },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Immutable generation counter. Reanalysis creates a new generation and never rewrites the generation a human inspected."
+        },
+        "kind": {
+          "enum": ["decision_v1", "smr_claim_set_v1"],
+          "description": "Typed discriminator. Absence on legacy rows reads as decision_v1."
+        }
+      }
+    },
+    "ArtifactBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_id",
+        "git_head",
+        "artifact_path",
+        "blob_id",
+        "artifact_content_digest"
+      ],
+      "properties": {
+        "repository_id": { "type": "string", "minLength": 1 },
+        "git_head": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "Full 40-character lowercase hexadecimal commit sha."
+        },
+        "artifact_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\./).+$",
+          "description": "Normalized POSIX repo-relative path with no leading ./ or /."
+        },
+        "blob_id": { "type": "string", "minLength": 1 },
+        "artifact_content_digest": { "$ref": "#/definitions/Digest" }
+      }
+    },
+    "ProposalDigests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_set_digest",
+        "artifact_binding_digest",
+        "smr_base_snapshot_digest",
+        "claim_scope_digest",
+        "evidence_bundle_digest"
+      ],
+      "description": "Separate identities. The names canonical_snapshot_digest and scope_digest are prohibited: they conflated SMR and CodeGraph identity.",
+      "properties": {
+        "claim_set_digest": { "$ref": "#/definitions/Digest" },
+        "artifact_binding_digest": { "$ref": "#/definitions/Digest" },
+        "smr_base_snapshot_digest": { "$ref": "#/definitions/Digest" },
+        "claim_scope_digest": { "$ref": "#/definitions/Digest" },
+        "evidence_bundle_digest": { "$ref": "#/definitions/Digest" }
+      }
+    },
+    "NormalizedClaimSetV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claims",
+        "model_atoms",
+        "claim_assertions",
+        "atom_relations",
+        "scopes",
+        "source_anchors"
+      ],
+      "properties": {
+        "claims": {
+          "type": "array",
+          "maxItems": 512,
+          "items": { "$ref": "#/definitions/Claim" }
+        },
+        "model_atoms": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": { "$ref": "#/definitions/ModelAtom" }
+        },
+        "claim_assertions": {
+          "type": "array",
+          "maxItems": 8192,
+          "items": { "$ref": "#/definitions/ClaimAssertion" }
+        },
+        "atom_relations": {
+          "type": "array",
+          "maxItems": 8192,
+          "items": { "$ref": "#/definitions/AtomRelation" }
+        },
+        "scopes": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "$ref": "#/definitions/Scope" }
+        },
+        "closure_assertions": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "$ref": "#/definitions/ClosureAssertion" }
+        },
+        "source_anchors": {
+          "type": "array",
+          "maxItems": 8192,
+          "items": { "$ref": "#/definitions/SourceAnchor" }
+        }
+      }
+    },
+    "Claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "revision",
+        "context_statement",
+        "source_anchor_ids",
+        "assertion_ids"
+      ],
+      "properties": {
+        "claim_id": { "$ref": "#/definitions/SemanticId" },
+        "revision": { "type": "integer", "minimum": 0 },
+        "context_statement": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "description": "The governing context statement. Becomes the resulting Decision's context verbatim."
+        },
+        "source_anchor_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/SemanticId" }
+        },
+        "assertion_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/SemanticId" }
+        }
+      }
+    },
+    "ModelAtom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["atom_id", "atom_kind", "semantic_key", "scope_id"],
+      "properties": {
+        "atom_id": { "$ref": "#/definitions/SemanticId" },
+        "atom_kind": {
+          "enum": [
+            "actor",
+            "state",
+            "transition",
+            "event",
+            "guard",
+            "action",
+            "data_field",
+            "invariant",
+            "term"
+          ],
+          "description": "Closed. Adding a member is a proposal_schema_version bump, never a runtime-additive change."
+        },
+        "semantic_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Stable semantic key, NFC-normalized."
+        },
+        "scope_id": { "$ref": "#/definitions/SemanticId" }
+      }
+    },
+    "ClaimAssertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion_id", "claim_id", "atom_id", "polarity", "value"],
+      "properties": {
+        "assertion_id": { "$ref": "#/definitions/SemanticId" },
+        "claim_id": { "$ref": "#/definitions/SemanticId" },
+        "atom_id": { "$ref": "#/definitions/SemanticId" },
+        "polarity": { "enum": ["asserts", "negates"] },
+        "value": { "$ref": "#/definitions/TypedValue" }
+      }
+    },
+    "TypedValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "description": "Closed typed value. No arbitrary predicate, opaque parameters_json, or executable expression is permitted. Floating-point values are forbidden.",
+      "properties": {
+        "kind": {
+          "enum": ["boolean", "integer", "string_enum", "atom_ref", "absent"]
+        },
+        "boolean": { "type": "boolean" },
+        "integer": { "type": "integer" },
+        "string_enum": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "atom_ref": { "$ref": "#/definitions/SemanticId" }
+      }
+    },
+    "AtomRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relation_id",
+        "relation_kind",
+        "from_atom_id",
+        "to_atom_id",
+        "supporting_claim_ids",
+        "supporting_source_anchor_ids"
+      ],
+      "description": "Every relation identifies the Claims and SourceAnchors used as its proposal inputs. Those links prove input lineage only; they do not prove semantic entailment, source explicitness, correctness, or authority. ordinal is required when relation_kind is precedes or triggers, and forbidden otherwise. Array position alone is never semantic. A provider-supplied derivation classification is prohibited.",
+      "properties": {
+        "relation_id": { "$ref": "#/definitions/SemanticId" },
+        "relation_kind": {
+          "enum": [
+            "precedes",
+            "triggers",
+            "guards",
+            "produces",
+            "refines",
+            "part_of",
+            "same_as",
+            "contradicts"
+          ]
+        },
+        "from_atom_id": { "$ref": "#/definitions/SemanticId" },
+        "to_atom_id": { "$ref": "#/definitions/SemanticId" },
+        "supporting_claim_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/SemanticId" },
+          "description": "Non-empty Claims in this same NormalizedClaimSetV1 whose source lineage was used to propose the relation. Human acceptance binds the relation; this list does not grant authority."
+        },
+        "supporting_source_anchor_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8192,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/SemanticId" },
+          "description": "Non-empty SourceAnchors in this same NormalizedClaimSetV1. Every listed anchor must be reachable through at least one supporting Claim. Reachability records input provenance and never asserts that natural-language text explicitly entails the relation."
+        },
+        "ordinal": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_id", "scope_kind", "selector"],
+      "properties": {
+        "scope_id": { "$ref": "#/definitions/SemanticId" },
+        "scope_kind": {
+          "enum": ["artifact", "symbol", "module", "product_domain"]
+        },
+        "selector": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "ClosureAssertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["closure_id", "scope_id", "closure_kind"],
+      "description": "Stale, insufficient, ambiguous, unsupported, or mismatched CodeGraph proof yields unknown_scope, which can never support an absence claim.",
+      "properties": {
+        "closure_id": { "$ref": "#/definitions/SemanticId" },
+        "scope_id": { "$ref": "#/definitions/SemanticId" },
+        "closure_kind": { "enum": ["complete", "partial", "unknown_scope"] }
+      }
+    },
+    "SourceAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_id",
+        "artifact_binding_ref",
+        "byte_start",
+        "byte_end",
+        "line_start",
+        "line_end"
+      ],
+      "properties": {
+        "anchor_id": { "$ref": "#/definitions/SemanticId" },
+        "artifact_binding_ref": { "$ref": "#/definitions/Digest" },
+        "byte_start": { "type": "integer", "minimum": 0 },
+        "byte_end": { "type": "integer", "minimum": 0 },
+        "line_start": { "type": "integer", "minimum": 1 },
+        "line_end": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "EvidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "evidence_kind", "content_digest"],
+      "properties": {
+        "evidence_id": { "$ref": "#/definitions/SemanticId" },
+        "evidence_kind": {
+          "enum": ["artifact_span", "screened_external", "codegraph_proof"]
+        },
+        "content_digest": { "$ref": "#/definitions/Digest" }
+      }
+    },
+    "CodeGraphProofBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["opaque_payload_digest"],
+      "description": "Byte-stable opaque carrier for the existing GraphSnapshot and ScopeSufficiencyProof identities exactly as emitted. SMR must not reinterpret or replace its completeness semantics. Included in evidence_bundle_digest.",
+      "properties": {
+        "opaque_payload_digest": { "$ref": "#/definitions/Digest" },
+        "graph_snapshot_id": { "type": "string", "minLength": 1 },
+        "scope_sufficiency_proof_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ProviderProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_kind"],
+      "description": "Excluded from every semantic digest. A provider may never supply an authority field or a generated approval.",
+      "properties": {
+        "provider_kind": { "enum": ["caller_supplied", "local_provider"] },
+        "provider_id": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

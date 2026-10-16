@@ -1,0 +1,24 @@
+{
+  "_comment": "Negative fixture: high ranking score cannot create or promote Decision or BindingEvidence",
+  "_invariant": "Recall ranking is a read-only projection. No ranking score, however high, may create a Decision, promote a DecisionCandidate to canonical, or materialize BindingEvidence without governed authority proof.",
+  "_expected": "RecallPacket with high-scored candidates MUST NOT contain decision_id, binding_evidence, compliance_state, or signoff_approval in its serialized form. The packet's allowed_next_actions must not include any action that bypasses the governed promotion/signoff path.",
+  "_must_fail_if": "high score creates or promotes Decision or BindingEvidence",
+  "scenario": {
+    "recall_score": 0.99,
+    "candidate_count": 3,
+    "all_candidates_high_confidence": true
+  },
+  "forbidden_fields_in_packet": [
+    "binding_evidence",
+    "compliance_state",
+    "enforcement",
+    "signoff_approval",
+    "accepted_decision"
+  ],
+  "permitted_fields": [
+    "canonical_decisions",
+    "decision_candidates",
+    "unknown_scope",
+    "allowed_next_actions"
+  ]
+}

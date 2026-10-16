@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkspaceBindingProposal",
+  "description": "Transient proposal for an edge surface to ask the daemon to bind a candidate folder to an already-registered project.\n\nThis is not a durable state and not accepted evidence. See the module docs for the authority boundary.",
+  "type": "object",
+  "required": [
+    "candidate_path",
+    "confidence",
+    "display",
+    "project_id",
+    "reason",
+    "source_surface"
+  ],
+  "properties": {
+    "candidate_path": {
+      "description": "**LOCAL-ONLY.** Absolute candidate folder path for daemon/MCP local use. MUST NOT cross the hosted bridge or appear in any hosted-safe view.",
+      "type": "string"
+    },
+    "confidence": {
+      "description": "Surface confidence that the candidate is correct, in `[0.0, 1.0]`.",
+      "type": "number",
+      "format": "float"
+    },
+    "display": {
+      "description": "Redacted display metadata safe for hosted-bridge exposure.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/ProjectSafeDisplayMetadata"
+        }
+      ]
+    },
+    "project_id": {
+      "description": "Opaque, already-registered project identifier the binding targets. Never a filesystem path (see [`ProjectRegistration`] semantics in the registration spec).",
+      "type": "string"
+    },
+    "reason": {
+      "description": "Human-readable reason the surface is proposing this candidate.",
+      "type": "string"
+    },
+    "source_surface": {
+      "description": "Which local surface authored this proposal (`mcp` in alpha).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/WorkspaceBindingSourceSurface"
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "ProjectSafeDisplayMetadata": {
+      "description": "Redacted, project-safe display metadata for a binding proposal.\n\nSAFE to cross the hosted bridge: contains no local filesystem path, provider secret, source body, or event-store body. Any folder hint here must be a non-path label (e.g. a basename), never an absolute path.",
+      "type": "object",
+      "required": [
+        "display_name"
+      ],
+      "properties": {
+        "candidate_label": {
+          "description": "Optional non-path folder label to help a human recognize the candidate (e.g. the folder basename only). MUST NOT be an absolute path.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "display_name": {
+          "description": "Human-readable project display name. No path/remote/secret leakage.",
+          "type": "string"
+        },
+        "project_slug": {
+          "description": "Optional short project slug/label. Safe, opaque display token.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "WorkspaceBindingSourceSurface": {
+      "description": "Local surface that authored a [`WorkspaceBindingProposal`].\n\nIn alpha, MCP is the proposing surface (`source_surface: mcp`). Other local surfaces are listed for forward-compatibility; none grant authority — the daemon still validates and materializes the binding.",
+      "oneOf": [
+        {
+          "description": "MCP thin-client session proposed the binding.",
+          "type": "string",
+          "enum": [
+            "mcp"
+          ]
+        },
+        {
+          "description": "Local CLI invocation proposed the binding.",
+          "type": "string",
+          "enum": [
+            "cli"
+          ]
+        },
+        {
+          "description": "Local review dashboard/TUI proposed the binding.",
+          "type": "string",
+          "enum": [
+            "dashboard"
+          ]
+        }
+      ]
+    }
+  }
+}

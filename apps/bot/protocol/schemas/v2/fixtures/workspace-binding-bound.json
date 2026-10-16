@@ -1,0 +1,43 @@
+{
+  "scenario": "bound",
+  "description": "Operator confirmed the MCP proposal; the daemon validated and materialized the binding. Durable state is local_workspace_bound. The success response and hosted-safe view carry only project-safe fields; the local candidate_path is never echoed back.",
+  "local": {
+    "request": {
+      "proposal": {
+        "project_id": "proj_ada",
+        "display": {
+          "display_name": "Ada Service",
+          "project_slug": "ada-service",
+          "candidate_label": "ada-service"
+        },
+        "candidate_path": "/home/alex/code/ada-service",
+        "source_surface": "mcp",
+        "reason": "Open editor workspace matches the registered project.",
+        "confidence": 0.82
+      },
+      "confirmed": true,
+      "expected_current_state": "local_workspace_unbound"
+    },
+    "response": {
+      "project_id": "proj_ada",
+      "state": "local_workspace_bound",
+      "display": {
+        "display_name": "Ada Service",
+        "project_slug": "ada-service",
+        "candidate_label": "ada-service"
+      },
+      "message": "Workspace binding materialized."
+    }
+  },
+  "hosted_safe_view": {
+    "project_id": "proj_ada",
+    "state": "local_workspace_bound",
+    "display": {
+      "display_name": "Ada Service",
+      "project_slug": "ada-service",
+      "candidate_label": "ada-service"
+    },
+    "bind_available": false,
+    "status_message": "Project is bound to a local workspace."
+  }
+}

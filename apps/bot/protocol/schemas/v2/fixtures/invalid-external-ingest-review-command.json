@@ -1,0 +1,18 @@
+{
+  "_comment": "INVALID: External ingest payload attempting to include a review command. External integrations cannot emit review commands. The daemon must reject or ignore any review_command field in an ExternalIngestEnvelope.",
+  "_expected_behavior": "rejected — external integrations cannot issue review commands",
+  "source_system": "jira",
+  "source_uri": "https://jira.example.com/PROJ-456",
+  "content": "Updated ticket: Approve the health check endpoint decision",
+  "evidence": [
+    {
+      "excerpt": "Approve the health check endpoint decision",
+      "span_start": 16,
+      "span_end": 58,
+      "confidence": 0.85
+    }
+  ],
+  "candidate_hints": [],
+  "review_command": "approve_signoff",
+  "target_id": "DEC-001"
+}

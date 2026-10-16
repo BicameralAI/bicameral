@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0125-bot-app-settings-host-ia",
+  "label": "Bot /app Settings host IA: Storage + Agent host + dual footer (Option 2)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1092",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.25",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-12T17:45:00Z",
+  "proposal_digest": "sha256:cb74e1b2e6a0020594d9502f8dd6303f25a9c30950a0033fc91754f4f310a210"
+}

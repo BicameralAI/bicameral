@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0115-managed-mcp-slice-a-no-topology",
+  "label": "Managed MCP Slice A advisory for 0.1.15 without required topology - MCP (#794/#795)",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.15",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-bot#985",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-02T00:00:00Z",
+  "proposal_digest": "sha256:43d0e317f40f58911eafa8be586290cfdd73a8b8691224229a7a610af7841a51"
+}

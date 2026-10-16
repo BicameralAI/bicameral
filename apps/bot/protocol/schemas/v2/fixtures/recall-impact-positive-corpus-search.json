@@ -1,0 +1,37 @@
+{
+  "_comment": "Positive recall fixture: structured trusted-corpus search returns matching decisions",
+  "_scenario": "impact_seed declares product area 'checkout' with declared role; corpus search finds D-003 via lifecycle tag match",
+  "_expected": "RecallPacket returns D-003 via corpus route, with honest searched_scope annotation",
+  "_evaluation": {
+    "recall_at_5": "D-003 must appear in top 5",
+    "precision_at_5": "no false positives in top 5",
+    "honesty_label": "canonical — human_ratified"
+  },
+  "impact_seed": {
+    "kind": "product_area",
+    "value": "checkout",
+    "role": "declared"
+  },
+  "expected_recall_packet": {
+    "canonical_decisions": [
+      {
+        "decision_id": "d0000003-0003-4000-8000-000000000003",
+        "title": "Checkout flow must validate payment before order creation",
+        "level": "product",
+        "signoff_state": "approved",
+        "authority_labels": [
+          { "kind": "human_ratified", "description": "Corpus lifecycle tag match" }
+        ]
+      }
+    ],
+    "decision_candidates": [
+      {
+        "candidate_id": "c0000003-0003-4000-8000-000000000003",
+        "title": "Cart validation before checkout",
+        "origin_surface": "linear",
+        "candidate_state": "surfaced"
+      }
+    ],
+    "unknown_scope": []
+  }
+}

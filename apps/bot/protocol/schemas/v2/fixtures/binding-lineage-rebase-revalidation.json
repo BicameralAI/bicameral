@@ -1,0 +1,36 @@
+{
+  "_comment": "Conformance fixture: rebase where validated_sha changes but content verifies after revalidation (ADR-0010 §Binding Lineage)",
+  "_acceptance_criteria": "issue #101 criterion 2",
+  "scenario": "rebase_revalidation_confirmed",
+  "description": "After a rebase, validated_sha changes. If content/structural evidence still verifies at the new snapshot, a RevalidateBinding event with outcome=confirmed is emitted. The original binding is preserved immutably.",
+  "initial_binding": {
+    "decision_id": "d2000000-0000-0000-0000-000000000001",
+    "binding_id": "b2000000-0000-0000-0000-000000000001",
+    "binding_type": "code_region",
+    "target": "src/auth.rs:10-20",
+    "graph_snapshot_id": "gs-pre-rebase",
+    "validated_sha": "pre_rebase_sha_40chars_0000000000000000",
+    "evidence_state": "verified",
+    "content_hash": "sha256:auth-content-v1"
+  },
+  "revalidation_event": {
+    "event_type": "revalidate_binding",
+    "binding_id": "b2000000-0000-0000-0000-000000000001",
+    "root_binding_id": "b2000000-0000-0000-0000-000000000001",
+    "original_graph_snapshot_id": "gs-pre-rebase",
+    "original_validated_sha": "pre_rebase_sha_40chars_0000000000000000",
+    "current_graph_snapshot_id": "gs-post-rebase",
+    "current_validated_sha": "post_rebase_sha_40chars_000000000000000",
+    "evidence_state": "verified",
+    "outcome": "confirmed",
+    "content_hash": "sha256:auth-content-v1"
+  },
+  "expected_behavior": {
+    "original_binding_immutable": true,
+    "original_binding_snapshot_id": "gs-pre-rebase",
+    "revalidation_count": 1,
+    "revalidation_outcome": "confirmed",
+    "revalidation_evidence_state": "verified",
+    "explanation": "Content hash matches after rebase → graph result is not stale. Revalidation confirms at new snapshot without mutating original evidence."
+  }
+}

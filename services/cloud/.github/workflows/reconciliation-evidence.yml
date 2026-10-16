@@ -1,0 +1,78 @@
+name: Reconciliation Evidence Tooling
+
+# CI assertions for the Cloud #106 reconciliation evidence tooling (cloud#141).
+# Everything here runs WITHOUT live GCP/Supabase credentials: the export must
+# succeed and be fully typed as environment_inconclusive, never a false pass.
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "src/bicameral_cloud/evidence/**"
+      - "scripts/reconciliation_evidence.py"
+      - "tests/evidence/**"
+      - "docs/evidence/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/reconciliation-evidence.yml"
+  push:
+    branches: [dev, main]
+    paths:
+      - "src/bicameral_cloud/evidence/**"
+      - "scripts/reconciliation_evidence.py"
+      - "tests/evidence/**"
+      - "docs/evidence/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/reconciliation-evidence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install -e '.[dev]'
+
+      - name: Lint
+        run: >-
+          python -m ruff check
+          src/bicameral_cloud/evidence
+          scripts/reconciliation_evidence.py
+          tests/evidence
+
+      - name: Type-check
+        run: python -m mypy src/bicameral_cloud/evidence
+
+      - name: Unit + fixture tests (no live credentials)
+        run: python -m pytest -q tests/evidence
+
+      - name: Export/validate smoke (must be fully inconclusive, never a false pass)
+        env:
+          # Explicitly clear any inherited credential/env so the export cannot
+          # accidentally observe live infrastructure in CI.
+          CLOUDSDK_CORE_PROJECT: ""
+        run: |
+          python3 scripts/reconciliation_evidence.py plan > /dev/null
+          python3 scripts/reconciliation_evidence.py export \
+            --environment ci --output /tmp/bundle.json
+          python3 scripts/reconciliation_evidence.py validate /tmp/bundle.json
+          python3 - <<'PY'
+          import json
+          bundle = json.load(open("/tmp/bundle.json"))
+          statuses = {item["status"] for item in bundle["items"]}
+          assert statuses == {"environment_inconclusive"}, statuses
+          assert bundle["items"], "expected collectors to run"
+          print("smoke OK:", bundle["summary"])
+          PY
+
+      - name: Assert no secrets committed (repository-wide, includes evidence tooling)
+        run: python3 scripts/secret_scan.py

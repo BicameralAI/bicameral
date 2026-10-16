@@ -1,0 +1,21 @@
+{
+  "_comment": "INVALID: External ingest attempting to carry a compliance resolution. Per action-authorization-policy.md, external ingest cannot carry compliance verdicts — compliance resolution requires a separate authority class.",
+  "_expected_behavior": "rejected — ingest cannot carry compliance resolution",
+  "_spec_ref": "docs/specs/action-authorization-policy.md § Resolve compliance",
+  "source_system": "github",
+  "source_uri": "https://github.com/acme/repo/pull/42",
+  "content": "All tests pass, code matches decision DEC-700",
+  "evidence": [
+    {
+      "excerpt": "All tests pass, code matches decision DEC-700",
+      "span_start": 0,
+      "span_end": 46,
+      "confidence": 0.90
+    }
+  ],
+  "compliance_resolution": {
+    "target_id": "DEC-700",
+    "verdict": "reflected",
+    "reason": "CI green"
+  }
+}

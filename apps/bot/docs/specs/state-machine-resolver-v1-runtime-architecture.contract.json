@@ -1,0 +1,901 @@
+{
+  "contract_id": "state-machine-resolver-v1-runtime-architecture",
+  "contract_version": 1,
+  "digest_profile_version": 1,
+  "issue": 937,
+  "contract_pr": 942,
+  "owner_bundle_comment_id": 5095866461,
+  "disposition": "AMEND",
+  "authorizes_implementation": false,
+  "authorizes_release": false,
+  "specification": "docs/specs/state-machine-resolver-v1-runtime-architecture.md",
+  "schema_root": "protocol/smr-claim-acceptance/schemas",
+  "fixture_root": "protocol/smr-claim-acceptance/fixtures",
+
+  "elements": [
+    {
+      "id": "daemon",
+      "kind": "authority",
+      "canonical_writer": true,
+      "may": [
+        "validate proposals",
+        "mint confirmation challenges",
+        "append canonical events",
+        "reconcile local projections",
+        "derive event_stream_id from product_id"
+      ],
+      "must_not": [
+        "accept extractor-supplied authority",
+        "append on failed validation",
+        "silently rehash or rewrite a proposal",
+        "substitute a newer candidate generation"
+      ]
+    },
+    {
+      "id": "mcp",
+      "kind": "surface",
+      "canonical_writer": false,
+      "may": ["display daemon-authored exact effect", "relay one explicit human gesture"],
+      "must_not": ["mint", "normalize", "rank", "approve", "persist canonical Claims"]
+    },
+    {
+      "id": "integrations",
+      "kind": "transport",
+      "canonical_writer": false,
+      "may": ["transport screened evidence", "transport advisory hints"],
+      "must_not": ["define Claims", "define contradictions", "define acceptance", "define canonical identity"]
+    },
+    {
+      "id": "claim_extraction_provider",
+      "kind": "advisory",
+      "canonical_writer": false,
+      "may": ["emit advisory noncanonical candidate content"],
+      "must_not": ["supply authority fields", "supply approval", "supply canonical identity"],
+      "notes": "Provider identity is provenance, never Claim identity. Alpha defaults to caller and local. No silent hosted fallback."
+    },
+    {
+      "id": "daemon_local_sqlite",
+      "kind": "working_state",
+      "canonical": false,
+      "rebuildable": true,
+      "may": ["hold durable working state", "hold rebuildable projections"],
+      "must_not": ["serve as canonical truth"]
+    },
+    {
+      "id": "canonical_event_log",
+      "kind": "canonical_state",
+      "canonical": true,
+      "sole_commit_point": true,
+      "must_not": ["be rewritten", "be deleted", "be reordered"]
+    }
+  ],
+
+  "relationships": [
+    {
+      "from": "mcp",
+      "to": "daemon",
+      "kind": "relays_human_gesture",
+      "confers_authority": false
+    },
+    {
+      "from": "daemon",
+      "to": "canonical_event_log",
+      "kind": "sole_appender",
+      "confers_authority": true
+    },
+    {
+      "from": "canonical_event_log",
+      "to": "daemon_local_sqlite",
+      "kind": "reconciles_after_append",
+      "direction": "canonical_to_working",
+      "repairable": true
+    },
+    {
+      "from": "claim_extraction_provider",
+      "to": "daemon",
+      "kind": "advisory_input",
+      "confers_authority": false
+    },
+    {
+      "from": "claim_set_candidate_promoted",
+      "to": "decision",
+      "kind": "atomically_creates",
+      "cardinality": "1:1",
+      "resulting_signoff_state": "approved"
+    }
+  ],
+
+  "state_records": {
+    "candidate_lifecycle": {
+      "durable_states": ["proposed", "promoted", "rejected"],
+      "initial": "proposed",
+      "terminal": ["promoted", "rejected"]
+    },
+    "decision_signoff_lifecycle": {
+      "durable_states": ["proposed", "approved", "rejected", "superseded"],
+      "initial": "approved",
+      "terminal": ["approved", "rejected", "superseded"],
+      "authority": "product_owner",
+      "alpha_every_current_participant_is_product_owner": true,
+      "claim_effect_by_state": {
+        "proposed": "out_of_alpha_claim_set_path",
+        "approved": "canonical_recallable_authoritative",
+        "rejected": "immutable_history_only",
+        "superseded": "immutable_history_only"
+      }
+    },
+    "orthogonal_attributes": {
+      "currentness": {
+        "values": ["current", "stale"],
+        "reason_enum": [
+          "artifact_drift",
+          "base_snapshot_drift",
+          "scope_drift",
+          "schema_drift",
+          "evidence_drift"
+        ],
+        "closed": true,
+        "derived_by": "daemon"
+      },
+      "promotion_eligibility": {
+        "values": ["eligible", "invalid"],
+        "reason_enum": [
+          "proposal_identity_mismatch",
+          "schema_unsupported",
+          "scope_insufficient",
+          "evidence_missing",
+          "authority_absent",
+          "proposal_too_large",
+          "routing_mismatch"
+        ],
+        "closed": true,
+        "derived_by": "daemon"
+      },
+      "analysis_status": {
+        "values": ["complete", "needs_reanalysis", "deferred", "failed"],
+        "reason_enum": [
+          "extraction_error",
+          "provider_unavailable",
+          "context_budget_exceeded",
+          "artifact_unreadable"
+        ],
+        "closed": true,
+        "derived_by": "daemon"
+      },
+      "visibility": {
+        "values": ["visible", "suppressed"],
+        "reason_enum": ["duplicate_fingerprint", "prior_rejection", "policy"],
+        "closed": true,
+        "derived_by": "daemon"
+      }
+    },
+    "claim_influence": {
+      "values": ["recommendation", "authoritative"],
+      "claim_set_promote_writes": "authoritative",
+      "pinned_to_recommendation_while": "out_of_alpha_for_claim_set_path",
+      "excluded_from_effective_projection_when": [
+        "resulting_decision.signoff_state == rejected",
+        "resulting_decision.signoff_state == superseded"
+      ]
+    },
+    "not_lifecycle_states": ["stale", "invalidated", "suppressed", "needs_reanalysis"]
+  },
+
+  "transitions": [
+    {
+      "id": "TR-PROPOSE",
+      "from": null,
+      "to": "proposed",
+      "writer": "daemon_extraction_coordinator",
+      "command": "smr.claims.propose",
+      "canonical_append": null,
+      "creates_generation": true
+    },
+    {
+      "id": "TR-PROMOTE",
+      "from": "proposed",
+      "to": "promoted",
+      "writer": "daemon",
+      "authorized_by": "existing MCP-to-daemon review path",
+      "command": "recall.promote_decision_candidate",
+      "canonical_append": "claim_set_candidate_promoted",
+      "claim_bearing": true,
+      "required_role_at_append": "product_owner",
+      "atomic_preconditions": [
+        "candidate generation has no terminal disposition",
+        "actor currently has Product Owner authority",
+        "proposal base matches current canonical Claim projection"
+      ],
+      "requires_confirmation_protocol_version": 2,
+      "advances": ["canonical_event_log_digest", "claim_projection_digest"]
+    },
+    {
+      "id": "TR-REJECT",
+      "from": "proposed",
+      "to": "rejected",
+      "writer": "daemon",
+      "authorized_by": "existing review rejection surface",
+      "canonical_append": "claim_set_candidate_rejected",
+      "claim_bearing": false,
+      "required_role_at_append": "product_owner",
+      "atomic_preconditions": [
+        "candidate generation has no terminal disposition",
+        "actor currently has Product Owner authority"
+      ],
+      "advances": ["canonical_event_log_digest"],
+      "unchanged": ["claim_projection_digest"]
+    },
+    {
+      "id": "TR-REANALYZE",
+      "from": "proposed",
+      "to": "proposed",
+      "writer": "daemon_extraction_coordinator",
+      "creates_generation": true,
+      "rewrites_inspected_generation": false,
+      "canonical_append": null
+    },
+    {
+      "id": "TR-SIGNOFF",
+      "scope": "decision",
+      "from": "proposed",
+      "to": "approved",
+      "distinct_from": "TR-PROMOTE",
+      "required_role_at_append": "product_owner",
+      "authorization_checked_at": "canonical_append",
+      "raises_influence_to": "authoritative",
+      "canonical_append": "approve_signoff",
+      "notes": "Deferred out of alpha for claim-set acceptance; promotion already writes approved."
+    },
+
+    {
+      "id": "TR-REJECT-SIGNOFF",
+      "scope": "decision",
+      "from": "proposed",
+      "to": "rejected",
+      "required_role_at_append": "product_owner",
+      "authorization_checked_at": "canonical_append",
+      "claim_effect": "immutable_history_only",
+      "canonical_append": "reject_signoff",
+      "notes": "Uses the pre-existing owner-only signoff rejection transition."
+    },
+
+    {
+      "id": "TR-SUPERSEDE",
+      "scope": "decision",
+      "from": ["proposed", "approved"],
+      "to": "superseded",
+      "required_role_at_append": "product_owner",
+      "authorization_checked_at": "canonical_append",
+      "claim_effect": "immutable_history_only",
+      "canonical_append": "supersede_decision",
+      "notes": "Uses the pre-existing owner-only supersession transition."
+    }
+  ],
+
+  "temporal_invariants": {
+    "candidate_terminal_disposition": {
+      "key": ["product_id", "candidate_id", "candidate_generation"],
+      "events": ["claim_set_candidate_promoted", "claim_set_candidate_rejected"],
+      "cardinality": "at_most_one",
+      "enforced_by": "canonical_stream_compare_and_append",
+      "conflict_result": "candidate_already_disposed"
+    },
+    "append_time_authorization": {
+      "promotion_role": "product_owner",
+      "signoff_role": "product_owner",
+      "alpha_every_current_participant_is_product_owner": true,
+      "checked_at": "same canonical compare_and_append operation",
+      "challenge_is_authority": false,
+      "revoked_result": "Unauthorized"
+    },
+    "base_snapshot_freshness": {
+      "precondition": "proposal base_event_position and smr_base_snapshot_digest equal the current canonical Claim projection",
+      "checked_at": "same canonical compare_and_append operation",
+      "mismatch_result": "base_snapshot_drift",
+      "appends_on_mismatch": false
+    },
+    "projection_read_freshness": {
+      "success_precondition": "daemon_local_sqlite.projection_cursor == canonical_event_log.head_position",
+      "catch_up_before_read": true,
+      "catch_up_failure_result": "model_unavailable",
+      "stale_or_empty_fallback": false
+    },
+    "replay_totality": {
+      "required_predecessors": {
+        "approve_signoff": "deferred_out_of_alpha_claim_set_path",
+        "reject_signoff": "Decision(approved)",
+        "supersede_decision": "Decision(approved)"
+      },
+      "self_contained_terminal_events": [
+        "claim_set_candidate_promoted",
+        "claim_set_candidate_rejected"
+      ],
+      "forbidden_canonical_generation_event": "claim_set_candidate_generated",
+      "candidate_generation_predecessor_required": false,
+      "append_time_candidate_generation": {
+        "required_for": "live_j2_compare_and_append",
+        "not_required_for": "replay",
+        "requires": [
+          "daemon_local_candidate",
+          "confirmation_challenge_v2",
+          "current_member_authority",
+          "fresh_base_snapshot"
+        ]
+      },
+      "second_terminal_replay_result": "invalid_canonical_history",
+      "missing_predecessor_result": "invalid_canonical_history",
+      "silent_ignore": false
+    },
+    "model_atom_identity": {
+      "identity_inputs": ["atom_kind", "normalized semantic_key", "normalized semantic scope"],
+      "normalization": "digest profile v1",
+      "same_semantics_same_identity": true,
+      "extractor_supplied_identity_authoritative": false,
+      "collision_or_alias_result": "proposal_identity_mismatch"
+    }
+  },
+
+  "forbidden_transitions": [
+    {
+      "id": "FT-REVERSE-COMMIT",
+      "description": "mark SQLite promoted then attempt canonical append",
+      "result": "non-conformant"
+    },
+    {
+      "id": "FT-PARALLEL-APPROVAL",
+      "description": "introduce smr.approve or smr.accept_claim_set command family",
+      "result": "non-conformant",
+      "notes": "Standing prohibition. No such command has ever existed in this repository."
+    },
+    {
+      "id": "FT-CLAIM-BEARING-REJECTION",
+      "description": "append an accepted claim-bearing event on rejection",
+      "result": "non-conformant"
+    },
+    {
+      "id": "FT-REPLAY-PROVIDER-CALL",
+      "description": "invoke a provider or extractor during replay",
+      "result": "non-conformant"
+    },
+    {
+      "id": "FT-DOUBLE-DISPOSITION",
+      "description": "append both promotion and rejection, or two promotions, for one candidate generation",
+      "result": "non-conformant"
+    },
+    {
+      "id": "FT-STALE-AUTHORITY",
+      "description": "treat challenge issuance as authority without rechecking current Product role at canonical append",
+      "result": "non-conformant"
+    },
+    {
+      "id": "FT-STALE-BASE-APPEND",
+      "description": "append promotion after the relevant canonical Claim projection has drifted from the bound base",
+      "result": "non-conformant"
+    },
+    {
+      "id": "FT-STALE-PROJECTION-READ",
+      "description": "return a successful SMR read while the SQLite projection cursor trails canonical event head",
+      "result": "non-conformant"
+    },
+    {
+      "id": "FT-ORPHAN-REPLAY",
+      "description": "silently ignore a signoff or supersession event whose required Decision predecessor is absent",
+      "result": "non-conformant"
+    },
+    {
+      "id": "FT-GENERATED-CANDIDATE-PREDECESSOR",
+      "description": "require a canonical Candidate-generation predecessor on replay, or append claim_set_candidate_generated, so unreviewed extract becomes Product history",
+      "result": "non-conformant"
+    }
+  ],
+
+  "canonical_events": [
+    {
+      "event_type": "claim_set_candidate_promoted",
+      "event_schema_version": 1,
+      "claim_bearing": true,
+      "additive": true,
+      "overloads_accept_candidate": false,
+      "schema": "claim-set-candidate-promoted.schema.json"
+    },
+    {
+      "event_type": "claim_set_candidate_rejected",
+      "event_schema_version": 1,
+      "claim_bearing": false,
+      "additive": true,
+      "schema": "claim-set-candidate-rejected.schema.json"
+    }
+  ],
+
+  "relation_support_provenance": {
+    "required_fields": [
+      "supporting_claim_ids",
+      "supporting_source_anchor_ids"
+    ],
+    "minimum_items_each": 1,
+    "normalization": "deduplicated and sorted by stable semantic ID",
+    "same_claim_set_referential_integrity": true,
+    "source_anchor_must_be_reachable_through_supporting_claim": true,
+    "mismatch_result": "proposal_identity_mismatch",
+    "appends_on_mismatch": false,
+    "records": "proposal_input_lineage",
+    "does_not_prove": [
+      "semantic_entailment",
+      "explicitness",
+      "correctness",
+      "authority"
+    ],
+    "prohibited_v1_fields": [
+      "source_explicit",
+      "rule_derived",
+      "model_inferred"
+    ],
+    "deferred_receipt_fields": [
+      "rule_id",
+      "rule_version",
+      "input_digest"
+    ],
+    "authority_boundary": "human acceptance of the exact claim_set_digest"
+  },
+
+  "digest_profile": {
+    "version": 1,
+    "hash": "SHA-256",
+    "canonicalization": "RFC 8785 JCS",
+    "construction": "\"sha256:\" || lowerhex(SHA-256(UTF8(\"bicameral/<artifact-name>/v1\") || 0x00 || JCS(normalized_value)))",
+    "encoding": {
+      "prefix": "sha256:",
+      "body": "64 lowercase hexadecimal characters"
+    },
+    "normalization": [
+      "NFC-normalize Unicode strings",
+      "normalized POSIX repo-relative paths with no leading ./ or /",
+      "deduplicate and sort set-like arrays by stable semantic ID before JCS",
+      "explicit integer ordinals for ordered fragments; array position is never semantic",
+      "omit absent optional fields; null forbidden unless explicitly schema-defined",
+      "floating-point values forbidden in the normalized Claim schema",
+      "exclude volatile timestamps, provider receipts, display summaries, and local database IDs"
+    ],
+    "identities": {
+      "claim_set_digest": "claim-set",
+      "artifact_binding_digest": "artifact-binding",
+      "smr_base_snapshot_digest": "smr-base-snapshot",
+      "claim_scope_digest": "claim-scope",
+      "evidence_bundle_digest": "evidence-bundle",
+      "display_summary_digest": "display-summary",
+      "rejection_fingerprint": "rejection-fingerprint"
+    },
+    "prohibited_identity_names": ["canonical_snapshot_digest", "scope_digest"],
+    "base_snapshot_position_field": "base_event_position",
+    "bounds": {
+      "claims": 512,
+      "model_atoms": 4096,
+      "claim_assertions": 8192,
+      "atom_relations": 8192,
+      "scopes": 256,
+      "source_anchors": 8192,
+      "serialized_event_bytes": 4194304,
+      "exceeded_result": "proposal_too_large"
+    }
+  },
+
+  "confirmation_protocol": {
+    "version": 2,
+    "ttl_seconds": 300,
+    "storage": "daemon_memory_only",
+    "single_use": true,
+    "actor_bound": true,
+    "invalid_after_daemon_restart": true,
+    "binding_is_superset_of_v1": true,
+    "retained_v1_bound_fields": [
+      "protocol_version",
+      "workspace",
+      "actor_id",
+      "session_id",
+      "packet_id",
+      "candidate_id",
+      "requested_outcome",
+      "request_id"
+    ],
+    "amended_by": "state-machine-resolver-v1-runtime-architecture-amendment-001",
+    "added_v2_bound_fields": [
+      "digest_profile_version",
+      "challenge_id",
+      "operation_id",
+      "action",
+      "product_id",
+      "candidate_generation",
+      "candidate_kind",
+      "proposal_identity",
+      "issued_at",
+      "expires_at",
+      "display_summary_digest"
+    ],
+    "excluded_from_binding_digest": ["display_summary"],
+    "retained_v1_typed_outcomes": [
+      "WorkspaceMismatch",
+      "ActorMismatch",
+      "PacketMismatch",
+      "CandidateMismatch",
+      "OutcomeMismatch",
+      "Unauthorized"
+    ],
+    "confirmation_submits": [
+      "protocol_version",
+      "challenge_id",
+      "operation_id",
+      "confirmation_binding_digest",
+      "gesture"
+    ],
+    "operation_identity": {
+      "field": "operation_id",
+      "supplied_by": "caller",
+      "uniqueness_scope": ["product_id", "actor_id"],
+      "distinct_from": "request_id",
+      "aliasing_permitted": false
+    },
+    "schema": "confirmation-binding.v2.schema.json"
+  },
+
+  "version_compatibility": [
+    {
+      "presented": "confirmation_protocol_version=1",
+      "target_kind": "smr_claim_set_v1",
+      "result": "unsupported_contract_version"
+    },
+    {
+      "presented": "confirmation_protocol_version=2",
+      "target_kind": "decision_v1",
+      "result": "unsupported_contract_version"
+    },
+    {
+      "presented": "confirmation_protocol_version=1",
+      "target_kind": "decision_v1",
+      "result": "existing_behavior_unchanged"
+    },
+    {
+      "presented": "unknown event_schema_version | proposal_schema_version | digest_profile_version",
+      "target_kind": "any",
+      "result": "unsupported_contract_version"
+    }
+  ],
+
+  "migration": {
+    "legacy_candidate_default_kind": "decision_v1",
+    "absent_discriminator_reads_as": "decision_v1",
+    "new_candidate_kind": "smr_claim_set_v1",
+    "event_history_rewritten": false,
+    "accept_candidate_interpretation_changed": false,
+    "local_storage_added_fields": [
+      "generation",
+      "kind",
+      "payload",
+      "digests",
+      "currentness",
+      "promotion_eligibility",
+      "analysis_status",
+      "visibility"
+    ],
+    "unsupported_version_response": "unsupported_contract_version"
+  },
+
+  "scenarios": [
+    {
+      "id": "SC-HAPPY-PROMOTE",
+      "given": "valid proposal, current candidate, authorized actor, unexpired v2 challenge",
+      "when": "human confirms",
+      "then": [
+        "exactly one claim_set_candidate_promoted appended",
+        "resulting Decision created with signoff_state=approved",
+        "SQLite candidate reconciles to promoted",
+        "SMR projection rebuilt from canonical history",
+        "canonical receipt returned"
+      ],
+      "typed_result": "committed_once"
+    },
+    {
+      "id": "SC-IDENTITY-MISMATCH",
+      "given": "any bound digest or identity mutated after challenge issue",
+      "when": "human confirms",
+      "then": ["challenge invalidated", "nothing appended"],
+      "typed_result": "proposal_identity_mismatch",
+      "names_mismatched_field": true
+    },
+    {
+      "id": "SC-LOST-RESPONSE-RESTART",
+      "given": "canonical append succeeded, response lost, daemon restarted",
+      "when": "same operation_id retried with the same confirmation binding",
+      "then": ["prior canonical receipt returned", "no duplicate append", "no new challenge"],
+      "typed_result": "replayed_result"
+    },
+    {
+      "id": "SC-OPERATION-CONFLICT",
+      "given": "operation_id already used",
+      "when": "retried with a different confirmation binding",
+      "then": ["nothing appended"],
+      "typed_result": "operation_conflict",
+      "permanent": true
+    },
+    {
+      "id": "SC-CHALLENGE-EXPIRED",
+      "given": "challenge older than 300 seconds",
+      "when": "human confirms",
+      "then": ["nothing appended"],
+      "typed_result": "challenge_expired"
+    },
+    {
+      "id": "SC-RESTART-BEFORE-APPEND",
+      "given": "daemon restarted before canonical append",
+      "when": "old challenge presented",
+      "then": ["challenge fails", "fresh challenge permitted only after exact proposal revalidation"],
+      "typed_result": "challenge_expired"
+    },
+    {
+      "id": "SC-SQLITE-FAILS-AFTER-APPEND",
+      "given": "canonical append succeeded",
+      "when": "SQLite reconciliation fails",
+      "then": ["acceptance stands", "typed reconciliation failure raised", "repair from canonical history"],
+      "typed_result": "reconciliation_required"
+    },
+    {
+      "id": "SC-REPLAY-DETERMINISM",
+      "given": "local SQLite working state deleted and daemon restarted",
+      "when": "canonical events replayed",
+      "then": [
+        "same accepted Claim identities reconstructed",
+        "same SMR projection digest",
+        "rejection tombstone index rebuilt",
+        "provider_calls_during_replay == 0"
+      ],
+      "typed_result": "same_projection"
+    },
+    {
+      "id": "SC-REJECT-DURABILITY",
+      "given": "human rejects a candidate",
+      "when": "claim_set_candidate_rejected appended and SQLite later deleted",
+      "then": [
+        "no accepted claim-bearing event appended",
+        "claim_projection_digest unchanged",
+        "canonical_event_log_digest advanced",
+        "automatic extraction suppresses an exact rejection_fingerprint match"
+      ],
+      "typed_result": "committed_once"
+    },
+    {
+      "id": "SC-REJECT-SEMANTIC-CHANGE",
+      "given": "a prior rejection tombstone exists",
+      "when": "semantically changed content produces a new fingerprint",
+      "then": ["new candidate generation surfaces normally"],
+      "typed_result": "compatible"
+    },
+    {
+      "id": "SC-AUTHORITY-VIOLATION",
+      "given": "MCP, extractor, Integrations, or caller attempts to mint or self-confirm approval",
+      "when": "submitted",
+      "then": ["nothing appended"],
+      "typed_result": "daemon_only"
+    },
+    {
+      "id": "SC-ROUTING-MISMATCH",
+      "given": "caller supplies event_stream_id, or a derived stream does not belong to product_id",
+      "when": "validated",
+      "then": ["nothing appended"],
+      "typed_result": "routing_mismatch"
+    },
+    {
+      "id": "SC-PROPOSAL-TOO-LARGE",
+      "given": "normalized claim set or serialized event exceeds a profile v1 bound",
+      "when": "validated",
+      "then": ["nothing appended"],
+      "typed_result": "proposal_too_large"
+    },
+    {
+      "id": "SC-LEGACY-COMPAT",
+      "given": "an existing decision_v1 candidate",
+      "when": "promoted through the unchanged path",
+      "then": ["AcceptCandidate behavior unchanged", "RecallPacket renders both kinds unambiguously"],
+      "typed_result": "compatible"
+    },
+    {
+      "id": "SC-UNSUPPORTED-VERSION",
+      "given": "an unrecognised contract version on any surface",
+      "when": "received",
+      "then": ["fail closed", "render nothing as accepted", "state not corrupted"],
+      "typed_result": "unsupported_contract_version"
+    },
+    {
+      "id": "SC-CONCURRENT-DISPOSITION",
+      "given": "two different operation_ids target one proposed candidate generation",
+      "when": "promote/promote or promote/reject race",
+      "then": ["one terminal event commits", "the loser appends nothing"],
+      "typed_result": "candidate_already_disposed"
+    },
+    {
+      "id": "SC-AUTHORITY-REVOKED",
+      "given": "a member or owner loses the required Product role after challenge issue",
+      "when": "the old confirmation is submitted",
+      "then": ["append-time authorization fails", "nothing appended"],
+      "typed_result": "daemon_only"
+    },
+    {
+      "id": "SC-BASE-SNAPSHOT-DRIFT",
+      "given": "the canonical Claim projection changes after challenge issue",
+      "when": "the stale proposal is confirmed",
+      "then": ["atomic base validation fails", "nothing appended", "reanalysis required"],
+      "typed_result": "base_snapshot_drift"
+    },
+    {
+      "id": "SC-PROJECTION-CATCH-UP-FAILURE",
+      "given": "SQLite projection cursor trails canonical event head",
+      "when": "an SMR read begins and catch-up fails",
+      "then": ["user receives typed model_unavailable", "no stale or empty fallback returned"],
+      "typed_result": "model_unavailable"
+    },
+    {
+      "id": "SC-ORPHAN-REPLAY",
+      "given": "a signoff or supersession event references a missing Decision predecessor",
+      "when": "history is replayed",
+      "then": ["replay fails closed", "history is not silently projected"],
+      "typed_result": "invalid_canonical_history"
+    },
+    {
+      "id": "SC-SELF-CONTAINED-CLAIM-SET-REPLAY",
+      "given": "a well-formed claim_set_candidate_promoted event with no prior canonical Candidate-generation event",
+      "when": "history is replayed",
+      "then": [
+        "accepted Claims reconstruct from the event payload",
+        "replay does not fail for a missing generated-candidate predecessor"
+      ],
+      "typed_result": "same_projection"
+    },
+    {
+      "id": "SC-MODEL-ATOM-ALIAS",
+      "given": "equivalent normalized semantics are submitted under distinct atom identities",
+      "when": "the daemon validates the proposal",
+      "then": ["proposal rejected as identity mismatch", "contradiction overlap cannot be bypassed"],
+      "typed_result": "proposal_identity_mismatch"
+    },
+    {
+      "id": "SC-CODEGRAPH-OPTIONAL-RECALL",
+      "given": "CodeGraph is unavailable, stale, insufficient, ambiguous, unsupported, or mismatched",
+      "when": "SMR proposal and acceptance are evaluated",
+      "then": [
+        "core SMR remains available from the controlled spec corpus",
+        "CodeGraph contributes no implementation-compliance claim",
+        "CodeGraph absence never blocks SMR closure",
+        "when present, CodeGraph may expand recall candidates only"
+      ],
+      "typed_result": "compatible"
+    }
+  ],
+
+  "typed_results": [
+    "committed_once",
+    "not_committed",
+    "reconciliation_required",
+    "proposal_identity_mismatch",
+    "operation_conflict",
+    "candidate_already_disposed",
+    "base_snapshot_drift",
+    "model_unavailable",
+    "invalid_canonical_history",
+    "replayed_result",
+    "challenge_expired",
+    "routing_mismatch",
+    "proposal_too_large",
+    "unsupported_contract_version",
+    "scope_insufficient",
+    "daemon_only",
+    "same_projection",
+    "exact_match",
+    "compatible"
+  ],
+
+  "test_run_states": [
+    "not_run",
+    "blocked",
+    "diagnostic_failed",
+    "diagnostic_passed",
+    "authoritative_failed",
+    "authoritative_inconclusive",
+    "authoritative_passed",
+    "human_rejected",
+    "human_accepted"
+  ],
+
+  "test_groups": [
+    { "id": "T1", "name": "exact proposal identity", "expected": "exact_match", "human_acceptance_required": false },
+    { "id": "T2", "name": "authority boundary", "expected": "daemon_only", "human_acceptance_required": false },
+    { "id": "T3", "name": "canonical transaction and reconciliation", "expected": "committed_once", "human_acceptance_required": false },
+    { "id": "T4", "name": "restart-safe idempotency", "expected": "replayed_result", "human_acceptance_required": false },
+    { "id": "T5", "name": "deterministic replay", "expected": "same_projection", "human_acceptance_required": false },
+    { "id": "T6", "name": "working-candidate lifecycle", "expected": "compatible", "human_acceptance_required": false },
+    { "id": "T7", "name": "backward compatibility", "expected": "compatible", "human_acceptance_required": false },
+    { "id": "T8", "name": "released-host terminal topology", "expected": "human_accepted", "human_acceptance_required": true }
+  ],
+
+  "journey": {
+    "id": "developer_host_mcp_smr_claim_acceptance_v1",
+    "actor": "authenticated Product member with candidate-review authority",
+    "entrypoint": "smr.claims.propose",
+    "environments": ["local-product-environment-v1", "developer-host-environment-v1"],
+    "commit_point": "canonical event append",
+    "boundary_review_status": "passed",
+    "boundary_review_evidence": [
+      "issue-937 owner decisions",
+      "issue-943 acceptance journey topology contract"
+    ],
+    "catalog_registration": "delegated_to_issue_943",
+    "authentic_host_limitation_visible": true,
+    "terminal_readiness_from_component_tests": false,
+    "derived_readiness": "spec_ready_implementation_blocked"
+  },
+
+  "conformance_obligations": [
+    { "id": "CONF-SMR-PROPOSAL-SCHEMA-01", "status": "defined", "owner": "bot" },
+    { "id": "CONF-SMR-DIGEST-PROFILE-01", "status": "defined", "owner": "bot" },
+    { "id": "CONF-SMR-PROVIDER-BOUNDARY-01", "status": "defined", "owner": "bot" },
+    { "id": "CONF-SMR-CONFIRMATION-V2-01", "status": "defined", "owner": "bot" },
+    { "id": "CONF-SMR-CANONICAL-COMMIT-01", "status": "defined", "owner": "bot" },
+    { "id": "CONF-SMR-REJECTION-REPLAY-01", "status": "defined", "owner": "bot" },
+    { "id": "CONF-SMR-LEGACY-CANDIDATE-COMPAT-01", "status": "defined", "owner": "bot" },
+    { "id": "CONF-SMR-CLAIM-AUTHORITY-01", "status": "defined", "owner": "bot" },
+    { "id": "CONF-SMR-ACCEPTANCE-JOURNEY-01", "status": "defined", "owner": "bot" },
+    { "id": "CONF-SMR-CHALLENGE-BINDING-SUPERSET-01", "status": "defined", "owner": "bot", "added_by_amendment": "A2" },
+    { "id": "CONF-SMR-BASE-POSITION-01", "status": "defined", "owner": "bot", "added_by_amendment": "A6" },
+    { "id": "CONF-SMR-OPERATION-IDENTITY-01", "status": "defined", "owner": "bot", "added_by_amendment": "A4" },
+    { "id": "CONF-SMR-EVENT-BOUNDS-01", "status": "defined", "owner": "bot", "added_by_amendment": "A11" },
+    { "id": "CONF-SMR-ROUTING-DERIVATION-01", "status": "defined", "owner": "bot", "added_by_amendment": "A7" },
+    { "id": "CONF-SMR-TERMINAL-DISPOSITION-01", "status": "defined", "owner": "bot", "added_by_amendment": "A17" },
+    { "id": "CONF-SMR-APPEND-AUTHORITY-01", "status": "defined", "owner": "bot", "added_by_amendment": "A18", "amended_by": "A27" },
+    { "id": "CONF-SMR-BASE-FRESHNESS-01", "status": "defined", "owner": "bot", "added_by_amendment": "A19" },
+    { "id": "CONF-SMR-PROJECTION-CATCHUP-01", "status": "defined", "owner": "bot", "added_by_amendment": "A20" },
+    { "id": "CONF-SMR-REPLAY-TOTALITY-01", "status": "defined", "owner": "bot", "added_by_amendment": "A21", "amended_by": "A26" },
+    { "id": "CONF-SMR-MODEL-ATOM-IDENTITY-01", "status": "defined", "owner": "bot", "added_by_amendment": "A22" },
+    { "id": "CONF-SMR-DECISION-AUTHORITY-01", "status": "defined", "owner": "bot", "added_by_amendment": "A23", "amended_by": "A27" },
+    { "id": "CONF-SMR-CODEGRAPH-RECALL-ONLY-01", "status": "defined", "owner": "bot", "added_by_amendment": "A24" },
+    { "id": "CONF-SMR-RELATION-SUPPORT-01", "status": "defined", "owner": "bot", "added_by_amendment": "A25" }
+  ],
+
+  "amendments": [
+    { "id": "A1", "field": "confirmation_protocol.ttl_seconds", "bundle": 600, "replacement": 300, "reason": "shipped CONFIRMATION_CHALLENGE_TTL_SECONDS is 300; doubling the human-confirmation window widens stale and confused-deputy exposure" },
+    { "id": "A2", "field": "confirmation_protocol.binding", "bundle": "drops workspace, session_id, packet_id", "replacement": "strict superset of v1", "reason": "those fields carry shipped typed fail-closed outcomes; routing identity and authorization scope are different concerns" },
+    { "id": "A3", "field": "confirmation_binding_digest", "bundle": "includes display_summary text", "replacement": "includes display_summary_digest", "reason": "bundle both binds the summary and forbids display summaries in digests" },
+    { "id": "A4", "field": "operation_id origin", "bundle": "unspecified", "replacement": "caller-supplied, unique per (product_id, actor_id)", "reason": "a daemon-minted identifier the caller never observed cannot be retried" },
+    { "id": "A5", "field": "resulting_decision.decision_id", "bundle": "opaque uuid", "replacement": "deterministic UUIDv5", "reason": "a retry or concurrent submit under one operation_id must resolve to one Decision" },
+    { "id": "A6", "field": "smr_base_snapshot_digest", "bundle": "self-referential at append", "replacement": "base_event_position required alongside", "reason": "the append changes the projection the digest describes" },
+    { "id": "A7", "field": "routing.event_stream_id", "bundle": "selection unspecified", "replacement": "daemon-derived; caller-supplied rejected", "reason": "otherwise a caller selects its own canonical destination" },
+    { "id": "A8", "field": "rejection digest invariant", "bundle": "prose only", "replacement": "canonical_event_log_digest advances; claim_projection_digest unchanged", "reason": "two named digests make the invariant testable" },
+    { "id": "A9", "field": "lifecycle reason enums", "bundle": "such as / a closed reason", "replacement": "all four enums closed and enumerated", "reason": "illustrative reasons are not a durable contract" },
+    { "id": "A10", "field": "digest encoding", "bundle": "unspecified", "replacement": "sha256: prefix, 64 lowercase hex", "reason": "two conformant implementations would otherwise disagree byte-for-byte" },
+    { "id": "A11", "field": "normalized_claim_set size", "bundle": "unbounded", "replacement": "explicit bounds, typed proposal_too_large", "reason": "canonical events are immutable and permanent" },
+    { "id": "A12", "field": "runtime spec document", "bundle": "correct existing document and remove smr.accept_claim_set", "replacement": "document created here; prohibition recorded as standing constraint", "reason": "neither the document nor the command existed in this repository or any sibling repository" },
+    { "id": "A13", "field": "schema location", "bundle": "implied new contract root", "replacement": "protocol/smr-claim-acceptance/{schemas,fixtures}", "reason": "protocol/schemas/v1 and v2 are generated from Rust types by schema_gen and would drift" },
+    { "id": "A14", "field": "preflight.lookup", "bundle": "named as shipped successor", "replacement": "recorded as forward-looking, not a shipped command", "reason": "the shipped read-only path is staged preflight with lookup.checkpoint_hint" },
+    { "id": "A17", "field": "candidate terminal disposition", "bundle": "operation_id idempotency only", "replacement": "at most one terminal event per Product/candidate/generation under canonical compare-and-append", "reason": "different operation IDs could otherwise double-promote or promote and reject one generation" },
+    { "id": "A18", "field": "transition authorization", "bundle": "challenge-time binding", "replacement": "current Product member/owner role rechecked atomically at append", "reason": "a revoked actor must not spend stale challenge authority" },
+    { "id": "A19", "field": "SMR base freshness", "bundle": "base identity bound but not current", "replacement": "base position and digest compare against current canonical Claim projection at append", "reason": "concurrent Claim changes can invalidate the reviewed effect" },
+    { "id": "A20", "field": "projection reads", "bundle": "reconciliation after append only", "replacement": "catch up SQLite to canonical head before successful SMR reads or return model_unavailable", "reason": "stale or empty fallback would misrepresent accepted Product history" },
+    { "id": "A21", "field": "replay predecessors", "bundle": "unknown targets may be silently ignored", "replacement": "missing Candidate or Decision predecessor fails replay with invalid_canonical_history", "reason": "deterministic replay must be total over valid history" },
+    { "id": "A22", "field": "ModelAtom identity", "bundle": "stable semantic ID prose", "replacement": "daemon verifies deterministic identity from normalized kind, semantic key, and scope", "reason": "semantic aliases could otherwise hide overlapping contradictions" },
+    { "id": "A23", "field": "Decision governance envelope", "bundle": "approval transition only", "replacement": "member promotion creates proposed/recommendation; owner approval raises authority; rejection or supersession removes Claims from effective projection", "reason": "canonical Claim history and governance influence are distinct" },
+    { "id": "A24", "field": "CodeGraph", "bundle": "implementation-evidence composition blocker", "replacement": "optional recall expansion only and never required for SMR closure", "reason": "alpha value is controlled spec recall and contradiction triage, not code compliance" },
+    { "id": "A25", "field": "AtomRelation support provenance", "bundle": "no relation-to-source lineage; proposed categorical derivation labels", "replacement": "same-set supporting Claim and reachable SourceAnchor identities; no categorical derivation field in v1", "reason": "natural-language explicitness is not generally decidable, and extractor self-classification would recreate evidence laundering" },
+    { "id": "A26", "field": "replay predecessors for claim-set terminals", "bundle": "promotion and rejection require a Candidate generation predecessor", "replacement": "promotion and rejection are self-contained; only Decision signoff/supersession requires a canonical Decision predecessor; live J2 append still checks the local candidate", "reason": "candidate generation is daemon-local working state; a generated-candidate event would put unreviewed extract into Product history before human confirm" },
+    { "id": "A27", "field": "alpha claim-set authority", "bundle": "member promotion creates Decision(proposed) / recommendation; auto-join grants Member only", "replacement": "claim-set confirm writes Decision(approved) with authoritative influence; every current Product participant is Product Owner; Decision(proposed) is out of this alpha cut on this path; Policy Owner remains creator-only", "reason": "alpha scope cut: skip the recommendation window and the member/owner split on confirm" }
+  ],
+
+  "accepted_without_amendment": [
+    "canonical event names claim_set_candidate_promoted and claim_set_candidate_rejected",
+    "additive event approach with no AcceptCandidate overload",
+    "SHA-256 over RFC 8785 JCS with a domain tag",
+    "digest normalization rules",
+    "Claim and ModelAtom collection structure",
+    "Product routing exclusions for workspace, cwd, MCP session, provider, and SQLite identity",
+    "working-state candidate lifecycle of proposed, promoted, rejected",
+    "rejection durability and fingerprint semantics",
+    "command boundary and smr.claims.propose naming",
+    "CodeGraph deferral to issue 936",
+    "journey topology developer_host_mcp_smr_claim_acceptance_v1"
+  ]
+}

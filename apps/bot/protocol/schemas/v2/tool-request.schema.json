@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ToolRequest",
+  "description": "Canonical local tool API request. All surfaces (MCP, CLI, TUI, dashboard) map actions into this shape before daemon validation and policy evaluation. See ADR-0002 and issue #103.",
+  "type": "object",
+  "required": ["request_id", "command", "authority", "issued_at"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique request identifier for idempotency and audit correlation."
+    },
+    "command": {
+      "$ref": "#/definitions/ToolCommand"
+    },
+    "authority": {
+      "$ref": "#/definitions/AuthorityContext"
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp at which the surface created this request."
+    }
+  },
+  "definitions": {
+    "AuthorityContext": {
+      "type": "object",
+      "required": ["actor_id", "auth_method"],
+      "properties": {
+        "actor_id": {
+          "type": "string",
+          "description": "Who is issuing this request (user id, agent id, or daemon-authenticated equivalent)."
+        },
+        "auth_method": {
+          "type": "string",
+          "enum": ["local_daemon", "mcp_session", "cli", "dashboard"],
+          "description": "How the actor was authenticated."
+        },
+        "session_id": {
+          "type": ["string", "null"],
+          "description": "Session or workspace context for scoping policy evaluation."
+        },
+        "workspace": {
+          "type": ["string", "null"],
+          "description": "Workspace root (repo path or equivalent) for policy scope resolution."
+        },
+        "policy_scope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Policy scope tags for governance rule selection."
+        },
+        "audit_metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {},
+          "description": "Free-form key-value pairs for audit trail (e.g. surface=mcp)."
+        }
+      }
+    },
+    "ToolCommand": {
+      "type": "object",
+      "required": ["name", "params"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "ingest.submit_local",
+            "preflight.run",
+            "binding.create",
+            "binding.inspect",
+            "review.accept_candidate",
+            "review.reject_candidate",
+            "review.approve_signoff",
+            "review.reject_signoff",
+            "review.resolve_compliance",
+            "history.list",
+            "search.query"
+          ],
+          "description": "The command name from the local command registry."
+        },
+        "params": {
+          "type": "object",
+          "description": "Command-specific parameters. Shape depends on the command name."
+        }
+      }
+    }
+  }
+}

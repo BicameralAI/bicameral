@@ -1,0 +1,33 @@
+name: Branch Linearity
+
+on:
+  push:
+    branches: [main, dev]
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-linear-history:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refuse divergent main and dev histories
+        run: |
+          set -euo pipefail
+          git fetch origin main dev
+          if git merge-base --is-ancestor origin/main origin/dev; then
+            echo "main is equal to or behind dev"
+          elif git merge-base --is-ancestor origin/dev origin/main; then
+            echo "dev is equal to or behind main"
+          else
+            echo "::error::main and dev have diverged; promote or fast-forward before more product work."
+            exit 1
+          fi
