@@ -1,0 +1,3 @@
+# Normalize text to LF so generated outputs and the LICENSE bytes are identical on every platform.
+* text=auto eol=lf
+*.png binary

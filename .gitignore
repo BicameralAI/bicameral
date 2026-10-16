@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Build output
+build/
+dist/
+target/
+node_modules/
+*.log
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.*.sw?
+
+# Operating systems
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local environment and temporary files
+.env
+.env.*
+*.tmp
+*.bak
+tmp/
