@@ -1,0 +1,48 @@
+# Mirrors services/cloud/.github/workflows/contract-conformance.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in services/cloud/ so the component's commands are unchanged.
+name: 'cloud: Hosted Bridge Contract Conformance'
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install test dependencies
+      run: python -m pip install -e '.[dev]'
+    - name: Verify pinned hosted-bridge contract and compatibility behavior
+      run: pytest -q tests/test_compatibility.py tests/test_dashboard.py
+    - name: Verify Cloud pairing and restore behavior on the active connect surface
+      run: pytest -q tests/conformance/test_cloud_dashboard_daemon_pairing.py tests/test_dashboard_projects.py tests/test_pairing_tenancy.py
+    - name: Verify pinned onboarding contract fingerprint (fail-closed)
+      run: python3 scripts/verify_onboarding_contract.py
+    - name: Verify Cloud deployment migration gate
+      run: pytest -q tests/test_deploy_cloud_run_workflow.py tests/test_migration_report.py tests/test_migration_delivery.py
+    - name: Verify line-ending policy for fingerprint inputs
+      run: pytest -q tests/test_line_ending_policy.py
+    - name: Verify capability readiness contract
+      run: pytest -q tests/test_capability_readiness.py tests/test_health_readiness.py
+    - name: Verify onboarding contract model/signing/publication conformance
+      run: pytest -q tests/test_onboarding_contract.py tests/test_onboarding_verification.py tests/test_product_join_ticket.py
+'on':
+  pull_request:
+    branches:
+    - dev
+    - main
+    paths:
+    - services/cloud/**
+    - .github/workflows/cloud-contract-conformance.yml
+  push:
+    branches:
+    - main
+    paths:
+    - services/cloud/**
+    - .github/workflows/cloud-contract-conformance.yml
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: services/cloud

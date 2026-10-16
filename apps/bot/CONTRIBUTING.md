@@ -85,7 +85,6 @@ source evidence, expected behavior, and any relevant protocol contracts.
 
 ## License
 
-Bicameral Bot is dual-licensed under **Apache-2.0 OR MIT** (see
-[`LICENSE-APACHE`](LICENSE-APACHE), [`LICENSE-MIT`](LICENSE-MIT), and [`NOTICE`](NOTICE)). By
-contributing, you agree that your contributions will be licensed under those same terms,
-at the user's option.
+Bicameral Bot is licensed under **Apache-2.0**, the license of the Bicameral repository (see
+[`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE)). By contributing, you agree that your
+contributions will be licensed under those same terms.

@@ -1,0 +1,202 @@
+# Mirrors installer/.github/workflows/windows-installer-ci.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in installer/ so the component's commands are unchanged.
+name: 'installer: Windows Installer CI'
+permissions:
+  contents: read
+jobs:
+  validate-windows-installer:
+    runs-on: windows-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+    - name: Parse installer with Windows PowerShell 5.1
+      shell: powershell
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $source = Get-Content -LiteralPath site/install.ps1 -Raw
+        [void][ScriptBlock]::Create($source)
+        Write-Host "Windows PowerShell $($PSVersionTable.PSVersion) parsed install.ps1"
+    - name: Parse installer with current PowerShell
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $source = Get-Content -LiteralPath site/install.ps1 -Raw
+        [void][ScriptBlock]::Create($source)
+    - name: Validate installer security and lifecycle invariants
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $source = Get-Content -LiteralPath site/install.ps1 -Raw
+        $required = @(
+          "x86_64-pc-windows-msvc",
+          "Get-FileHash",
+          "SHA256",
+          "ManifestUri.Scheme -ne 'https'",
+          "AssetUri.Scheme -ne 'https'",
+          "Get-RequiredProperty",
+          "Register-ScheduledTask",
+          "Unregister-ScheduledTask",
+          "New-ScheduledTaskSettingsSet",
+          "AllowStartIfOnBatteries",
+          "DontStopIfGoingOnBatteries",
+          "ExecutionTimeLimit ([TimeSpan]::Zero)",
+          "WindowStyle Hidden",
+          "gateway start",
+          "127.0.0.1",
+          "37373",
+          "Stop-BicameralTask",
+          "-Uninstall"
+        )
+        foreach ($marker in $required) {
+          if (-not $source.Contains($marker)) {
+            throw "install.ps1 missing required invariant: $marker"
+          }
+        }
+        if ($source -match 'Invoke-Expression|\biex\b') {
+          throw 'install.ps1 must not execute downloaded release bytes as PowerShell.'
+        }
+        if ($source.Contains('$Manifest.assets.$Target')) {
+          throw 'install.ps1 must not use StrictMode-unsafe dynamic manifest property lookup.'
+        }
+        if ($source -match "(?m)^\s*&\s*\$Destination\s+gateway\s+start") {
+          throw 'Installer console must not own the long-running gateway process.'
+        }
+        $workflow = Get-Content -LiteralPath .github/workflows/windows-installer-ci.yml -Raw
+        foreach ($marker in @('expected_bot_commit', 'Verify exact published release identity', 'manifest.bot_commit')) {
+          if (-not $workflow.Contains($marker)) {
+            throw "Windows lifecycle workflow missing exact-publication binding invariant: $marker"
+          }
+        }
+    - name: Exercise manifest drift and browser uninstall guidance (PowerShell 5.1)
+      shell: powershell
+      run: ./tests/test-windows-publication.ps1
+    - name: Exercise manifest drift and browser uninstall guidance (current PowerShell)
+      shell: pwsh
+      run: ./tests/test-windows-publication.ps1
+    - name: Validate consent launcher and entrypoint ownership
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $launcher = Get-Content -LiteralPath site/install-windows.cmd -Raw
+        $page = Get-Content -LiteralPath site/index.html -Raw
+        if (-not $launcher.Contains('choice /C YN')) {
+          throw 'Windows launcher must require explicit consent.'
+        }
+        if (-not $launcher.Contains('https://install.bicameral-ai.com/install.ps1')) {
+          throw 'Windows launcher must use the canonical HTTPS installer URL.'
+        }
+        if (-not $page.Contains('https://app.bicameral-ai.com/connect')) {
+          throw 'Installer page must route setup into Bicameral Cloud.'
+        }
+        if ($page.Contains('/install-windows.cmd')) {
+          throw 'Installer landing page must remain entrypoint-only; Windows download belongs to the authenticated Cloud setup surface.'
+        }
+        if ($page.Contains('Windows x64')) {
+          throw 'Installer landing page must not duplicate platform-specific local setup.'
+        }
+  live-published-installer-lifecycle:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+    - name: Verify exact published release identity
+      shell: powershell
+      env:
+        EXPECTED_BOT_COMMIT: ${{ inputs.expected_bot_commit }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        if ($env:EXPECTED_BOT_COMMIT -notmatch '^[a-f0-9]{40}$') {
+          throw 'expected_bot_commit must be one full lowercase Git SHA.'
+        }
+        $downloadBase = if ($env:BICAMERAL_DOWNLOAD_BASE) {
+          $env:BICAMERAL_DOWNLOAD_BASE.TrimEnd('/')
+        } else {
+          'https://pub-7eab94b264754bee8019fd89ca9b5b0b.r2.dev/bicameral'
+        }
+        $manifestUri = [Uri]("$downloadBase/latest.json")
+        if (-not $manifestUri.IsAbsoluteUri -or $manifestUri.Scheme -ne 'https') {
+          throw 'Lifecycle manifest URL must use HTTPS.'
+        }
+        $manifest = Invoke-RestMethod -Uri $manifestUri.AbsoluteUri -UseBasicParsing
+        if ($manifest.bot_commit -ne $env:EXPECTED_BOT_COMMIT) {
+          throw "Published latest.json Bot commit $($manifest.bot_commit) does not match expected $env:EXPECTED_BOT_COMMIT."
+        }
+        $windows = $manifest.assets.PSObject.Properties['x86_64-pc-windows-msvc']
+        if ($null -eq $windows -or $null -eq $windows.Value) {
+          throw 'Published latest.json does not contain the Windows x64 asset.'
+        }
+        if ($windows.Value.sha256 -notmatch '^[a-f0-9]{64}$') {
+          throw 'Published Windows x64 asset is missing a valid SHA-256 digest.'
+        }
+        Write-Host "Validated published Bot commit $env:EXPECTED_BOT_COMMIT and Windows asset $($windows.Value.sha256)."
+        # Every later manifest consumption must enforce these exact checked values.
+        "PINNED_BOT_COMMIT=$env:EXPECTED_BOT_COMMIT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        "PINNED_WINDOWS_SHA256=$($windows.Value.sha256)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+    - name: Install published Windows release
+      shell: powershell
+      run: |
+        $ErrorActionPreference = 'Stop'
+        & .\site\install.ps1 -ExpectedBotCommit $env:PINNED_BOT_COMMIT -ExpectedWindowsSha256 $env:PINNED_WINDOWS_SHA256
+        if (-not (Get-ScheduledTask -TaskName 'Bicameral' -ErrorAction SilentlyContinue)) {
+          throw 'Installer did not register the Bicameral Scheduled Task.'
+        }
+        $deadline = (Get-Date).AddSeconds(30)
+        $ready = $false
+        while ((Get-Date) -lt $deadline) {
+          try {
+            $client = New-Object Net.Sockets.TcpClient
+            $connect = $client.ConnectAsync('127.0.0.1', 37373)
+            if ($connect.Wait(500) -and $client.Connected) {
+              $ready = $true
+              $client.Dispose()
+              break
+            }
+            $client.Dispose()
+          } catch {}
+          Start-Sleep -Milliseconds 500
+        }
+        if (-not $ready) { throw 'Published Bicameral daemon did not become reachable on localhost:37373.' }
+    - name: Verify rerun is idempotent
+      shell: powershell
+      run: |
+        $ErrorActionPreference = 'Stop'
+        & .\site\install.ps1 -ExpectedBotCommit $env:PINNED_BOT_COMMIT -ExpectedWindowsSha256 $env:PINNED_WINDOWS_SHA256
+        if (-not (Get-ScheduledTask -TaskName 'Bicameral' -ErrorAction SilentlyContinue)) {
+          throw 'Bicameral task disappeared after installer rerun.'
+        }
+    - name: Uninstall and verify cleanup
+      if: always()
+      shell: powershell
+      run: |
+        $ErrorActionPreference = 'Continue'
+        & .\site\install.ps1 -Uninstall
+        if (Get-ScheduledTask -TaskName 'Bicameral' -ErrorAction SilentlyContinue) {
+          throw 'Bicameral Scheduled Task remains after uninstall.'
+        }
+        $installDir = Join-Path $env:LOCALAPPDATA 'Bicameral\bin'
+        if (Test-Path -LiteralPath (Join-Path $installDir 'bicameral.exe')) {
+          throw 'bicameral.exe remains after uninstall.'
+        }
+        $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+        if ($userPath -and (($userPath -split ';') -contains $installDir)) {
+          throw 'Bicameral install directory remains in the user PATH after uninstall.'
+        }
+'on':
+  pull_request:
+    paths:
+    - installer/site/install.ps1
+    - installer/site/install-windows.cmd
+    - installer/site/index.html
+    - installer/tests/test-windows-publication.ps1
+    - installer/.github/workflows/windows-installer-ci.yml
+    - .github/workflows/installer-windows.yml
+  workflow_dispatch:
+    inputs:
+      expected_bot_commit:
+        description: Exact published Bot commit this lifecycle run must validate
+        required: true
+        type: string
+defaults:
+  run:
+    working-directory: installer

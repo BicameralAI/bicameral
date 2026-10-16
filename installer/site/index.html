@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Start Bicameral setup by connecting to Bicameral Cloud.">
+    <title>Set up Bicameral</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: Canvas;
+        color: CanvasText;
+      }
+      main {
+        width: min(680px, calc(100vw - 32px));
+        padding: 48px 0;
+      }
+      .eyebrow {
+        margin: 0 0 10px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.68;
+      }
+      h1 {
+        margin: 0 0 16px;
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        line-height: 1.05;
+      }
+      p {
+        max-width: 58ch;
+        color: color-mix(in srgb, CanvasText 72%, Canvas);
+      }
+      .card {
+        margin-top: 28px;
+        padding: 24px;
+        border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+        border-radius: 14px;
+        background: color-mix(in srgb, CanvasText 3%, Canvas);
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .button, button {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid CanvasText;
+        border-radius: 8px;
+        padding: 12px 18px;
+        background: CanvasText;
+        color: Canvas;
+        font: inherit;
+        font-weight: 650;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .secondary {
+        background: transparent;
+        color: CanvasText;
+      }
+      .steps {
+        display: grid;
+        gap: 10px;
+        margin: 24px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .steps li {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        color: color-mix(in srgb, CanvasText 72%, Canvas);
+      }
+      .step-number {
+        width: 1.6rem;
+        flex: 0 0 1.6rem;
+        font-weight: 750;
+        color: CanvasText;
+      }
+      pre {
+        overflow-x: auto;
+        padding: 16px;
+        border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+        border-radius: 8px;
+        background: color-mix(in srgb, CanvasText 6%, Canvas);
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.92rem;
+      }
+      .note { margin-top: 18px; font-size: 0.9rem; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section id="cloud-entry">
+        <p class="eyebrow">Bicameral setup</p>
+        <h1>Connect to Bicameral Cloud first.</h1>
+        <p>Start by signing in to Bicameral Cloud. Once your Cloud session is established, Bicameral will check this device and guide you through local setup only if it is needed.</p>
+
+        <div class="card" aria-labelledby="start-title">
+          <p class="eyebrow">Start here</p>
+          <h2 id="start-title">Set up Bicameral</h2>
+          <div class="actions">
+            <a class="button" href="https://app.bicameral-ai.com/connect">Connect to Bicameral Cloud</a>
+          </div>
+
+          <ol class="steps" aria-label="Bicameral setup sequence">
+            <li><span class="step-number">1.</span><span>Sign in to Bicameral Cloud with Google.</span></li>
+            <li><span class="step-number">2.</span><span>Bicameral checks for the local service and guides device setup or pairing.</span></li>
+            <li><span class="step-number">3.</span><span>After the device is connected, authorize Google Drive separately.</span></li>
+          </ol>
+
+          <p class="note">Cloud sign-in, device pairing, and Google Drive authorization are separate steps. Each step is confirmed only after that connection is actually established.</p>
+        </div>
+      </section>
+
+    </main>
+
+
+  </body>
+</html>

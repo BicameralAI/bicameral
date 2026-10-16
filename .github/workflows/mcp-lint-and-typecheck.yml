@@ -1,0 +1,40 @@
+# Mirrors packages/mcp/.github/workflows/lint-and-typecheck.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in packages/mcp/ so the component's commands are unchanged.
+name: 'mcp: Lint & Type Check'
+jobs:
+  lint:
+    name: ruff + mypy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.11'
+        cache: pip
+    - name: Install
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pip install --require-hashes -r requirements-ci.lock
+        python -m pip install --no-build-isolation --no-deps .
+    - name: Ruff check
+      run: ruff check .
+    - name: Ruff format check
+      run: ruff format --check .
+    - name: Mypy
+      run: mypy .
+    - name: Dependency audit
+      run: pip-audit --requirement requirements-ci.lock --ignore-vuln PYSEC-2026-3721
+'on':
+  pull_request:
+    branches:
+    - main
+    - dev
+    paths:
+    - packages/mcp/**
+    - .github/workflows/mcp-lint-and-typecheck.yml
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: packages/mcp

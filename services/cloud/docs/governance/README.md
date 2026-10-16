@@ -7,7 +7,7 @@ This directory holds the **tracked, public-facing** governance contract. It decl
 |---|---|
 | [`BOUNDARY.md`](BOUNDARY.md) | The tracked governance boundary contract — three layers, five invariants, enforced leak rules. |
 | [`SIBLINGS.md`](SIBLINGS.md) | The sibling registry — every leak-guarded local tool (Qor-logic, FailSafe, contributor tooling) and the rules that keep it out of commits. |
-| [`soc2-application-controls.md`](soc2-application-controls.md) | The tracked SOC 2 application-control attestation for cloud runtime and infrastructure controls. |
+| `soc2-application-controls.md` | The SOC 2 application-control attestation for cloud runtime and infrastructure controls. Kept in the private `BicameralAI/bicameral-cloud` repository; not carried into this repository. |
 
 **Doctrine is shared upstream.** The shared process rules (bic-logic) are owned in
 `bicameral-factory` and consumed here — not copied. **Local artifacts are never here**:

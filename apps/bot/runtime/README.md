@@ -19,7 +19,7 @@ receipts, local grounding, and EM-safe mods — never ZeroClaw's broad
 personal-assistant surface. Agents and mods may emit candidates, evidence, hints,
 review commands, and advisory governance results; they may **not** create
 canonical decisions, approve signoff, resolve compliance, or write canonical
-storage. See [`NOTICE`](../NOTICE) for attribution.
+storage. See [`NOTICE`](../../../NOTICE) for attribution.
 
 ## What's here (`crates/bicameral-runtime`)
 

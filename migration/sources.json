@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "tracking_issue": "https://github.com/BicameralAI/bicameral-factory/issues/969",
+  "license": "Apache-2.0",
+  "components": [
+    {
+      "source": "BicameralAI/bicameral-bot",
+      "sha": "f5bde8e81fef6c7505cd9a3d75b186d9b1a5b3b9",
+      "destination": "apps/bot",
+      "files": 971,
+      "excluded": [
+        ".bicameral/",
+        "LICENSE-MIT",
+        "LICENSE-APACHE"
+      ],
+      "adjustments": [
+        "NOTICE moved to repository root",
+        "Cargo workspace license set to Apache-2.0",
+        "README license section points at root LICENSE and NOTICE"
+      ]
+    },
+    {
+      "source": "BicameralAI/bicameral-integrations",
+      "sha": "3e00781d1fff7cf96346fd2f819658a336fa8e7b",
+      "destination": "packages/integrations",
+      "files": 904,
+      "excluded": [
+        ".bicameral/",
+        "LICENSE"
+      ],
+      "adjustments": [
+        "README license badge and section point at root Apache-2.0 LICENSE"
+      ]
+    },
+    {
+      "source": "BicameralAI/bicameral-mcp",
+      "sha": "9657ae288637cb3b4e4ef4dc1d43ae42a02b17c7",
+      "destination": "packages/mcp",
+      "files": 216,
+      "excluded": [
+        ".bicameral/factory-attestations/",
+        ".bicameral/repo-governance.yaml",
+        ".bicameral/repo-governance.schema.json",
+        "LICENSE (BSL 1.1)"
+      ],
+      "adjustments": [
+        "LICENSE replaced with the Apache-2.0 text so the sdist keeps a license file",
+        "pyproject license and classifier set to Apache-2.0",
+        "README license section points at root LICENSE"
+      ]
+    },
+    {
+      "source": "BicameralAI/bicameral-cloud",
+      "sha": "4e72bba576bedbd5b5bd23bc3a5bb1d1e3dffc8d",
+      "destination": "services/cloud",
+      "files": 321,
+      "excluded": [
+        ".bicameral/ (except one attestation record read by tests/test_real_process_hosted_topology.py)",
+        "docs/governance/soc2-application-controls.md"
+      ],
+      "adjustments": [
+        "tests/test_line_ending_policy.py reads blobs as HEAD:./<path> so paths resolve from the component directory"
+      ]
+    },
+    {
+      "source": "BicameralAI/bicameral-install",
+      "sha": "b492638ad4141b44a916dbf6420d7776c8cfc1a3",
+      "destination": "installer",
+      "files": 11,
+      "excluded": [
+        ".bicameral/"
+      ],
+      "adjustments": []
+    }
+  ],
+  "root_workflows": {
+    "mirrored": [
+      "bot-rust",
+      "mcp-lint-and-typecheck",
+      "mcp-deterministic-tests",
+      "mcp-python-floor-smoke",
+      "integrations-ci",
+      "integrations-red-team",
+      "cloud-contract-conformance",
+      "cloud-hosted-security-hardening",
+      "cloud-reconciliation-evidence",
+      "cloud-release-provenance",
+      "cloud-customer-distribution-boundary",
+      "installer-unix",
+      "installer-windows"
+    ],
+    "not_activated": "Release, publish, deploy (Cloud Run, GitHub Pages, PyPI, R2), cross-repository dispatch, Factory attestation, Atlas, notification and repository-governance workflows. They remain in each component's .github/ directory unchanged."
+  }
+}

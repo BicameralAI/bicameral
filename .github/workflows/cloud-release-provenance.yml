@@ -1,0 +1,49 @@
+# Mirrors services/cloud/.github/workflows/release-provenance.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in services/cloud/ so the component's commands are unchanged.
+name: 'cloud: Release provenance'
+permissions:
+  contents: read
+jobs:
+  cloud-release-descriptor:
+    name: cloud-release-descriptor
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Validate Cloud-local release descriptor contract
+      run: |
+        python -m pip install -e '.[dev]'
+        pytest -q \
+          tests/test_release_descriptor.py \
+          tests/test_real_process_hosted_topology.py \
+          tests/test_bot_dashboard_provenance.py \
+          tests/test_v0126_regression_fixture.py \
+          tests/test_emit_release_descriptor_immutable_gate.py
+        python scripts/emit_release_descriptor.py --validation-only
+        python scripts/emit_release_descriptor.py --verify release-cloud/cloud-release-descriptor.json
+        echo "PR/push descriptor artifact is validation-only; trusted producer reconstruction is enforced by deploy-cloud-run.yml before deployment."
+    - uses: actions/upload-artifact@v4
+      with:
+        name: cloud-release-descriptor-${{ github.sha }}
+        path: services/cloud/release-cloud/cloud-release-descriptor.json
+        if-no-files-found: error
+        retention-days: 90
+'on':
+  pull_request:
+    branches:
+    - dev
+    - main
+    paths:
+    - services/cloud/**
+    - .github/workflows/cloud-release-provenance.yml
+  push:
+    branches:
+    - main
+    paths:
+    - services/cloud/**
+    - .github/workflows/cloud-release-provenance.yml
+defaults:
+  run:
+    working-directory: services/cloud

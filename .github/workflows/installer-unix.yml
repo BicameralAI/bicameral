@@ -1,0 +1,32 @@
+# Mirrors installer/.github/workflows/unix-installer-ci.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in installer/ so the component's commands are unchanged.
+name: 'installer: Unix Installer CI'
+permissions:
+  contents: read
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+    - name: Validate POSIX syntax
+      run: sh -n site/install.sh
+    - name: Exercise install and service reconciliation
+      run: ./tests/test-unix-reconcile.sh
+    - name: Enforce bootstrap security invariants
+      run: |
+        grep -F 'refusing to replace symlinked executable' site/install.sh
+        grep -F 'mv -f "$staged" "$installed"' site/install.sh
+        grep -F '"$installed" service install' site/install.sh
+        grep -F '"$installed" service start' site/install.sh
+        ! grep -F 'sudo ' site/install.sh
+'on':
+  pull_request:
+    paths:
+    - installer/site/install.sh
+    - installer/tests/test-unix-reconcile.sh
+    - installer/.github/workflows/unix-installer-ci.yml
+    - .github/workflows/installer-unix.yml
+  workflow_dispatch: null
+defaults:
+  run:
+    working-directory: installer

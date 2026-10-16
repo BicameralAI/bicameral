@@ -32,7 +32,7 @@
 </p>
 
 > [!IMPORTANT]
-> **This repository is private consolidation staging.** It holds the governance, documentation and layout scaffold that Bicameral's components will move into. **No component code has been imported yet**, and nothing here can be installed or run as a product. Progress is tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
+> **This repository is private consolidation staging.** The Bicameral components have been consolidated here from their individual repositories, each with its layout unchanged. Releases and deployments still run from the original repositories until they are moved. Progress is tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
 
 ## Why Bicameral
 
@@ -87,39 +87,43 @@ This is the intended architecture of the consolidated repository. Each boundary 
 | Repository governance: structure manifest, CODEOWNERS generation, architecture records, CI check | **In place** in this repository |
 | Foundational architecture records [ARCH-0001](docs/architecture/records/ARCH-0001-architecture-records-and-canonical-index.md) and [ARCH-0002](docs/architecture/records/ARCH-0002-repository-structure-and-structure-manifest.md) | **Accepted**; they govern architecture records, the architecture index, repository layout and code ownership |
 | License | **Apache-2.0** authorized for the whole product (decision J-03) |
-| Product components (runtime, dashboard, MCP, integrations, cloud, installer) | **Not imported.** They are developed in their own repositories. Each location below is reserved |
-| Public release, installation from this repository, public contributions | **Not available** |
+| Product components (runtime, dashboard, MCP, integrations, cloud, installer) | **Imported** as source snapshots with their existing build and test procedures; see the [migration inventory](migration/README.md) |
+| Releases, deployments, public contributions | **Not from this repository yet.** Release and deploy workflows remain inactive here until moved with authorization |
 
 ## Getting started
 
-There is nothing to install from this repository yet. What you can do today is run the governance checks that every change must pass. They need only **Python 3.10+** and **Git**:
+Each component builds and tests as it did in its own repository, from its own directory:
 
 ```bash
 git clone https://github.com/BicameralAI/bicameral.git
 cd bicameral
-python3 tools/governance/check.py
+
+(cd apps/bot && cargo test --workspace --locked)              # local runtime (Rust)
+(cd apps/bot/dashboard && npm ci && npm test)                 # dashboard
+(cd packages/mcp && pip install -r requirements-ci.lock && pip install --no-deps . && pytest tests/)
+(cd services/cloud && pip install -e '.[dev]' && pytest)      # cloud
+python3 tools/governance/check.py                             # repository governance checks
 ```
 
-The command validates the repository layout and architecture records and runs the validators' unit tests. It never modifies your working tree. See [Development and testing](#development-and-testing) for the full workflow.
+Each component's README has its full development guide, and its exact CI commands are listed in the [migration inventory](migration/README.md). End-user installation uses the published installer in [`installer/`](installer/).
 
 ## Repository structure
 
 The layout is declared in [`governance/structure.json`](governance/structure.json), the single source of truth for where files may live and who owns them. [`.github/CODEOWNERS`](.github/CODEOWNERS) is generated from it.
 
-| Path | Contents | Status |
+| Path | Contents | Source repository |
 | --- | --- | --- |
-| [`crates/`](crates/) | Local runtime: Rust daemon, gateway, protocol (from `bicameral-bot`) | Reserved |
-| [`apps/dashboard/`](apps/dashboard/) | Review dashboard (from `bicameral-bot`) | Reserved |
-| [`packages/mcp/`](packages/mcp/) | MCP tool surface (from `bicameral-mcp`) | Reserved |
-| [`packages/integrations/`](packages/integrations/) | Source adapters (from `bicameral-integrations`) | Reserved |
-| [`services/cloud/`](services/cloud/) | Optional hosted services and self-host configuration (from `bicameral-cloud`) | Reserved |
-| [`installer/`](installer/) | Installation and distribution (from `bicameral-install`) | Reserved |
-| [`docs/architecture/`](docs/architecture/) | Architecture records and the generated index | Active |
-| [`governance/`](governance/) | Structure manifest | Active |
-| [`tools/governance/`](tools/governance/) | Governance validators and tests | Active |
-| [`migration/`](migration/) | Public-safe provenance for component imports | Reserved |
+| [`apps/bot/`](apps/bot/) | Local runtime: Rust daemon, gateway, protocol, dashboard | `bicameral-bot` |
+| [`packages/mcp/`](packages/mcp/) | MCP tool surface | `bicameral-mcp` |
+| [`packages/integrations/`](packages/integrations/) | Source adapters and mods | `bicameral-integrations` |
+| [`services/cloud/`](services/cloud/) | Optional hosted service and self-host configuration | `bicameral-cloud` |
+| [`installer/`](installer/) | Installation scripts and install site | `bicameral-install` |
+| [`docs/architecture/`](docs/architecture/) | Architecture records and the generated index | |
+| [`governance/`](governance/) | Structure manifest | |
+| [`tools/governance/`](tools/governance/) | Governance validators and tests | |
+| [`migration/`](migration/) | Provenance for each imported component | |
 
-Reserved locations contain only a README naming their source. The structure check rejects anything else there until an authorized import marks them active.
+Components keep their own internal layout, including their own `docs/` and pre-consolidation `docs/adr/` records. Repository-level architecture records live in `docs/architecture/records/`.
 
 ## Architecture and governance
 
@@ -143,7 +147,7 @@ python3 tools/governance/check.py --write   # regenerate CODEOWNERS and the arch
 python3 -m unittest discover -s tools/governance/tests -t tools/governance   # unit tests only
 ```
 
-Generated files are never edited by hand. Change `governance/structure.json` or a record, then run `--write` and commit the result. Component build and test instructions will be added as each component is imported.
+Generated files are never edited by hand. Change `governance/structure.json` or a record, then run `--write` and commit the result. Each component builds and tests from its own directory (see [Getting started](#getting-started)), and CI mirrors each component's existing test workflows at the repository root.
 
 ## Contributing
 

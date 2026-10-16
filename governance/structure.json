@@ -142,10 +142,9 @@
     },
     {
       "path": "installer",
-      "purpose": "Installers, bootstrap and distribution build inputs.",
+      "purpose": "Installers, bootstrap scripts and install site (imported from BicameralAI/bicameral-install).",
       "children": "open",
-      "status": "reserved",
-      "source": "BicameralAI/bicameral-install"
+      "status": "active"
     },
     {
       "path": "governance",
@@ -203,7 +202,7 @@
       "path": "migration",
       "purpose": "Source provenance inventories and public, redacted migration attestations.",
       "children": "open",
-      "status": "reserved"
+      "status": "active"
     }
   ]
 }

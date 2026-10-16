@@ -1,0 +1,118 @@
+# Mirrors apps/bot/.github/workflows/rust.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in apps/bot/ so the component's commands are unchanged.
+name: 'bot: Rust CI'
+jobs:
+  rust:
+    name: rust-workspace
+    runs-on: ubuntu-latest
+    env:
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+    - name: Cache cargo registry and build artifacts
+      uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+      with:
+        workspaces: apps/bot -> target
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+    - name: Verify hosted-bridge contract fingerprint
+      run: python3 scripts/verify_hosted_bridge_contract.py
+    - name: Verify external-ingest distribution contract
+      run: |
+        python3 -m unittest scripts.tests.test_verify_external_ingest_contract
+        python3 scripts/verify_external_ingest_contract.py
+    - name: Verify onboarding contract (schema/fixture/manifest drift)
+      run: python3 scripts/validate_onboarding_contract_fixtures.py
+    - name: Verify SMR claim-acceptance contract (issue
+      run: |
+        python3 -m unittest scripts.tests.test_validate_smr_claim_acceptance_contract
+        python3 scripts/validate_smr_claim_acceptance_contract.py
+        python3 scripts/validate_smr_confirmation_binding_digest.py
+    - name: Verify spec-registry schemas
+      run: |
+        python3 -m unittest scripts.tests.test_validate_spec_registry_schemas
+        python3 scripts/validate_spec_registry_schemas.py
+    - name: Test SMR feedback benchmark scorer
+      run: python3 -m unittest scripts.tests.test_run_smr_feedback_benchmark
+    - name: Verify live Figma references
+      run: |
+        python3 -m unittest scripts.tests.test_validate_figma_references
+        python3 scripts/validate_figma_references.py
+    - name: Verify cross-repo dispatch workflow
+      run: |
+        python3 -m unittest scripts.tests.test_dispatch_cloud_dashboard_vendor_workflow
+        python3 -m unittest scripts.tests.test_dispatch_integrations_external_ingest_contract_workflow
+    - name: Verify direct-Devin topology runner authority
+      run: |
+        python3 -m unittest scripts.tests.test_run_integration_bot_mcp_topology
+        python3 -m unittest scripts.tests.test_run_operator_service_topology
+        python3 -m unittest scripts.tests.test_finalize_operator_service_topology
+        python3 -m unittest scripts.tests.test_atlas_release_assignment_status_workflow
+    - name: Build workspace
+      run: cargo build --workspace --locked
+    - name: Test workspace
+      run: |
+        set -o pipefail
+        mkdir -p test-artifacts/rust-workspace
+        cargo test --workspace --locked 2>&1 | tee test-artifacts/rust-workspace/test.log
+    - name: Clippy
+      run: |
+        set -o pipefail
+        mkdir -p test-artifacts/rust-workspace
+        cargo clippy --workspace --locked -- -D warnings 2>&1 | tee test-artifacts/rust-workspace/clippy.log
+    - name: Retain Rust workspace diagnostics
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: rust-workspace-diagnostics
+        path: apps/bot/test-artifacts/rust-workspace/
+        if-no-files-found: error
+        retention-days: 14
+  dashboard:
+    name: dashboard-check-test-build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - name: Install Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: apps/bot/dashboard/package-lock.json
+    - name: Install dashboard dependencies
+      working-directory: apps/bot/dashboard
+      run: npm ci
+    - name: Check dashboard types and Svelte contracts
+      working-directory: apps/bot/dashboard
+      run: npm run check
+    - name: Test dashboard
+      working-directory: apps/bot/dashboard
+      run: npm test
+    - name: Build dashboard
+      working-directory: apps/bot/dashboard
+      run: npm run build
+'on':
+  workflow_dispatch: null
+  pull_request:
+    paths:
+    - apps/bot/**
+    - .github/workflows/bot-rust.yml
+  push:
+    branches:
+    - main
+    paths:
+    - apps/bot/**
+    - .github/workflows/bot-rust.yml
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: apps/bot
