@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Validate the July-29 alpha ingest manifest (GH #258). Fail-closed.
 
 Two layers, both fail-closed, mirroring ``validate_connector_config.py``:

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Map a connector ``Observation`` to the SDK ``Evidence`` contract (bicameral-sdk #7).
 
 The integrations-side of GH #187: a connector produces **non-authoritative raw evidence**,

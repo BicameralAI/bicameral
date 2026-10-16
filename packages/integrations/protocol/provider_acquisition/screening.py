@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """Fail-closed screening for discovery descriptors / items (ADR-0017 §3).
 
 Reuses the adapter's single sensitive-data catalog

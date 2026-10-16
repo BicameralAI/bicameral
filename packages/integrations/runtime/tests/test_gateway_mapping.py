@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the Live emission seam: AdapterEmission -> v2 ExternalIngestEnvelope + GatewaySink (#226).
 
 The vendored schema ``runtime/schemas/external_ingest_request_v2.schema.json`` is a byte-exact copy

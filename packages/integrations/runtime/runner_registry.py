@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Connector + mod dispatch for the headless runner (ADR-0016 / FX-RUNTIME-004).
 
 Maps a connector id to a uniform runner ``(resolver, runtime, document_id, transport, sink) -> int``,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Generate per-mod how-to docs (SETUP.md) from each mod config.json.
 
 The EM-safe-mod parity of ``build_connector_setup.py``. A mod has NO credentials and NO live

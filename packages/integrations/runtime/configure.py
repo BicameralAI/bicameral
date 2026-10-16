@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Config-on-rails: ``python -m runtime.cli configure <connector>`` (#227; FX-RUNTIME-007).
 
 Walks the connector descriptor's ordered ``instructions[]`` in the terminal — the text-mode

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavioral tests for SlackConnector webhook verify + dedup (v0 signing)."""
 
 from __future__ import annotations

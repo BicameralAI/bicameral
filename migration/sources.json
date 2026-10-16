@@ -31,7 +31,8 @@
       "adjustments": [
         "README license badge and section point at root Apache-2.0 LICENSE",
         "scripts/migration_provenance.py added: migration-aware provenance for the information-cycle bundle (the bundle, validator and generator are reviewed components and are unchanged)",
-        "scripts/tests/test_information_cycle_bundle.py: the seven history-dependent tests use the migration-aware checks; scripts/tests/test_migration_provenance.py adds acceptance and rejection cases"
+        "scripts/tests/test_information_cycle_bundle.py: the seven history-dependent tests use the migration-aware checks; scripts/tests/test_migration_provenance.py adds acceptance and rejection cases",
+        "SPDX headers: 303 Bicameral-authored files changed from MIT to Apache-2.0 (header lines only; 30 'Copyright 2026 Bicameral AI' lines likewise). Ten reviewed components of the information-cycle bundle keep their MIT header byte-for-byte because the bundle pins their digests; they are distributed under the root Apache-2.0 LICENSE and the header follows at the next bundle review. Third-party text (Contributor Covenant 2.0 in ingest fixtures, with its attribution) is untouched."
       ],
       "migration_evidence": {
         "manifest": "migration/manifests/bicameral-integrations.json",

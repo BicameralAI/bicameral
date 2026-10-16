@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """PagerDuty connector: v3 incident webhook events into neutral Observations.
 
 A PagerDuty v3 webhook envelope (`{event: {event_type, occurred_at, data}}`)

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Render executable ingest phase traces as reviewable Markdown lifecycle pages."""
 
 from __future__ import annotations

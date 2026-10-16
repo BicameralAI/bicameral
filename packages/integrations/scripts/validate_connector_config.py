@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Validate every connector's config.json against the descriptor contract (FX-CFG-001).
 
 Runs as a standalone CI step in THIS repo (NOT wired into the cross-repo-portable

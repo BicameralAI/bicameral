@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Fathom meeting connector: provider payloads into neutral Observations.
 
 A Fathom meeting object — a REST `GET /meetings` list item or a

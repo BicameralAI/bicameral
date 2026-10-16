@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Claude Code connector: session-transcript JSONL lines into Observations.
 
 Claude Code writes session transcripts as local JSONL at

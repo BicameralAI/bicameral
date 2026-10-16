@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Google Docs/Drive connector: document payloads into neutral Observations.
 
 Provider-specific knowledge lives here: the Docs/Drive URL grammar and the

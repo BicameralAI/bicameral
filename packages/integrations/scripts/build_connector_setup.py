@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Generate per-connector backend how-to docs (SETUP.md) from each config.json (FX-CFG-001).
 
 Renders a deterministic operator runbook from one descriptor — prerequisites, credentials (where to get

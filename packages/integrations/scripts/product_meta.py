@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Single source of truth for the product release channel.
 
 The whole **Bicameral Integrations** product is in **Beta** — even though individual connectors

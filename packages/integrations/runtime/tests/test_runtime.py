@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the operator-runtime boundary layer (ADR-0012)."""
 
 from __future__ import annotations

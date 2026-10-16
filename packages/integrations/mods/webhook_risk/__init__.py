@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """webhook_risk mod package."""
 
 from .connector import WebhookRiskMod

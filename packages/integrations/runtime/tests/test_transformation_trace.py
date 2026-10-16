@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the canonical cross-repository transformation trace."""
 
 from __future__ import annotations

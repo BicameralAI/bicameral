@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Confluence connector package."""
 
 from .connector import ConfluenceConnector, parse_content

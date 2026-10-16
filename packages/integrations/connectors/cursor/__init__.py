@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Cursor connector package."""
 
 from .connector import CursorConnector, parse_usage_day

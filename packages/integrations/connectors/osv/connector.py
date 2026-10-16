@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """OSV connector: OSV.dev vulnerability records into neutral Observations.
 
 An OSV vulnerability record (the OSV schema shared by GHSA/PyPA/RustSec, served

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Schema conformance tests for provider acquisition golden fixtures.
 
 Validates that all golden descriptor and item-envelope fixtures conform to the

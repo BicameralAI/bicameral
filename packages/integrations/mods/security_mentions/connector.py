@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """security_mentions mod — surface security-relevant mentions in evidence (ADR-0013).
 
 Advisory (ADR-0007/0008): scans evidence text for security keywords (auth/token/secret/…) and surfaces

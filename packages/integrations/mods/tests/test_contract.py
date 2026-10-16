@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the mod execution contract (ADR-0013)."""
 
 from __future__ import annotations

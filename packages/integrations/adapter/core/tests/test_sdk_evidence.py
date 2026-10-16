@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Conformance tests: connector Observation -> SDK Evidence contract (GH #187, bicameral-sdk #7).
 
 Golden mapping proven on recorded Observations (offline; a fixture pass earns Beta, not Live —

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavioral tests for ZendeskConnector webhook verify + dedup (Base64 HMAC)."""
 
 from __future__ import annotations

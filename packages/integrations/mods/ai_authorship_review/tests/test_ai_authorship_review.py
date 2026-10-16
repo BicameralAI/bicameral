@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the ai_authorship_review mod."""
 
 from __future__ import annotations

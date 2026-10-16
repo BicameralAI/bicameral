@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the atomic local-config writer (#227 LD7; FX-RUNTIME-004 write half).
 
 Seed fail-closed (no example placeholder survives — audit #230 F3), atomicity + failure-path

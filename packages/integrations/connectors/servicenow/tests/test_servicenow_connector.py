@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Unit tests for the ServiceNow connector (incident parse + redaction; caller dropped)."""
 
 from __future__ import annotations

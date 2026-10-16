@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """policy_exemption_audit mod — advisory policy-exemption/waiver/accepted-risk claims (ADR-0013).
 
 EM-safe (ADR-0007/0008): reads immutable ``AdapterEmission`` evidence and returns advisory

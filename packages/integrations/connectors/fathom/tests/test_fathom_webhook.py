@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavioral tests for FathomConnector webhook verify + dedup (Svix)."""
 
 from __future__ import annotations

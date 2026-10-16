@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Model-free hosted validation for committed ADR-0020 evaluation evidence.
 
 The workflow asserts the real checkout SHA before calling this module. This

@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """Tests for the GitHub App installation discovery connector (#180).
 
 Validates, against recorded GitHub REST responses (no live credentials):

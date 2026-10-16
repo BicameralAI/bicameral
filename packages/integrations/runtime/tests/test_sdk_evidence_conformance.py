@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Cross-repo conformance: to_sdk_evidence output ⟷ the vendored SDK Evidence schema (#212-B).
 
 The schema (``runtime/schemas/sdk_evidence_v0.schema.json``) is a VENDORED, commit-pinned mirror of

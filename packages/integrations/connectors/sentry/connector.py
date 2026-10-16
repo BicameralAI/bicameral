@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Sentry connector: issue webhook events into neutral Observations.
 
 A Sentry issue webhook payload (the `installation`/issue-alert event wrapping

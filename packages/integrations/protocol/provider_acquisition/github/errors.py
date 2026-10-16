@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """GitHub status → typed ``DiscoveryError`` taxonomy (#180).
 
 Factored out of ``connector.py`` (Razor: keep the connector under the file-size

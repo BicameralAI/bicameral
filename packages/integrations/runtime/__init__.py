@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Operator-runtime boundary layer (ADR-0012).
 
 A thin, framework-free layer the operator's host (HTTP receiver / cron — not this

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Governance boundary guard.
 
 Keeps local-process and sibling-tool artifacts out of commits. The boundary is

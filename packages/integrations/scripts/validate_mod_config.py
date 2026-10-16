@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Validate every mod's config.json against the mod descriptor contract (the EM-safe-mod parity
 of FX-CFG-001). Runs as a standalone CI step in THIS repo. Three layers, all fail-closed:
 

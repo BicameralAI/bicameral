@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Component tests for incremental GitHub issue ingest (#256)."""
 
 from __future__ import annotations

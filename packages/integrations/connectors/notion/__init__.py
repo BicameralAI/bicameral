@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Notion connector package."""
 
 from .connector import NotionConnector, parse_page

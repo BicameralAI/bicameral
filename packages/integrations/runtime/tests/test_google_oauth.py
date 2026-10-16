@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the Google OAuth refresh-token resolver (FX-RUNTIME-006).
 
 Driven through an injected transport — no live network, no real secret (a mock does NOT promote to

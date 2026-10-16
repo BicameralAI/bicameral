@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """data_classification mod — flag confidentiality/PII-bearing evidence for restricted handling (ADR-0013).
 
 Advisory (ADR-0007/0008): classifies an emission's DATA sensitivity AFTER the FX-SEC-001 producer

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """EM-safe mod manifest loader (ADR-0002 / ADR-0013). Stdlib-only.
 
 Parses the **flat YAML subset** the mod manifests use — scalar ``key: value`` lines plus

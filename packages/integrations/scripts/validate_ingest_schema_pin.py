@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Ingest schema drift gate — validates vendored ExternalIngestEnvelope schema integrity (#195/#226).
 
 Checks performed (all offline, no live credentials):

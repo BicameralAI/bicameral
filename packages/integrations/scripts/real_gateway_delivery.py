@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Operator-run REAL GatewaySink delivery with a binding receipt (GH #258/#260).
 
 Runs one recorded sanitized capture through the full mandatory path

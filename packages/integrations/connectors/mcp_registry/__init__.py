@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """MCP Registry connector package."""
 
 from .connector import McpRegistryConnector, parse_server

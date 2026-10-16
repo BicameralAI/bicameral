@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Governance-integrity CI gate (stdlib only).
 
 Verifies the two committed, tamper-evident governance artifacts so a PR cannot

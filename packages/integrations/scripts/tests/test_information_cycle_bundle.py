@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Information-cycle evidence bundle: provenance, dual chains, raw-sample
 policy, evidence classes, negatives, and deterministic regeneration."""
 

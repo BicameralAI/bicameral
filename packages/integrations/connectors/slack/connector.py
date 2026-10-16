@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Slack connector: message events into neutral Observations.
 
 A Slack message — a bare message object or an Events-API ``event_callback``

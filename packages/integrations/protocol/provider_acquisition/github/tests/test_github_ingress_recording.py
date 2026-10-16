@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Recorded cross-seam ingress journeys for GitHub issue evidence (#256)."""
 
 from __future__ import annotations

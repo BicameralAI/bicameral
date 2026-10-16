@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Live-poll client for the operator-runtime boundary (ADR-0012).
 
 The *fetch* half of a poll connector's ingest path — the symmetric counterpart of

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Unit tests for the Devin connector (session parse surface + redaction)."""
 
 from __future__ import annotations

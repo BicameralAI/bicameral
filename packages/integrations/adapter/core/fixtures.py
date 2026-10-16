@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Fixture helpers placeholder for connector and adapter conformance tests."""
 
 from __future__ import annotations

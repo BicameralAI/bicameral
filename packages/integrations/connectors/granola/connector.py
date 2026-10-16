@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Granola notes connector: provider payloads into neutral, redacted Observations.
 
 Verified against public-api.granola.ai docs (2026-06-11): host ``public-api.granola.ai/v1``,

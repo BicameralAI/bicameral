@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Unit tests for the Cursor connector (PII-free daily-usage parse surface)."""
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Cross-repo ingest conformance: golden AdapterEmission -> ExternalIngestEnvelope fixtures (#195/#226).
 
 Each JSON fixture under ``fixtures/ingest_conformance/`` encodes a realistic

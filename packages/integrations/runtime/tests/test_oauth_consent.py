@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the OAuth consent loopback flow (#227 LD6).
 
 The catcher is driven with REAL localhost GETs; the token exchange goes through a stubbed

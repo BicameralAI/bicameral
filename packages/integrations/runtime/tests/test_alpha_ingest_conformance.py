@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Alpha ingest manifest conformance runs (GH #258) + negative/recovery gates."""
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the shared advisory-mod signal helpers (mod purple-team MP2)."""
 
 from __future__ import annotations

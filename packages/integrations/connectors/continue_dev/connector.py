@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Continue connector: development-data events into neutral Observations.
 
 Continue (continue.dev) writes "development data" as local JSONL — one event

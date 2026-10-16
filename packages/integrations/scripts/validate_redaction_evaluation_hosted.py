@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """CLI wrapper for hosted ADR-0020 evidence validation."""
 
 from runtime.redaction_evaluation.hosted_validation import main, validate_repository

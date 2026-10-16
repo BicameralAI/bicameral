@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Timeout isolation for the guarded redaction boundary (GH #269 round 3).
 
 The timeout must be backed by real termination: a stuck sanitizer worker is

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Notion connector: page events + page objects into neutral Observations.
 
 Two surfaces with DIFFERENT input shapes (deep-audit 2026-06-12):

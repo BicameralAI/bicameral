@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the dependency_risk reference mod (FX-MOD-002)."""
 
 from __future__ import annotations

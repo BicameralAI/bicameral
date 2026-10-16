@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """GraphQL transport seam for Linear discovery (mocked/recorded; live deferred).
 
 The **third** transport variant in the discovery surface: Linear is a single GraphQL

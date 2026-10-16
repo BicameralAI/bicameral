@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """MCP Registry connector: server entries into neutral Observations.
 
 An MCP Registry server entry (trust tier T1, read-only scoring / allowlist) maps to one

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Unit tests for the Anthropic Admin connector (usage buckets; aggregate, PII-free)."""
 
 from __future__ import annotations

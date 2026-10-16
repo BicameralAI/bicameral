@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Auth layer for the live-poll client (ADR-0012).
 
 The per-request auth strategies (`ApiKeyHeaderAuth`, `BearerAuth`, `BasicAuth`) plus

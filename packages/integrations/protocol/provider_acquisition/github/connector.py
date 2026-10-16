@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """GitHub App installation discovery connector (#180).
 
 Satisfies the merged ``DiscoveryConnector`` contract (#178) for GitHub, using

@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """Pure GitHub-REST-JSON → neutral discovery object mapping (#180).
 
 Provider-specific field knowledge lives here; the connector stays a thin

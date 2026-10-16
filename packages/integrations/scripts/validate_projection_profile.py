@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Validate every connector's projection.json against the projection-profile contract.
 
 Runs as a standalone CI step in THIS repo (NOT wired into the cross-repo-portable

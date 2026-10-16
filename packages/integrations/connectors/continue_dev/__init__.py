@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Continue connector package."""
 
 from .connector import ContinueConnector, parse_event

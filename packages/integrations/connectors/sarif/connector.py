@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """SARIF connector: static-analysis findings into neutral Observations.
 
 A SARIF 2.1.0 report (file import, trust tier T0) maps to one Observation per

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Issue a deterministic receipt when GatewaySink screens an already-clean emission."""
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Unit tests for the OpenAI Admin connector (audit events; actor identity dropped)."""
 
 from __future__ import annotations

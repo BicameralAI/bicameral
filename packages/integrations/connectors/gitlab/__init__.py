@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """GitLab connector package."""
 
 from .connector import GitLabConnector, parse_issue, parse_merge_request

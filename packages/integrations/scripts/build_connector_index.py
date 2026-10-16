@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Aggregate every connector's config.json into a single committed index for the mcp UI.
 
 Emits ``connectors/index.json`` = ``{"connectors": {<id>: <descriptor>, ...}}`` sorted by id.

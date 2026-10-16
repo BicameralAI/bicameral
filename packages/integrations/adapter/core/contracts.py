@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Connector and universal adapter interface contracts.
 
 Discovery is a fourth connector surface (peer to active/passive/webhook) that

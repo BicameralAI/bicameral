@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Live single-document GET fetch path for the operator-runtime boundary (ADR-0012).
 
 The *fetch* half for a connector whose live source is a single addressable resource fetched by

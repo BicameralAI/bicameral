@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """test_adequacy mod — advisory test-gap signals (ADR-0013).
 
 EM-safe (ADR-0007/0008): reads immutable ``AdapterEmission`` evidence and returns advisory

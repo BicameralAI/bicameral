@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Incremental GitHub issue ingest for the Bicameral alpha path.
 
 GitHub-specific acquisition terminates at provider-neutral ``Observation`` values.

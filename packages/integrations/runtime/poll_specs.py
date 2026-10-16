@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Per-connector poll specs for the live-poll client (ADR-0012).
 
 Each ``build_<connector>_spec`` wires one ACTIVE/poll connector's `PollSpec`

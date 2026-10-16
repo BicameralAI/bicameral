@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Atomic writer for the operator-local config — the write half of FX-RUNTIME-004 (#227 LD7).
 
 ``load_config`` (runtime/local_config.py) stays read-only; THIS module owns every mutation of

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the cursor advance/quarantine policy (issue #199, RFQ #42, PR #69).
 
 Covers every row in the Domain-3 cursor-advance table:

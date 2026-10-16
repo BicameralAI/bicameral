@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Shared, deterministic helpers for the advisory mods (mod purple-team remediation, MP2).
 
 - ``matched_terms`` / ``any_match`` — keyword matching that WORD-BOUNDARY-matches a pure-alphanumeric

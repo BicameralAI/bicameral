@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """notification_scope_risk mod — surface broad/unscoped broadcast-notification language (ADR-0013).
 
 Advisory (ADR-0007/0008): scans evidence text for over-broad broadcast-notification vocabulary

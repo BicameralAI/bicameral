@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """Linear GraphQL discovery connector (ADR-0017 alpha 3/3).
 
 Satisfies the merged ``DiscoveryConnector`` contract (#178) for Linear: workspace →

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Secret resolution for the operator-runtime boundary (ADR-0012).
 
 Secrets are NEVER stored in this package. The operator runtime supplies a real

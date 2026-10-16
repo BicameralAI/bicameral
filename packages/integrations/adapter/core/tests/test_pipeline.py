@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the universal adapter pipeline (normalize + validate)."""
 
 from __future__ import annotations

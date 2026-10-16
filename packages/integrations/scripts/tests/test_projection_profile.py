@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the projection profile descriptor contract (ADR-0019).
 
 Tests both the structural/semantic validator AND the golden conformance fixtures

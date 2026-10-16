@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Google OAuth authorization-code consent with a loopback catcher (#227 LD6).
 
 The one-time consent half of the durable Google credential: build the consent URL (PKCE S256 +

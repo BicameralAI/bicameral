@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Universal ingest conformance tests across every acquisition method class."""
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Provider-neutral observations produced by connectors before normalization."""
 
 from __future__ import annotations

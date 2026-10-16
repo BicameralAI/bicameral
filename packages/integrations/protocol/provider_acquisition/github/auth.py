@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """GitHub App installation auth for the discovery surface (#180; ADR-0017 §3/§6).
 
 **Installation auth ONLY.** There is no PAT / imported-token entry point by

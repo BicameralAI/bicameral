@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Anthropic Admin connector: organization usage buckets into neutral Observations.
 
 The Usage & Cost Admin API (``GET /v1/organizations/usage_report/messages``, ``x-api-key``

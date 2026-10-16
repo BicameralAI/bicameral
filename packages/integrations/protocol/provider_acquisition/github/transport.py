@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """Transport seam for GitHub discovery (mocked/recorded; live deferred to cloud#7).
 
 The connector issues logical GitHub REST requests through a ``GitHubTransport``.

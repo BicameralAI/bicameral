@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Derive the per-connector emission ``adapter_version`` from the descriptor (single source).
 
 The connector ``version`` lives in `connectors/<id>/config.json` (the FX-CFG-001 descriptor, the

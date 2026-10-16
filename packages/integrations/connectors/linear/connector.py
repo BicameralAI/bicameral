@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Linear webhook and GraphQL connector into provider-neutral Observations.
 
 Provider-specific parsing and source-aware heuristic features stay here. Every

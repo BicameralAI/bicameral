@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the connector config descriptor contract (FX-CFG-001)."""
 
 from __future__ import annotations

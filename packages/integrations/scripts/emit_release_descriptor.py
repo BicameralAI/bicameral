@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Emit and verify a commit-bound Integrations release descriptor."""
 
 from __future__ import annotations

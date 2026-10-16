@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """Pure Linear-GraphQL-node → neutral discovery object mapping (ADR-0017 alpha 3/3).
 
 Emits typed neutral objects mirroring the golden `linear-*` fixtures (#177); id

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Bot-owned external-ingest protocol compatibility negotiation."""
 
 from __future__ import annotations

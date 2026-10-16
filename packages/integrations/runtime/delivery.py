@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Delivery orchestration for the operator-runtime boundary (ADR-0012).
 
 The operator's host (an HTTP receiver / cron — NOT this library) calls these to

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Devin connector: agentic-session evidence into neutral Observations.
 
 The Devin v3 API (``GET /v3/organizations/{org}/sessions``, Bearer ``cog_`` key) wraps

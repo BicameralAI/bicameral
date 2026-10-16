@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Mod execution contract (ADR-0013) — the manifest-enforced, EM-safe runner.
 
 A mod is an **advisory post-processor** over adapter emissions (ADR-0007/0008): it reads

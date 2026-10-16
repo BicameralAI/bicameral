@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Bicameral AI — MIT License
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Bicameral AI — Apache License 2.0
 """Transport seam for Drive discovery (mocked/recorded; live deferred to factory#93).
 
 A local mirror of #180's GitHub seam (the two were not unified — a shared `params`

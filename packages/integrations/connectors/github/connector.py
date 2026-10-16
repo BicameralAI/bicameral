@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """GitHub pull-request connector: provider payloads into neutral Observations.
 
 A GitHub ``pull_request`` webhook is an envelope — ``{action, number,

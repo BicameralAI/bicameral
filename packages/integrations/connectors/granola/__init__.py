@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Granola connector package."""
 
 from .connector import GranolaConnector, parse_transcript

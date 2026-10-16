@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Shared filter vocabulary for connector-facing configuration."""
 
 from __future__ import annotations

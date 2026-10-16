@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Fail-closed behavior of the alpha ingest manifest validator (GH #258)."""
 
 from __future__ import annotations

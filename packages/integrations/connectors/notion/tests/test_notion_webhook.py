@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavioral tests for NotionConnector webhook verify + dedup (X-Notion-Signature)."""
 
 from __future__ import annotations

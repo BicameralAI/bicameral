@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Typed-failure envelope of the guarded redaction boundary (GH #260)."""
 
 from __future__ import annotations

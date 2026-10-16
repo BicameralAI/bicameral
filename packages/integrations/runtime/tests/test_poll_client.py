@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the live-poll client (the ingest *fetch* half; ADR-0012).
 
 The poll path is proven end-to-end through a RecordedTransport over captured

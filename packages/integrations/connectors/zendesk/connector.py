@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Zendesk connector: support-ticket webhook events into neutral Observations.
 
 A Zendesk event-subscription webhook (`{type, account_id, subject, time,

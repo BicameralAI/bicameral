@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Reusable cross-seam conformance tracing for alpha ingest recordings.
 
 Provider acquisition tests supply sanitized provider captures and their parsed

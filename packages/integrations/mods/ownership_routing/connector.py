@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """ownership_routing mod — advisory reviewer-lens / domain-ownership signals (ADR-0013).
 
 EM-safe (ADR-0007/0008): reads immutable ``AdapterEmission`` evidence and returns advisory

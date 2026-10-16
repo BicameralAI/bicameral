@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Neutral emission objects produced by the universal adapter and consumed by mods."""
 
 from __future__ import annotations

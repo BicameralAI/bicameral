@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the live GraphQL poll path (FX-LINEAR-003; ADR-0012).
 
 Proven end-to-end through a recording transport over crafted GraphQL responses —

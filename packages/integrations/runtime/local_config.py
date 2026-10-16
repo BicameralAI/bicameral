@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Operator-local config + secret resolution for the headless runner (ADR-0016).
 
 Lets an operator drive connectors + mods WITHOUT the mcp UI: a gitignored

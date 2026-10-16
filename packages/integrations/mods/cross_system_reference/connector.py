@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """cross_system_reference mod — surface cross-system linkage in evidence (ADR-0013).
 
 Advisory (ADR-0007/0008): scans an emission's evidence text for markers of an external system

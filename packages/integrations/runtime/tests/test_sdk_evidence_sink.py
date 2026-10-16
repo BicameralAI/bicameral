@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for SdkEvidenceSink — to_sdk_evidence wired into the emit boundary (#212-A)."""
 
 from __future__ import annotations

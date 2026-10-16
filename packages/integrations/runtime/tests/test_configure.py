@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: MIT
+﻿# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the config-on-rails walk (#227; FX-RUNTIME-007).
 
 Scripted IO seams drive the full Linear + Google Drive walks against recorded transports —

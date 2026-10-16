@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the redaction-and-pass primitive (adapter.core.redaction)."""
 
 from __future__ import annotations

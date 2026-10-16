@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Canonical cross-repository transformation-trace projection for ingest.
 
 The universal ingest path already emits concrete phase records. This module

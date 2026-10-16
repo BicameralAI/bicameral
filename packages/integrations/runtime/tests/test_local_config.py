@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the operator-local config + resolver (FX-RUNTIME-004)."""
 
 from __future__ import annotations

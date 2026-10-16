@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the live single-document GET fetch path (FX-GDRIVE-002; ADR-0012).
 
 Proven through a recording transport over a crafted Google Docs ``documents.get`` response —

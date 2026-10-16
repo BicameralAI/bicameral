@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Tests for generated data-bearing lifecycle Markdown pages."""
 
 from __future__ import annotations

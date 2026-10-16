@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the machine-checkable ingest lifecycle phase contract."""
 
 from __future__ import annotations

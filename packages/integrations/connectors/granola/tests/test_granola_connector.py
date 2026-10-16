@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the Granola connector and end-to-end normalization.
 
 Verified shape (public-api.granola.ai, 2026-06-11): note `id` (not_ prefix), `title`, `owner`

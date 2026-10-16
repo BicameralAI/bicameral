@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Google OAuth refresh-token resolver (FX-RUNTIME-006) — the durable stdlib Google auth path.
 
 Mints a fresh Google access token from a refresh token on each ``resolve(target_key)``, caching until

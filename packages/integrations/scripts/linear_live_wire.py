@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Operator-run Linear GraphQL live-wire verification (GH #258, D7).
 
 connectors/linear/auth.md marks the exact Issue field set, ``orderBy:

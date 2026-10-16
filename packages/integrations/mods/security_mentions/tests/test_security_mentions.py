@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the security_mentions mod (FX-MOD-004)."""
 
 from __future__ import annotations

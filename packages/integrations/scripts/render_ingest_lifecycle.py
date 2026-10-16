@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Render a recorded ingest phase trace into a Markdown lifecycle page."""
 
 from __future__ import annotations

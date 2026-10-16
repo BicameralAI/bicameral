@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Slack connector package."""
 
 from .connector import SlackConnector, parse_message

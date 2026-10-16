@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Anthropic Admin connector package."""
 
 from .connector import AnthropicAdminConnector, parse_usage

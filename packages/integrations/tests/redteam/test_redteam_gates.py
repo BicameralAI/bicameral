@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Red Team CI gates: regression barriers for the purple-team go-live attack classes (2026-06-11).
 
 Each test encodes a confirmed finding's fix as a permanent, behavioral assertion (invoke the unit,

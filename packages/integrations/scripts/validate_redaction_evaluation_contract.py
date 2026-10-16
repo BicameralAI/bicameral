@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Validate ADR-0020 redaction evaluation corpus and annotation integrity.
 
 The gate is candidate-neutral and offline. It validates the accepted JSON Schemas,

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Secret and authority-boundary guard tests for provider acquisition fixtures.
 
 Proves that golden fixtures:

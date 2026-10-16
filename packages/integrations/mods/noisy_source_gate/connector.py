@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """noisy_source_gate mod — suggest a manual gate for high-noise evidence sources (ADR-0013).
 
 Advisory (ADR-0007/0008): for evidence from high-volume/low-signal sources (chat, meeting transcripts)

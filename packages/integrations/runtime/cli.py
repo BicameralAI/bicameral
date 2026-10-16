@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Headless operator runner: ``python -m runtime.cli list|run|run-mods`` (ADR-0016 / FX-RUNTIME-004).
 
 Drives connectors + mods from the operator-local config WITHOUT the mcp UI. Default sink is a local

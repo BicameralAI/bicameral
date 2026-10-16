@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """ai_authorship_review mod — route low-confidence AI-authored evidence to human/QA review.
 
 Advisory (ADR-0007/0008): when evidence comes from an AI coding tool (aider/cursor/copilot/

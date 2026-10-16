@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Cursor connector: team daily-usage rows into neutral, PII-free Observations.
 
 The Cursor Admin API (``POST /teams/daily-usage-data``) returns per-user-day rows. EVERY

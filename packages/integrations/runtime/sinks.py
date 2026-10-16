@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Emission sinks for the operator-runtime boundary (ADR-0012).
 
 A connector's normalized ``AdapterEmission`` list is handed to an

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """License-header check (stdlib only).
 
 Reports Python source files missing an SPDX license identifier. Advisory this

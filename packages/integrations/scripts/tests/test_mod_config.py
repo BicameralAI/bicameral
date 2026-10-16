@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the mod descriptor contract (the EM-safe-mod parity of FX-CFG-001)."""
 
 from __future__ import annotations

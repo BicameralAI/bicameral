@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the noisy_source_gate mod (FX-MOD-003)."""
 
 from __future__ import annotations

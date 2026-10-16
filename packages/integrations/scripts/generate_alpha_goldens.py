@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Regenerate golden checkpoint artifacts for alpha manifest entries (GH #258).
 
 Uses the SAME construction path as the conformance harness

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """dependency_risk mod — advisory dependency-risk signals over adapter emissions (ADR-0013).
 
 The reference EM-safe mod (ADR-0007/0008): reads immutable ``AdapterEmission`` evidence and returns

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the headless runner CLI (FX-RUNTIME-004; ADR-0016).
 
 All driven through a RecordedTransport — no live network, no real secret (a mock does NOT promote

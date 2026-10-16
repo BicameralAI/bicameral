@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Jira Cloud connector: issue webhook events into neutral Observations.
 
 A Jira Cloud issue webhook (`jira:issue_created` / `_updated` / `_deleted`) maps

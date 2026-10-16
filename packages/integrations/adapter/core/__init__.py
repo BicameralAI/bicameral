@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Shared universal adapter contracts and data objects."""
 
 from .capabilities import SourceCapabilities, SourceMode

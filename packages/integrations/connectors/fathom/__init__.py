@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Fathom connector package."""
 
 from .connector import FathomConnector, parse_meeting

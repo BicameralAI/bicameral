@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """GitHub PR contributor reputation check.
 
 This is a conservative pre-review gate for unknown PR authors. It does not decide

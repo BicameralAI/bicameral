@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Behavior tests for the cross_system_reference mod (FX-MOD)."""
 
 from __future__ import annotations

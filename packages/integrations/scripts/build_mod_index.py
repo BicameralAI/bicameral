@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Aggregate every mod's config.json into a single committed index for the mcp UI.
 
 The EM-safe-mod parity of ``build_connector_index.py``. Emits ``mods/index.json`` =

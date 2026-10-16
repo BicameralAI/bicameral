@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 """Validate ADR-0020 adversarial review and owner-decision artifacts."""
 
 from __future__ import annotations
