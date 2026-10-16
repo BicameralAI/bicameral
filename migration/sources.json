@@ -52,7 +52,8 @@
       "adjustments": [
         "LICENSE replaced with the Apache-2.0 text so the sdist keeps a license file",
         "pyproject license and classifier set to Apache-2.0",
-        "README license section points at root LICENSE"
+        "README license section points at root LICENSE",
+        "requirements-ci.lock: mcp 1.28.1 -> 1.30.0 (CVE-2026-59951), regenerated with the recorded pip-compile command; no other pins changed; published range >=1.28.1,<2.0.0 unchanged"
       ]
     },
     {
