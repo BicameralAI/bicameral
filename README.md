@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://github.com/BicameralAI/bicameral/actions/workflows/governance.yml"><img src="https://github.com/BicameralAI/bicameral/actions/workflows/governance.yml/badge.svg?branch=main" alt="governance check"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0891b2" alt="License: Apache-2.0"></a>
-  <a href="#current-status"><img src="https://img.shields.io/badge/status-private%20staging-71717a" alt="Status: private staging"></a>
+  <a href="#current-status"><img src="https://img.shields.io/badge/status-OSS%20transition-71717a" alt="Status: open-source transition"></a>
   <a href="docs/architecture/INDEX.md"><img src="https://img.shields.io/badge/architecture-ARCH%20records-0891b2" alt="Architecture: ARCH records"></a>
   <br>
   <a href="SECURITY.md"><img src="https://img.shields.io/badge/security-policy-0891b2" alt="Security policy"></a>
@@ -32,7 +32,7 @@
 </p>
 
 > [!IMPORTANT]
-> **This repository is private consolidation staging.** The Bicameral components have been consolidated here from their individual repositories, each with its layout unchanged. Releases and deployments still run from the original repositories until they are moved. Progress is tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
+> **Open-source consolidation in progress.** This repository is being prepared as the public source home for Bicameral. The Bicameral components have been consolidated here from their individual repositories, each with its layout unchanged. A verified unified release is still in progress: releases and deployments still run from the original repositories, and an installable consolidated product is not yet available here. Progress is tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
 
 ## Why Bicameral
 
@@ -159,10 +159,15 @@ Bicameral is not accepting public contributions yet. The rules that will apply a
 
 Whether outside contributions will use a DCO sign-off or a CLA (decision J-09) is still pending.
 
+
+## Organizational contributors
+
+**WhatBytes** contributes engineering, testing, and maintenance support to Bicameral through Aritro Roy and Mayur Sonar. See [Maintainers and continuing contributors](MAINTAINERS.md#organizational-contributors) for recognition and governance boundaries. Organizational participation does not confer repository or product authority.
+
 ## License and attribution
 
 Bicameral is licensed under the [Apache License 2.0](LICENSE), the license authorized for the entire consolidated product.
 
-Components are imported as curated source snapshots with their provenance and any third-party notices preserved, not by merging private histories. Navigator, Atlas, FinOps, TARA, related Qortara/Cortera development-support products and MythologIQ's Event Radar are separate products. They are not part of Bicameral and are not licensed by this repository.
+Components are imported as curated source snapshots with their provenance and any third-party notices preserved, without importing unrelated source histories. Navigator, Atlas, FinOps, TARA, related Qortara/Cortera development-support products and MythologIQ's Event Radar are separate products. They are not part of Bicameral and are not licensed by this repository.
 
 The Bicameral name and logo are brand assets of Bicameral AI; see [`docs/assets/branding/`](docs/assets/branding/) for their source and usage rules.

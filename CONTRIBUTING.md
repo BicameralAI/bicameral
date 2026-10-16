@@ -2,7 +2,7 @@
 
 ## Current status
 
-This repository is **private staging**. Contributions currently come from the maintainers listed in [MAINTAINERS.md](MAINTAINERS.md) and people they invite. **Public pull requests are not being solicited yet.** This guide describes the rules that already apply, so they are in place before outside contributions open.
+Bicameral is preparing its public open-source repository and contribution process. During the transition, changes are coordinated by the [maintainers](MAINTAINERS.md) and invited contributors. **Unsolicited external pull requests are not yet being accepted.** The rules below also apply to current contributions.
 
 Component code is not imported yet. Do not copy source from other Bicameral repositories into this tree except through an authorized import tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
 
@@ -78,6 +78,11 @@ Whether contributions require a **Developer Certificate of Origin** sign-off or 
 - The `governance` check must pass.
 - High-risk changes (see [GOVERNANCE.md](GOVERNANCE.md)) also need decision owner approval.
 - Prefer small pull requests with one purpose.
+
+
+## Organizational contributions
+
+Companies and independent developers contribute under the same repository review, security, provenance, and licensing requirements. Organizational acknowledgment, including [WhatBytes](MAINTAINERS.md#organizational-contributors), does not grant GitHub permissions, code-owner status, independent merge authority, or exemptions from the contribution process. Formal maintainer appointments and access grants are separate decisions governed by [GOVERNANCE.md](GOVERNANCE.md).
 
 ## Conduct
 

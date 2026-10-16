@@ -2,19 +2,19 @@
 
 ## Status
 
-This repository is private staging. It contains governance scaffolding and documentation only; **no Bicameral product component has been imported yet**, and no release is published from it. Vulnerabilities in the product today belong to the component repositories where that code currently lives.
+Bicameral is consolidating its components into this repository. No unified release has been published from this repository yet. Existing component security procedures remain applicable during migration.
 
 ## Reporting a vulnerability
 
 - **Do not open a public issue, discussion or pull request for a suspected vulnerability.**
-- While the repository is private, report privately to a maintainer listed in [MAINTAINERS.md](MAINTAINERS.md).
+- Until GitHub private vulnerability reporting is enabled, contact a [maintainer](MAINTAINERS.md) privately. Do not include exploit details in public threads.
 - Include what is affected, how to reproduce it, and the impact you expect. Do not include live credentials or customer data; describe them instead.
 
 This document does not yet name a dedicated security mailbox, response-time commitment or disclosure timeline. Those will be added here when they are established and staffed, not before.
 
-## Before public launch
+## Before accepting public security reports
 
-These are required before the repository is made public:
+The following security-reporting and publication checks must be completed before the public launch:
 
 - [ ] Enable GitHub **private vulnerability reporting** for this repository and document it here as the primary channel.
 - [ ] Publish a verified security contact and the disclosure process.
