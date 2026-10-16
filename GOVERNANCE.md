@@ -9,7 +9,7 @@ The authoritative program record is [Factory #969](https://github.com/BicameralA
 | Role | Holder | Authority |
 | --- | --- | --- |
 | **Decision owner** | Jin Kuan ([@jinhongkuan](https://github.com/jinhongkuan)) | Final say on product scope, licensing, governance policy, architecture acceptance, publication and releases. |
-| **Lead Engineer & Technical Maintainer (proposed designation)** | Kevin Knapp ([@Knapp-Kevin](https://github.com/Knapp-Kevin)) | Leads engineering execution, cross-component technical coherence, architecture stewardship within accepted decisions, quality/CI/security engineering, migration verification, and maintainer coordination. Formal title subject to decision-owner approval in this PR. |
+| **Lead Engineer & Technical Maintainer** | Kevin Knapp ([@Knapp-Kevin](https://github.com/Knapp-Kevin)) | Leads engineering execution, cross-component technical coherence, architecture stewardship within accepted decisions, quality/CI/security engineering, migration verification, and maintainer coordination. |
 | **Component Maintainer (appointment required)** | Named assignee per component | Owns module correctness, contract compatibility, tests, dependencies, documentation, triage, and regression repair within approved scope. |
 | **Security / Release Approver (designation required)** | Designated independent reviewer(s) | Reviews sensitive privilege/credential changes, security boundaries and release provenance; no release authority is inferred from a title alone. |
 | **Contributor** | Any eligible contributor | Submits traceable changes, test/provenance evidence, and remediation; has no automatic merge or publication authority. |
