@@ -17,4 +17,8 @@ The following Bicameral crates contain code adapted from ZeroClaw:
   bicameral-audit    — adapted from zeroclaw-runtime/security/audit (receipts)
   bicameral-mods     — adapted from zeroclaw-plugins (manifest, runner)
 
-See runtime/UPSTREAM-ZEROCLAW.md for detailed extraction notes.
+See apps/bot/runtime/UPSTREAM-ZEROCLAW.md for detailed extraction notes.
+
+The prebuilt dashboard vendored in Bicameral Cloud bundles third-party
+software (svelte, esm-env, vite). Its notices and license texts are in
+services/cloud/src/bicameral_cloud/static/DASHBOARD_THIRD_PARTY_NOTICES.md.

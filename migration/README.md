@@ -123,7 +123,7 @@ The repository is private. The items below must be resolved or accepted before a
 Third-party material:
 
 - **Bot `NOTICE`** is preserved at the root.
-- **Cloud's vendored dashboard** (`services/cloud/src/bicameral_cloud/static/dashboard/`) is a minified build of Bot's dashboard and its npm dependencies, with no third-party license notices in the bundle. Distributing it needs attribution generated from `apps/bot/dashboard/package-lock.json`.
+- **Cloud's vendored dashboard** (`services/cloud/src/bicameral_cloud/static/dashboard/`) is a minified build of Bot `4deb004`'s dashboard. Its third-party notices are in [`DASHBOARD_THIRD_PARTY_NOTICES.md`](../services/cloud/src/bicameral_cloud/static/DASHBOARD_THIRD_PARTY_NOTICES.md), next to the bundle and inside the Cloud image. They were derived from a rebuild at `4deb004` that is byte-identical to the vendored files, not from the current lockfile; `tests/test_dashboard_third_party_notices.py` fails if the bundle is re-vendored without them.
 - **Other third-party text** keeps its own license, for example the Contributor Covenant text in the Integrations fixtures.
 
 ### Publication-sensitive retained material
