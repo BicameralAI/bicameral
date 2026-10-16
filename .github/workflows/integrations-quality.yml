@@ -1,0 +1,64 @@
+# Mirrors packages/integrations/.github/workflows/quality.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in packages/integrations/ so the component's commands are unchanged.
+name: 'integrations: Quality'
+permissions:
+  contents: read
+jobs:
+  workflow-lint:
+    name: workflow YAML validity (blocking)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.13'
+    - run: python -m pip install --upgrade pip "pyyaml==6.0.2"
+    - name: Parse every workflow as valid YAML
+      run: |
+        python - <<'PY'
+        import sys, pathlib, yaml
+        bad = []
+        for p in sorted(pathlib.Path(".github/workflows").glob("*.yml")):
+            try:
+                yaml.safe_load(p.read_text(encoding="utf-8"))
+            except yaml.YAMLError as exc:
+                bad.append(f"{p}: {exc}")
+        if bad:
+            print("workflow-lint: FAIL"); [print(" -", b) for b in bad]; sys.exit(1)
+        print("workflow-lint: all workflow YAML parses")
+        PY
+  codespell:
+    name: spelling (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.13'
+    - run: python -m pip install --upgrade pip codespell==2.4.1
+    - run: codespell adapter connectors runtime scripts docs --skip='*.json,*.lock' || true
+  license-headers:
+    name: SPDX headers (blocking)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.13'
+    - name: "License-header scan (blocking since 2026-07-08 \u2014 B2 backfill complete)"
+      run: python scripts/check_license_headers.py adapter connectors runtime scripts mods tests protocol
+'on':
+  pull_request:
+    paths:
+    - packages/integrations/**
+    - .github/workflows/integrations-quality.yml
+  push:
+    branches:
+    - main
+    paths:
+    - packages/integrations/**
+    - .github/workflows/integrations-quality.yml
+defaults:
+  run:
+    working-directory: packages/integrations

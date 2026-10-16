@@ -28,7 +28,14 @@ Import order follows the dependencies: Bot, Integrations, MCP, Cloud, Installer,
 
 ## Mechanical adjustments
 
-Each component's `.github/` directory stays inside the component, because its own tests read it. GitHub only runs workflows from the repository root, so the root `.github/workflows/` carries copies of the components' core test workflows with `working-directory` and path filters pointing at the component. Release, deploy, publish, cross-repository dispatch, Factory attestation and Atlas workflows were not activated at the root: they deploy or publish, which needs separate authorization, or they depend on excluded Factory artifacts.
+Each component's `.github/` directory stays inside the component, because its own tests read it. GitHub only runs workflows from the repository root, so the root `.github/workflows/` carries mirrors of the components' workflows that verify the product with component-local commands: build, test, contract, journey, platform smoke, boundary guard, secret scan, quality and release-descriptor workflows. Each mirror runs its steps in the component directory with the component's path filters, so the commands are unchanged. `root_workflows` in [`sources.json`](sources.json) lists every component workflow as mirrored, inlined or not activated, with the reason:
+
+- **Not activated, needs authorization or a decision:** release, publish and deploy workflows; cross-repository dispatch and vendoring; the cross-component release journey.
+- **Not activated, excluded:** Factory attestation and Atlas workflows; MCP `repo-governance.yml`, which reads excluded `.bicameral/` state.
+- **Not activated, deferred to publication readiness (#971):** third-party security and supply-chain scanners, which #969 recommends deduplicating into one suite; source-repository process automation.
+- **Not activated, fails at the source:** Integrations `redaction-evaluation-stacked.yml`.
+
+Mirroring the boundary guards exposed one path assumption: `scripts/validate_governance_boundary.py` in Bot, MCP, Integrations and Cloud compared `git diff` paths, which Git reports from the repository root, against component-relative roots, so inside the monorepo every change passed. `git diff --relative` restores the source behavior (a staged `.qor/` file passed before the change and fails after it, in all four).
 
 Individual source edits are listed in [`sources.json`](sources.json) under `adjustments`.
 

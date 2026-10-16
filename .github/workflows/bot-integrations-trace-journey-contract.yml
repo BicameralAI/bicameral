@@ -1,0 +1,86 @@
+# Mirrors apps/bot/.github/workflows/integrations-trace-journey-contract.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in apps/bot/ so the component's commands are unchanged.
+name: 'bot: Integrations Trace Journey Contract'
+permissions:
+  contents: read
+jobs:
+  trace-journey:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+    - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0
+      with:
+        workspaces: apps/bot -> target
+    - name: Create diagnostics directory
+      run: mkdir -p test-artifacts/integrations-trace
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+    - name: Compile receiver and journey crates
+      run: |
+        set -o pipefail
+        cargo check -p bicameral-api -p bicameral-gateway -p bicameral-runtime --locked \
+          2>&1 | tee test-artifacts/integrations-trace/check.log
+    - name: Run trace validation unit contract
+      run: |
+        set -o pipefail
+        cargo test -p bicameral-gateway integration_trace --lib --locked -- --nocapture \
+          2>&1 | tee test-artifacts/integrations-trace/unit.log
+    - name: Run trace attach and download journey
+      run: |
+        set -o pipefail
+        cargo test -p bicameral-gateway --test integration_trace_attachment \
+          finalized_trace_attaches_idempotently_and_downloads_with_no_store \
+          --locked -- --nocapture \
+          2>&1 | tee test-artifacts/integrations-trace/attach-download.log
+    - name: Run trace conflict journey
+      run: |
+        set -o pipefail
+        cargo test -p bicameral-gateway --test integration_trace_attachment \
+          conflicting_finalized_trace_is_rejected_without_rewrite \
+          --locked -- --nocapture \
+          2>&1 | tee test-artifacts/integrations-trace/conflict.log
+    - name: Run malformed and sensitive trace journey
+      run: |
+        set -o pipefail
+        cargo test -p bicameral-gateway --test integration_trace_attachment \
+          malformed_and_sensitive_traces_fail_before_storage \
+          --locked -- --nocapture \
+          2>&1 | tee test-artifacts/integrations-trace/malformed-sensitive.log
+    - name: Run unknown canonical journey rejection
+      run: |
+        set -o pipefail
+        cargo test -p bicameral-gateway --test integration_trace_attachment \
+          trace_cannot_attach_to_unknown_canonical_journey \
+          --locked -- --nocapture \
+          2>&1 | tee test-artifacts/integrations-trace/unknown-journey.log
+    - name: Re-run inherited journey review contract
+      run: |
+        set -o pipefail
+        cargo test -p bicameral-gateway --test journey_review_read_model --locked -- --nocapture \
+          2>&1 | tee test-artifacts/integrations-trace/journey-review.log
+    - name: Lint affected production libraries
+      run: |
+        set -o pipefail
+        cargo clippy -p bicameral-api -p bicameral-gateway -p bicameral-runtime --lib --locked -- -D warnings \
+          2>&1 | tee test-artifacts/integrations-trace/clippy.log
+    - name: Retain diagnostics
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: integrations-trace-journey-diagnostics
+        path: |-
+          apps/bot/test-artifacts/integrations-trace
+          apps/bot/crates/bicameral-api/src/transformation_trace.rs
+          apps/bot/crates/bicameral-gateway/src/integration_trace.rs
+          apps/bot/crates/bicameral-gateway/tests/integration_trace_attachment.rs
+        if-no-files-found: ignore
+        retention-days: 14
+'on':
+  workflow_dispatch: null
+defaults:
+  run:
+    working-directory: apps/bot

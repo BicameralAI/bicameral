@@ -1,0 +1,30 @@
+# Mirrors packages/integrations/.github/workflows/governance-boundary.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in packages/integrations/ so the component's commands are unchanged.
+name: 'integrations: Governance Boundary'
+jobs:
+  governance-boundary:
+    name: governance-boundary
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      with:
+        fetch-depth: 0
+    - name: Validate governance boundary
+      run: python3 scripts/validate_governance_boundary.py
+'on':
+  pull_request:
+    paths:
+    - packages/integrations/**
+    - .github/workflows/integrations-governance-boundary.yml
+  push:
+    branches:
+    - main
+    paths:
+    - packages/integrations/**
+    - .github/workflows/integrations-governance-boundary.yml
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: packages/integrations

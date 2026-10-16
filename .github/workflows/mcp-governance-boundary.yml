@@ -1,0 +1,30 @@
+# Mirrors packages/mcp/.github/workflows/governance-boundary.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in packages/mcp/ so the component's commands are unchanged.
+name: 'mcp: Governance Boundary'
+permissions:
+  contents: read
+jobs:
+  governance-boundary:
+    name: governance-boundary
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      with:
+        fetch-depth: 0
+    - name: Validate governance boundary
+      run: python3 scripts/validate_governance_boundary.py
+'on':
+  pull_request:
+    paths:
+    - packages/mcp/**
+    - .github/workflows/mcp-governance-boundary.yml
+  push:
+    branches:
+    - main
+    paths:
+    - packages/mcp/**
+    - .github/workflows/mcp-governance-boundary.yml
+defaults:
+  run:
+    working-directory: packages/mcp
