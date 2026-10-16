@@ -1,6 +1,6 @@
 # Governance
 
-This document describes how decisions are made for Bicameral while the repository is in **private consolidation staging**. It is an interim model. It will be revised by a recorded decision before public contributions are accepted (see [Pending decisions](#pending-decisions)).
+This document describes Bicameral's interim governance during its open-source consolidation. It will be updated through recorded decisions before general community contributions are accepted (see [Pending decisions](#pending-decisions)).
 
 The authoritative program record is [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
 
