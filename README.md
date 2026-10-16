@@ -32,7 +32,7 @@
 </p>
 
 > [!IMPORTANT]
-> **Open-source consolidation in progress.** This repository is being prepared as the public source home for Bicameral. The Bicameral components have been consolidated here from their individual repositories, each with its layout unchanged. A verified unified release is still in progress: releases and deployments still run from the original repositories, and an installable consolidated product is not yet available here. Progress is tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
+> **Source consolidation complete; no unified release yet.** The Bicameral components have been consolidated here from their individual repositories, each with its layout unchanged. Releases and deployments are not produced from this repository, and an installable consolidated product is not yet available here. What has and has not been verified is listed under [Current status](#current-status).
 
 ## Why Bicameral
 
@@ -78,7 +78,7 @@ flowchart LR
 | **Cloud** (optional) | Hosted advisory services, with explicit consent and tenant separation, plus a self-host path. | Advisory only |
 | **Installer** | Installation and distribution. | None |
 
-This is the intended architecture of the consolidated repository. Each boundary will be recorded as an architecture record and enforced by tests as the components arrive.
+This is the architecture of the consolidated repository. Each component enforces its boundaries with its own tests; the boundaries are not yet recorded as repository-level architecture records.
 
 ## Current status
 
@@ -89,6 +89,7 @@ This is the intended architecture of the consolidated repository. Each boundary 
 | License | **Apache-2.0** authorized for the whole product (decision J-03) |
 | Product components (runtime, dashboard, MCP, integrations, cloud, installer) | **Imported** as source snapshots with their existing build and test procedures; see the [migration inventory](migration/README.md) |
 | Releases, deployments, public contributions | **Not from this repository yet.** Release and deploy workflows remain inactive here until moved with authorization |
+| Verification | Every component's own build and test suite passes here. **Not yet verified:** the full real-process Cloud + runtime + MCP Create/Join journey (blocked by a test-harness defect, [#21](https://github.com/BicameralAI/bicameral/issues/21)); native macOS builds; the Windows PowerShell 5.1 installer lifecycle; operator-service lanes. Details: [verification ledger](migration/README.md#verification-ledger) |
 
 ## Getting started
 
@@ -98,14 +99,18 @@ Each component builds and tests as it did in its own repository, from its own di
 git clone https://github.com/BicameralAI/bicameral.git
 cd bicameral
 
-(cd apps/bot && cargo test --workspace --locked)              # local runtime (Rust)
-(cd apps/bot/dashboard && npm ci && npm test)                 # dashboard
-(cd packages/mcp && pip install -r requirements-ci.lock && pip install --no-deps . && pytest tests/)
-(cd services/cloud && pip install -e '.[dev]' && pytest)      # cloud
-python3 tools/governance/check.py                             # repository governance checks
+(cd apps/bot && cargo test --workspace --locked)                    # local runtime (Rust)
+(cd apps/bot/dashboard && npm ci && npm run check && npm test)      # dashboard (Node 22)
+(cd packages/mcp && pip install --require-hashes -r requirements-ci.lock \
+   && pip install --no-build-isolation --no-deps . && pytest tests/ -q)  # MCP (Python 3.11)
+(cd packages/integrations && pip install ruff==0.15.5 mypy pytest jsonschema==4.25.1 \
+   && pytest adapter/core/tests connectors runtime mods scripts/tests tests/redteam tests/redaction_evaluation -q)  # integrations (Python 3.13)
+(cd services/cloud && pip install -e '.[dev]' && pytest -m "not journey")  # cloud (Python 3.11+)
+(cd installer && ./tests/test-unix-reconcile.sh)                    # installer
+python3 tools/governance/check.py                                   # repository governance checks
 ```
 
-Each component's README has its full development guide, and its exact CI commands are listed in the [migration inventory](migration/README.md). End-user installation uses the published installer in [`installer/`](installer/).
+None of these needs Bicameral credentials or private infrastructure. Each component's README has its development guide, and the exact CI commands are the `run:` steps in [`.github/workflows/`](.github/workflows/) (named `<component>-*.yml`). [`installer/`](installer/) holds the installer source; published installs are not built from this repository yet.
 
 ## Repository structure
 

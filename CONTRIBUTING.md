@@ -4,7 +4,7 @@
 
 Bicameral is preparing its public open-source repository and contribution process. During the transition, changes are coordinated by the [maintainers](MAINTAINERS.md) and invited contributors. **Unsolicited external pull requests are not yet being accepted.** The rules below also apply to current contributions.
 
-The Bot, MCP, Integrations, Cloud and Installer components are imported as source snapshots, each in its own directory with its own build and tests; [`migration/README.md`](migration/README.md) records their sources and every migration change. Do not copy source from other Bicameral repositories into this tree except through an authorized import tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969) and recorded in `migration/sources.json`.
+The Bot, MCP, Integrations, Cloud and Installer components are imported as source snapshots, each in its own directory with its own build and tests; [`migration/README.md`](migration/README.md) records their sources and every migration change. Do not copy source from other Bicameral repositories into this tree except through an authorized import recorded in `migration/sources.json`.
 
 ## Local checks
 
@@ -14,6 +14,8 @@ You need Python 3.10 or newer and Git. Nothing is installed.
 python3 tools/governance/check.py           # what CI runs; never modifies files
 python3 tools/governance/check.py --write   # regenerate generated files, then validate
 ```
+
+Component checks are the commands under [Getting started](README.md#getting-started), and exactly the `run:` steps of the root workflow for that component in [`.github/workflows/`](.github/workflows/) (`bot-*.yml`, `mcp-*.yml`, `integrations-*.yml`, `cloud-*.yml`, `installer-*.yml`). None needs Bicameral credentials.
 
 The check runs, in order:
 
