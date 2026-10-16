@@ -130,3 +130,74 @@ Third-party material:
 - **Links to private repositories** (Factory and the component repositories) appear throughout component documentation and contract metadata. They do not resolve publicly.
 - **MCP's `.bicameral/customer-artifact-boundary.json` and `.bicameral/validator-provenance/`** are packaging policy: which paths stay out of the customer wheel. They are not confidential.
 
+## Release composition
+
+Releases keep composing pinned component releases, as the components' own release specifications define: Cloud consumes "a manifest-selected Bot SPA bundle by immutable digest" (`services/cloud/docs/specs/release-manifest-cloud-adoption.md`), MCP is validated "against exact pinned Bot interface" (`packages/mcp/docs/specs/release-manifest-mcp-adoption.md`), and Integrations revalidates "with pinned Bot and MCP artifacts" (`packages/integrations/docs/specs/release-manifest-integrations-adoption.md`). The accepted repository records (ARCH-0001, ARCH-0002) do not address release composition, so building every component from the same commit would be an architecture change that no record authorizes.
+
+Under this composition the pinned producer revisions are historical revisions of the imported components, available only in the source repositories' history (no history was imported):
+
+| Pin | Producer revision | Snapshot | Behind the snapshot |
+| --- | --- | --- | --- |
+| Cloud's vendored dashboard and `release-inputs/bot-release-descriptor.json` | Bot `4deb004` | Bot `f5bde8e` | 60 commits |
+| Cloud's terminal release journey | MCP `bb47e97` | MCP `9657ae2` | 203 commits |
+| Cloud's vendored onboarding contract | Bot `ff0b015` | Bot `f5bde8e` | 1,419 commits |
+| Integrations' external-ingest schema pin | Bot `8764ac3` | Bot `f5bde8e` | 960 commits (bytes identical to the snapshot) |
+
+The vendored artifacts are in the tree and verify against their pins (`Pinned composition consistency` below). Rebuilding them from source needs those historical revisions; the snapshot builds a different dashboard bundle (`c5fdce1a…` instead of `05d2608e…`), with the same hosted-bridge interface and different integration-ingress and MCP-ToolRequest interface fingerprints.
+
+## Verification ledger
+
+Commands run from the repository root unless a directory is given. Results are from 2026-10-16 on `main` at `09aecd3` with PR #11 (`4bd6fcc`); CI results are from GitHub Actions on those heads.
+
+### Passed: source equivalence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Snapshot fidelity | Byte comparison of every imported file with its source SHA (PR #3); adjustments in `sources.json` | Every difference recorded |
+| Factory allowlist fidelity | For each `allowlist` entry: `git -C <bicameral-factory> show <source_sha or sha>:<path> \| sha256sum` | 22/22 identical |
+| Governance | `python3 tools/governance/check.py` | 131 tests pass |
+| Bot Rust | `(cd apps/bot && cargo test --workspace --locked)` | 2,869 passed, 0 failed |
+| Bot contract scripts | Python steps of `.github/workflows/bot-rust.yml` | 9/9 pass |
+| Bot hosted-bridge contract | `python3 tools/factory/scripts/semantic_contract_conformance.py --registry tools/factory/registries/semantic-contract-pairs.json --contract-id hosted-bridge.capability.v1 --repository BicameralAI/bicameral-bot --repo-root apps/bot` | OK |
+| Bot dashboard | `(cd apps/bot/dashboard && npm ci && npm run check && npm test && npm run build)` | 509 tests pass |
+| Bot release descriptor | Steps of `.github/workflows/bot-release-provenance.yml` | Descriptor verified with `--verify-hosted-bundle` |
+| Bot release rehearsal | Steps of `.github/workflows/bot-v0112-release-rehearsal.yml` | `REHEARSAL_READY`, `authorizes_publish: false` |
+| Bot UI evidence | `.github/workflows/bot-ui-evidence.yml` | CI pass; locally 11 passed, 1 skipped with substitute Chromium 1194 |
+| Bot Windows release smoke | `.github/workflows/bot-windows-release-smoke.yml` | CI pass on `windows-latest` |
+| MCP | Steps of `mcp-deterministic-tests.yml` and `mcp-lint-and-typecheck.yml` | 894 passed, 4 skipped; ruff, format, mypy clean |
+| Integrations | Steps of `integrations-ci.yml`, `integrations-red-team.yml` | 1,091 passed; all validators and `migration_provenance.py validate` OK |
+| Cloud | `(cd services/cloud && pytest -m "not journey")` plus ruff, mypy, secret scan, distribution boundary, release descriptor | 661 passed, 1 skipped |
+| Cloud hosted dashboard journeys | `(cd services/cloud && pytest -m journey tests/journey/test_vendored_dashboard_smoke.py tests/journey/test_apc1_*.py)` | CI pass; locally 17 passed with substitute Chromium 1194 |
+| Installer (Unix) | `(cd installer && ./tests/test-unix-reconcile.sh)` | Pass |
+| Boundary guards | `python3 scripts/validate_governance_boundary.py [--audit]` in each of the four components | Pass; a staged `.qor/` file is rejected |
+| Factory tools | `(cd tools/factory && python3 -m unittest scripts.test_semantic_contract_conformance scripts.test_runtime_architecture_contract scripts.test_release_manifest scripts.test_release_unit scripts.test_release_rehearsal)` | 40 pass |
+| Cross-component contracts | Hosted bridge (checker, both sides); external-ingest schema and contract (byte comparison); provider item envelope (byte comparison) | Agree |
+| Pinned composition consistency | `(cd services/cloud && python - )` loading `scripts/verify_bot_dashboard_provenance.py`: `directory_dashboard_digest(src/bicameral_cloud/static/dashboard)` equals `version.json` `bundle_sha256` and `release-inputs/bot-release-descriptor.json` `artifacts.hosted_spa`; `validate_bot_descriptor` returns no errors | All equal; no errors |
+
+### Fixed migration regressions
+
+| Regression | Fix |
+| --- | --- |
+| Components' boundary guards passed every change inside the monorepo | `git diff --relative` (PR #11) |
+| Bot hosted-bridge contract check and v0.1.12 release rehearsal could not run without a cross-repository token | Factory files imported; jobs run from `tools/factory` (PR #10) |
+
+Source-baseline defects repaired during the migration: six Cloud tests that failed at the source SHA (PR #8), the locked `mcp` version with CVE-2026-59951 and 31 Cloud lint findings (PR #3).
+
+### Known source-baseline defects, unchanged
+
+`bicameral.semantic-resolution` producer drift, the `state-machine-resolver-v1` runtime-architecture contract, the onboarding fingerprint pair, and `provider-resource-descriptor.schema.json` drift (see "Recorded, not changed" under the Factory allowlist); Integrations `redaction-evaluation-stacked.yml` names two scripts absent at the source SHA.
+
+### Not run: environment, operating system or credentials
+
+| Check | What remains untested | Blocker |
+| --- | --- | --- |
+| Real-process Create/Join topology | `services/cloud/scripts/run_real_process_hosted_topology.py --bot-repo <Bot @ 4deb004> --mcp-repo <MCP @ bb47e97> --receipt <path> --use-vendored-dashboard --terminal-user-journey`. It starts Supabase CLI 2.39.2 (`npx supabase@2.39.2 start`, all services except Postgres, GoTrue, PostgREST and Kong excluded), builds Bot with `cargo build --release`, runs MCP, drives the browser journey and asserts 55 receipt fields, including real Supabase sessions, pairing, create and join response-loss recovery, anonymous and cross-tenant denial, replay and redaction | This container cannot pull the Supabase images (`public.ecr.aws/supabase/*` blobs return 403, Docker Hub returns 429). It also needs the pinned Bot and MCP revisions, which are only in the source repositories' history |
+| Windows installer | `pwsh -NoProfile -File installer/tests/test-windows-publication.ps1` | No PowerShell here; runs in `installer-windows.yml` on installer changes |
+| macOS | The macOS builds in Bot's `release.yml` (`macos-latest`) and the macOS lanes of the operator-service topology | Bot's release workflow is not activated (release authorization); no macOS host here |
+| Operator-service topology | `apps/bot/scripts/run_operator_service_topology.py --factory-repo tools/factory --factory-commit <commit> ...` | Needs released Bot and MCP artifacts and a real host |
+| Live provider evidence | Google provider authentication evidence and live connector captures | Need provider credentials |
+
+### Deferred: release and publication
+
+Release, publish, tag and deploy workflows stay inactive (they need release authorization and production credentials). Cloud deploy's served-identity check also needs Factory `release_manifest.py` at `4b74e4d`, which loads Atlas-coupled `release_unit.py`; without a replacement release authority that check cannot run from this repository. Publication-readiness items are listed under "Publication-sensitive material and rights evidence".
+
