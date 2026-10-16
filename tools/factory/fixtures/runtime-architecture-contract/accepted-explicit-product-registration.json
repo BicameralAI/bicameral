@@ -1,0 +1,207 @@
+{
+  "$schema": "../../schemas/runtime-architecture-contract.schema.json",
+  "schema_version": 1,
+  "spec_id": "RUNTIME-SPEC-EXPLICIT-PRODUCT-REGISTRATION",
+  "title": "Explicit Product Registration And Hosted Publication",
+  "components": [
+    {
+      "id": "ELM-DAEMON",
+      "c4_kind": "container",
+      "name": "Local daemon",
+      "responsibility": "Create canonical Products and route explicit registrations.",
+      "process_boundary": "Operator-local daemon process",
+      "repository_runtime": "bicameral-bot / Rust",
+      "deployment_location": "Operator device",
+      "authority_role": "Canonical Product writer and local registration validator",
+      "inputs": ["ProductCreate", "ProductRegistrationIntent"],
+      "outputs": ["ProductCreationReceipt", "ProductRegistrationReceipt"],
+      "state_ids": ["STATE-CANONICAL-PRODUCT", "STATE-PROJECT-REGISTRATION"],
+      "multiplicity": "One daemon may serve many Products.",
+      "prohibited_authority": ["Must not derive Product identity from cwd."]
+    },
+    {
+      "id": "ELM-EVENT-STORE",
+      "c4_kind": "datastore",
+      "name": "Product event store",
+      "responsibility": "Persist canonical Product events.",
+      "process_boundary": "Selected EventStoreAdapter substrate",
+      "repository_runtime": "bicameral-bot / EventStoreAdapter",
+      "deployment_location": "Explicitly registered Product substrate",
+      "authority_role": "Canonical accepted-event persistence",
+      "inputs": ["Accepted Product events"],
+      "outputs": ["Replay stream"],
+      "state_ids": ["STATE-CANONICAL-PRODUCT"],
+      "multiplicity": "One logical event stream per Product.",
+      "prohibited_authority": ["Must not persist operator-local registration state."]
+    },
+    {
+      "id": "ELM-REGISTRY",
+      "c4_kind": "datastore",
+      "name": "Operator Product registry",
+      "responsibility": "Persist Product-to-adapter routing under the operator home.",
+      "process_boundary": "Operator-home persistence boundary",
+      "repository_runtime": "bicameral-bot / local registry",
+      "deployment_location": "Operator device",
+      "authority_role": "Operator-local routing persistence",
+      "inputs": ["Validated ProjectRegistration"],
+      "outputs": ["Event-store route"],
+      "state_ids": ["STATE-PROJECT-REGISTRATION"],
+      "multiplicity": "Many registrations per operator home.",
+      "prohibited_authority": ["Must not persist canonical Product events."]
+    },
+    {
+      "id": "ELM-CLOUD-DIRECTORY",
+      "c4_kind": "datastore",
+      "name": "Hosted Product directory",
+      "responsibility": "Persist safe discovery metadata for daemon-created Products.",
+      "process_boundary": "Hosted coordination persistence boundary",
+      "repository_runtime": "bicameral-cloud / Supabase",
+      "deployment_location": "Hosted Cloud",
+      "authority_role": "Derived publication projection writer",
+      "inputs": ["ProductPublication"],
+      "outputs": ["ProjectDiscoveryItem"],
+      "state_ids": ["STATE-HOSTED-DIRECTORY-ROW"],
+      "multiplicity": "Many tenant-visible Products.",
+      "prohibited_authority": ["Must not create Product identity or creator roles."]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL-DAEMON-EVENT-STORE",
+      "source_id": "ELM-DAEMON",
+      "destination_id": "ELM-EVENT-STORE",
+      "interaction": "Append and replay canonical Product events",
+      "medium": "EventStoreAdapter protocol",
+      "handoff": "Synchronous validation followed by persisted append",
+      "state_ids": ["STATE-CANONICAL-PRODUCT"],
+      "payloads": ["Accepted Product event"],
+      "authority_boundaries": ["Daemon policy to canonical Product persistence"]
+    },
+    {
+      "id": "REL-DAEMON-REGISTRY",
+      "source_id": "ELM-DAEMON",
+      "destination_id": "ELM-REGISTRY",
+      "interaction": "Persist explicit Product registration",
+      "medium": "Atomic local file store",
+      "handoff": "Persisted local handoff",
+      "state_ids": ["STATE-PROJECT-REGISTRATION"],
+      "payloads": ["ProjectRegistration"],
+      "authority_boundaries": ["Daemon process to operator-home persistence"]
+    },
+    {
+      "id": "REL-DAEMON-CLOUD-DIRECTORY",
+      "source_id": "ELM-DAEMON",
+      "destination_id": "ELM-CLOUD-DIRECTORY",
+      "interaction": "Publish safe Product discovery metadata",
+      "medium": "Authenticated HTTPS",
+      "handoff": "Idempotent persisted projection",
+      "state_ids": ["STATE-CANONICAL-PRODUCT", "STATE-HOSTED-DIRECTORY-ROW"],
+      "payloads": ["ProductPublication", "ProductCreationReceipt"],
+      "authority_boundaries": ["Local canonical authority to hosted coordination"]
+    }
+  ],
+  "states": [
+    {
+      "id": "STATE-CANONICAL-PRODUCT",
+      "artifact": "Canonical Product and creator-role events",
+      "classification": "accepted_event",
+      "authoritative_writer_ids": ["ELM-DAEMON"],
+      "persistence_owner_ids": ["ELM-EVENT-STORE"],
+      "persistence_location": "Selected Product EventStoreAdapter",
+      "reader_ids": ["ELM-DAEMON"],
+      "routing_key": "canonical_product_id",
+      "mutation_path": "Governed daemon dispatch to selected EventStoreAdapter",
+      "lifecycle": "Retained and replayed as canonical Product history.",
+      "prohibited_fallbacks": ["Cloud directory row", "Operator registry", "Process memory"]
+    },
+    {
+      "id": "STATE-PROJECT-REGISTRATION",
+      "artifact": "Operator-local Product registration",
+      "classification": "canonical_state",
+      "authoritative_writer_ids": ["ELM-DAEMON"],
+      "persistence_owner_ids": ["ELM-REGISTRY"],
+      "persistence_location": "Operator-home Product registry",
+      "reader_ids": ["ELM-DAEMON"],
+      "routing_key": "canonical_product_id plus cloud_account_id",
+      "mutation_path": "Validated registration command",
+      "lifecycle": "Persists across daemon restart until explicitly removed.",
+      "prohibited_fallbacks": ["Product event ledger", "cwd discovery", "Process-global adapter"]
+    },
+    {
+      "id": "STATE-HOSTED-DIRECTORY-ROW",
+      "artifact": "Hosted Product discovery row",
+      "classification": "derived_projection_or_read_model",
+      "authoritative_writer_ids": ["ELM-CLOUD-DIRECTORY"],
+      "persistence_owner_ids": ["ELM-CLOUD-DIRECTORY"],
+      "persistence_location": "Hosted Product directory",
+      "reader_ids": ["ELM-CLOUD-DIRECTORY"],
+      "routing_key": "canonical_product_id",
+      "mutation_path": "Idempotent ProductPublication after canonical creation",
+      "lifecycle": "Retained for hosted discovery while enabled.",
+      "prohibited_fallbacks": ["Product identity creation", "Creator-role materialization"]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "TRANS-REGISTER-PRODUCT",
+      "trigger": "Canonical Product exists and local access validates",
+      "actor_ids": ["ELM-DAEMON"],
+      "source_state_id": "STATE-CANONICAL-PRODUCT",
+      "destination_state_id": "STATE-PROJECT-REGISTRATION",
+      "relationship_ids": ["REL-DAEMON-REGISTRY"],
+      "persistence_effect": "Persist explicit operator-local registration without writing a Product event."
+    },
+    {
+      "id": "TRANS-PUBLISH-PRODUCT",
+      "trigger": "Canonical Product creation returns a creation receipt",
+      "actor_ids": ["ELM-DAEMON", "ELM-CLOUD-DIRECTORY"],
+      "source_state_id": "STATE-CANONICAL-PRODUCT",
+      "destination_state_id": "STATE-HOSTED-DIRECTORY-ROW",
+      "relationship_ids": ["REL-DAEMON-CLOUD-DIRECTORY"],
+      "persistence_effect": "Persist a safe hosted projection keyed by canonical Product id."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "SCN-HOSTED-PRODUCT-CREATION",
+      "name": "Create locally, then register and publish",
+      "trigger": "Signed-in operator creates and shares a Product",
+      "participant_ids": ["ELM-DAEMON", "ELM-EVENT-STORE", "ELM-REGISTRY", "ELM-CLOUD-DIRECTORY"],
+      "relationship_ids": ["REL-DAEMON-EVENT-STORE", "REL-DAEMON-REGISTRY", "REL-DAEMON-CLOUD-DIRECTORY"],
+      "state_read_ids": ["STATE-CANONICAL-PRODUCT"],
+      "state_write_ids": ["STATE-CANONICAL-PRODUCT", "STATE-PROJECT-REGISTRATION", "STATE-HOSTED-DIRECTORY-ROW"],
+      "transition_ids": ["TRANS-REGISTER-PRODUCT", "TRANS-PUBLISH-PRODUCT"],
+      "authority_boundaries": ["Canonical Product persistence", "Operator-home routing", "Hosted coordination"],
+      "expected_result": "The Product is canonical locally, explicitly registered, and discoverable through a non-authoritative hosted projection.",
+      "failure_behavior": "Publication or registration may be retried independently with the same canonical Product id; neither retry creates Product identity."
+    }
+  ],
+  "conformance": [
+    {
+      "id": "CONF-EXPLICIT-ROUTING-01",
+      "status": "partial",
+      "source_ids": ["ELM-DAEMON", "REL-DAEMON-REGISTRY", "STATE-PROJECT-REGISTRATION", "TRANS-REGISTER-PRODUCT", "SCN-HOSTED-PRODUCT-CREATION"],
+      "owner_module_or_seam": "ProjectEventStoreRouter and operator Product registry seam",
+      "required_behavior": "Route every Product through its explicit registration independent of daemon working directory.",
+      "prohibited_fallback": "cwd, upward marker discovery, or process-global adapter selection",
+      "validation_obligation": {
+        "kind": "restart_replay",
+        "description": "Cross-cwd multi-Product daemon restart test."
+      },
+      "implementation_evidence": ["Planned cross-cwd topology fixture"]
+    },
+    {
+      "id": "CONF-CLOUD-NONAUTHORITY-01",
+      "status": "proven",
+      "source_ids": ["REL-DAEMON-CLOUD-DIRECTORY", "STATE-HOSTED-DIRECTORY-ROW", "TRANS-PUBLISH-PRODUCT", "SCN-HOSTED-PRODUCT-CREATION"],
+      "owner_module_or_seam": "Hosted Product publication and directory seam",
+      "required_behavior": "Persist safe directory metadata only after canonical Product creation.",
+      "prohibited_fallback": "Cloud creates Product identity, roles, membership, policy, or accepted events",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Producer-consumer contract and negative authority test."
+      },
+      "implementation_evidence": ["Representative accepted-spec fixture"]
+    }
+  ]
+}

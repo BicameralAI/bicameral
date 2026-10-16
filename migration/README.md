@@ -13,7 +13,7 @@ Each component was copied from the tracked files of its default branch at the SH
 | `BicameralAI/bicameral-mcp` | `9657ae288637cb3b4e4ef4dc1d43ae42a02b17c7` | [`packages/mcp/`](../packages/mcp/) | `lint-and-typecheck.yml`, `mcp-deterministic-tests.yml` (Python 3.11): `pip install --require-hashes -r requirements-ci.lock`, `pip install --no-deps .`, `ruff check .`, `ruff format --check .`, `mypy .`, `python scripts/sim_issue_108_flows.py --check`, `pytest tests/`, `python -m build` | Bot daemon at runtime (HTTP), no build-time dependency |
 | `BicameralAI/bicameral-cloud` | `4e72bba576bedbd5b5bd23bc3a5bb1d1e3dffc8d` | [`services/cloud/`](../services/cloud/) | `contract-conformance.yml` (3.12), `hosted-security-hardening.yml` (3.11), `reconciliation-evidence.yml` (3.12): `pip install -e '.[dev]'`, `pytest` groups, `ruff`, `mypy`, `scripts/*.py` validators | Vendored Bot dashboard bundle and Bot release descriptor; Bot and MCP in hosted journey tests |
 | `BicameralAI/bicameral-install` | `b492638ad4141b44a916dbf6420d7776c8cfc1a3` | [`installer/`](../installer/) | `unix-installer-ci.yml`: `sh -n site/install.sh`, `tests/test-unix-reconcile.sh`; `windows-installer-ci.yml`: PowerShell parse and `tests/test-windows-publication.ps1` | Bot release artifacts (`latest.json`, published binaries) |
-| `BicameralAI/bicameral-factory` (allowlist only) | `c7e682bc8a72f094f96a79be16f536ec47dcedd2` | [`tools/factory/`](../tools/factory/) | Factory `dashboard-tests.yml`: `python3 -m unittest scripts.test_semantic_contract_conformance`; Bot `rust.yml` job `hosted-bridge-contract` calls Factory's reusable `semantic-contract-conformance.yml` | Bot's `hosted-bridge-contract` CI job; reads Bot's `protocol/hosted-bridge/contract.json` |
+| `BicameralAI/bicameral-factory` (allowlist only) | `c7e682bc8a72f094f96a79be16f536ec47dcedd2`; doctrine at `09dd3184bf03a9ef6deccbfb7154306b521a6ad6` | [`tools/factory/`](../tools/factory/) | Factory `dashboard-tests.yml` and `runtime-architecture-contract.yml` (`python3 -m unittest …`, `runtime_architecture_contract.py validate/project`); Bot `rust.yml` job `hosted-bridge-contract` calls Factory's reusable `semantic-contract-conformance.yml` | Bot's `hosted-bridge-contract` job and `protocol/hosted-bridge/contract.json`; Bot `docs/specs/*.contract.json` (`$schema`); Bot `docs/governance/PIN.json` |
 
 Import order follows the dependencies: Bot, Integrations, MCP, Cloud, Installer, then the Factory allowlist.
 
@@ -46,18 +46,31 @@ Both records are regenerated only from the original history: `python scripts/mig
 
 ## Factory allowlist
 
-Factory is not imported as a component. Per #969 (J-06/J-07), only Bicameral-owned files that the components' own CI depends on are copied, deny by default. The allowlist with each file's SHA-256 is in [`sources.json`](sources.json); all files are byte-identical to the Factory SHA.
+Factory is not imported as a component. Per #969 (J-06/J-07), Bicameral-owned Factory files the components use are copied, deny by default. Each copied file's SHA-256 and source commit is in `allowlist` in [`sources.json`](sources.json); all are byte-identical to their source.
 
-| Slice | Files | Why | Review |
-| --- | --- | --- | --- |
-| Semantic contract conformance | `scripts/semantic_contract_conformance.py`, its test, `registries/semantic-contract-pairs.json` and `.schema.json`, `.github/workflows/semantic-contract-conformance.yml` | Bot's `hosted-bridge-contract` job ran this checker through a cross-repository reusable workflow, so the job could not run here | Standard library only; one Bicameral author; no secrets, private URLs or references to Navigator, Atlas, FinOps, TARA, Qortara or MythologIQ |
+**Inventory.** `factory_inventory` in `sources.json` classifies every Factory path that a tracked monorepo file names (paths, checkouts, reusable workflows, `$schema`, links), plus the doctrine files `apps/bot/docs/governance/PIN.json` pins. It was produced by scanning, then reviewing how each consumer uses each hit. The scan recognizes paths with a directory component in files that mention Factory.
 
-The root `bot-rust.yml` runs the same checker with the same registry and contract id against `apps/bot` (see `root_workflows.rewired` in `sources.json`). Two differences from the source follow from the move:
+| Classification | Factory files | Why |
+| --- | --- | --- |
+| **Copied** | Semantic contract checker, its test, registry, registry schema, reusable workflow | Bot CI ran it through a cross-repository reusable workflow |
+| **Copied** | Runtime architecture contract schema, validator, test, fixture | The format of Bot's `docs/specs/*.contract.json` (`$schema`) |
+| **Copied** | `CONTEXT.md`, `PAMA.md`, `INSTRUCTIONS.md` at `09dd318` | Doctrine Bot pins; all three hashes match `PIN.json` |
+| **Blocked** | `release_manifest.py`, `release_unit.py`, `release_rehearsal.py`, `bot-release-closure-policy.v1.json` | `release_unit.py` requires Atlas as the release approval controller and verifies Atlas signatures, so importing it imports the excluded Atlas authority. Used only by release/deploy workflows that are not activated |
+| **Excluded** | `atlas-release-unit-status.yml` | Atlas |
+| **Excluded** | Factory attestation and spec-governance scripts, policy, skill manifest, run-signal blueprints, playbook | Factory development-process control plane |
+| **Not a dependency** | `docs/META_LEDGER.md` and the other Factory-only documents | Named by the components' boundary guards as paths that must not be committed, not read |
+| **Reference only** | Architecture, strategy and product-line documents linked from Bot docs | Hyperlinks only; nothing builds, tests or runs from them |
 
-- The source job used Factory's `main` at run time; the monorepo uses the pinned SHA. Until this import is accepted, Factory stays authoritative and changes are brought over by re-copying at a new SHA.
-- No cross-repository token is used.
+The root `bot-rust.yml` runs the semantic contract checker with the same registry and contract id against `apps/bot` (`root_workflows.rewired`). `factory-tools.yml` runs the copied tools' tests and the runtime architecture contract steps of Factory's `runtime-architecture-contract.yml`; Factory's `test_runtime_spec_conformance_contract` tests Factory's authoring skills, which are not imported. Two differences from the source: the source job used Factory `main` at run time and the monorepo uses the pinned commit, and no cross-repository token is used. Until this import is accepted, Factory stays authoritative and changes are brought over by re-copying at a new commit.
 
-**Recorded, not changed:** the registry's other active pair, `bicameral.semantic-resolution`, does not verify at the source either. Bot's `docs/specs/semantic-resolution-capability-contract.md` hashes to `sha256:10381c1b…` against the registry's `sha256:f3513488…`, and MCP has no `contracts/semantic-resolution-capability-contract.md`. No workflow invokes that pair in any source repository, so no check is activated for it here.
+**Recorded, not changed:**
+
+- **`bicameral.semantic-resolution` registry drift.** The registry fingerprint `sha256:f3513488…` is Bot's `docs/specs/semantic-resolution-capability-contract.md` at Bot `703cbd4` (2026-07-31). Bot `ed64bb4` (2026-08-01) added one non-normative reading-guide link ("Product motivation: …"), which changed the bytes to `sha256:10381c1b…`; the registry was not updated. MCP has never had `contracts/semantic-resolution-capability-contract.md`; the registry says MCP vendors it "before claiming consumer conformance". No source workflow invokes this pair. This is stale registry metadata plus a not-yet-adopted consumer, not a migration difference. Updating the fingerprint is a contract-owner change for Bot and MCP maintainers.
+- **Runtime architecture contracts.** Six of Bot's seven `*.contract.json` files validate. `state-machine-resolver-v1-runtime-architecture.contract.json` fails (`scenarios[21..22]` ID fields are not arrays) with the source Factory validator too. No source CI validated these files, so no check is activated for them.
+
+## Cross-repository references
+
+`cross_repository_references` in `sources.json` lists every mechanism by which monorepo files reach a legacy repository (reusable workflows, checkouts, dispatch, raw fetches, tokens) and its disposition. Product runtime code has none: the installer downloads from Bicameral's distribution host, and the remaining URLs are schema `$id` identifiers, PR/issue links and commit-URL metadata, kept as identifiers. The remaining workflow references are in release, deploy, vendoring and repository-security workflows that are not activated at the root.
 
 `BicameralAI/bicameral-daemon` is not a #969 source. Its README describes it as the legacy architecture staging repository (documentation and ADRs only), so it is not imported.
 
