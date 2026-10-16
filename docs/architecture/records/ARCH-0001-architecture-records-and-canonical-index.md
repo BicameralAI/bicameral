@@ -2,7 +2,7 @@
 id: ARCH-0001
 title: Architecture records and the canonical architecture index
 kind: decision
-status: proposed
+status: accepted
 date: 2026-10-16
 owners: [@jinhongkuan, @Knapp-Kevin]
 governs: [architecture-records, architecture-index]

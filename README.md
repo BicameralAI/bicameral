@@ -85,7 +85,7 @@ This is the intended architecture of the consolidated repository. Each boundary 
 | Area | State |
 | --- | --- |
 | Repository governance: structure manifest, CODEOWNERS generation, architecture records, CI check | **In place** in this repository |
-| Foundational architecture records [ARCH-0001](docs/architecture/records/ARCH-0001-architecture-records-and-canonical-index.md) and [ARCH-0002](docs/architecture/records/ARCH-0002-repository-structure-and-structure-manifest.md) | **Proposed**; acceptance is a separate reviewed change |
+| Foundational architecture records [ARCH-0001](docs/architecture/records/ARCH-0001-architecture-records-and-canonical-index.md) and [ARCH-0002](docs/architecture/records/ARCH-0002-repository-structure-and-structure-manifest.md) | **Accepted**; they govern architecture records, the architecture index, repository layout and code ownership |
 | License | **Apache-2.0** authorized for the whole product (decision J-03) |
 | Product components (runtime, dashboard, MCP, integrations, cloud, installer) | **Not imported.** They are developed in their own repositories. Each location below is reserved |
 | Public release, installation from this repository, public contributions | **Not available** |
