@@ -5,7 +5,7 @@ Status: draft requirements note
 
 ## Summary
 
-Alex's "librarian" requirement reframes Bicameral as a reliable decision recall
+the design partner's "librarian" requirement reframes Bicameral as a reliable decision recall
 and HITL decision-making layer. Bicameral should surface relevant reviewed
 constraints before work starts, flag possible contradictions, and route changes
 through governed review. It should not auto-update the source of truth or turn
@@ -24,7 +24,7 @@ update canonical Decisions without governed review.
 ### 1. Corpus-Scoped Source Of Truth
 
 - Canonical state remains the selected event-store substrate, likely Git for
-  Alex's workflow.
+  the design partner's workflow.
 - Git markdown docs are the reviewed corpus, not just scraped context.
 - Only approved review and materialization paths can change canonical Decisions.
 - Local DB, MCP cache, search index, dashboard, and projections are derived

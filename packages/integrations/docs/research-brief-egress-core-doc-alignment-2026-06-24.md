@@ -35,7 +35,7 @@ correction is an alignment *toward* the canonical anchor, not a new claim.** (No
 | Meaning | Where (active docs) | Affected by "bicameral-sidecar deprecated"? |
 |---|---|---|
 | **`bicameral-sidecar` REPO — egress execution** | ADR-0019, `PROJECTION_CONTRACT.md`, `CONNECTOR_AUTHORITY_LIMITS.md:39` | **Yes** — corrected in-flight (→ `bicameral-bot` core). Aligned. |
-| **`bicameral-sidecar` REPO — customer monitoring** | `CONNECTOR_AUTHORITY_LIMITS.md:49–50` ("sidecar #5 Alex monitoring") | **Yes — STALE.** The only live non-egress repo reference. Separate decision (F4). |
+| **`bicameral-sidecar` REPO — customer monitoring** | `CONNECTOR_AUTHORITY_LIMITS.md:49–50` ("sidecar #5 design-partner monitoring") | **Yes — STALE.** The only live non-egress repo reference. Separate decision (F4). |
 | **AGT *as a sidecar for `bicameral-bot`*** (microsoft/agent-governance-toolkit spike, BACKLOG B3) | `docs/ecosystem/agt-sidecar-evaluation.md`, `consuming-gates.md:67`, `BACKLOG.md:18`, `GOVERNANCE_INDEX.md:86`, `SYSTEM_STATE.md:193,208` | **No — DIFFERENT CONCEPT.** A governance-toolkit process attached to the *bot*, not the deprecated repo. **Do NOT sweep** (false positive). |
 
 ### F3 — Other "egress" references are a different egress (evidence→gateway) — already aligned
@@ -46,7 +46,7 @@ correction is an alignment *toward* the canonical anchor, not a new claim.** (No
 
 ### F4 — The only genuinely stale active-doc item beyond egress: `CONNECTOR_AUTHORITY_LIMITS.md:49–50`
 
-This describes customer **monitoring** opt-in via the `bicameral-sidecar` repo ("sidecar #5 Alex
+This describes customer **monitoring** opt-in via the `bicameral-sidecar` repo ("sidecar #5 design-partner
 monitoring"). If the repo is fully deprecated, this is stale — but it is a **monitoring** concern, not egress,
 and its new home is an **operator decision** (likely also `bicameral-bot` core, but unconfirmed). **Out of
 scope for the egress cycle** (the audited #226 plan correctly bounded it out). Recommend a **separate, narrow

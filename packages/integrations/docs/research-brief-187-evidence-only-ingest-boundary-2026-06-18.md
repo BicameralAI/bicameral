@@ -2,14 +2,14 @@
 
 **Date**: 2026-06-18
 **Analyst**: The Qor-logic Analyst
-**Target**: GH #187 — implement the evidence-only ingest boundary for source connectors (Alex-aligned)
+**Target**: GH #187 — implement the evidence-only ingest boundary for source connectors (design-partner-aligned)
 **Scope**: What integrations must do so connector output conforms to the **SDK evidence contract** (bicameral-sdk #7, CLOSED) — provenance, raw/non-authoritative status, source/excerpt refs — and stays inside the ADR-0008 authority boundary. Cross-repo reads only (SDK owns the contract; bot owns promotion/drift; sidecar owns customer scope).
 
 ---
 
 ## Executive Summary
 
-#187 asks integrations to make connector output a **first-class, non-authoritative `Evidence`** that conforms to the now-defined SDK contract (`bicameral-sdk/src/evidence/index.ts` + `provenance/index.ts`, GH #7 **CLOSED**). The integrations-side is **actionable now**: the one hard dependency (the SDK evidence contract) exists; the OPEN dependencies (bot #481 decision promotion, bot #484 drift, sidecar #5 Alex scope) are **downstream consumers** integrations routes to, not blockers. **The central finding is a conformance gap, not a boundary violation:** integrations already honours the *spirit* of #187 — ADR-0008 read-only posture, FX-SEC-001 screen, frozen evidence, mods that can't write canonical state — but its neutral `AdapterEmission`/`SourceEvidence`/`SourceRef` shape does **not yet map to the SDK `Evidence` shape**, and is missing the contract's two load-bearing pieces: a **`Provenance` object** (the SDK requires `{capturedAt, capturedBy: Attribution, captureMethod, pipelineVersion?, sourceHash?}` — integrations has none) and an explicit **`status: 'raw'`** non-authoritative marker. Worse, integrations' `pipeline.normalize` **hardcodes `emission_type="candidate"`** — which is exactly the "connector pre-judges a candidate decision" the SDK separates out (a connector emits *raw evidence*; candidate-extraction and promotion are the bot's job, GH #2/#481). The work is a **mapping + provenance build**, proven Beta on fixtures (the SDK consumes it), with the candidate/decision flow routed to the bot — no new connector authority.
+#187 asks integrations to make connector output a **first-class, non-authoritative `Evidence`** that conforms to the now-defined SDK contract (`bicameral-sdk/src/evidence/index.ts` + `provenance/index.ts`, GH #7 **CLOSED**). The integrations-side is **actionable now**: the one hard dependency (the SDK evidence contract) exists; the OPEN dependencies (bot #481 decision promotion, bot #484 drift, sidecar #5 design-partner scope) are **downstream consumers** integrations routes to, not blockers. **The central finding is a conformance gap, not a boundary violation:** integrations already honours the *spirit* of #187 — ADR-0008 read-only posture, FX-SEC-001 screen, frozen evidence, mods that can't write canonical state — but its neutral `AdapterEmission`/`SourceEvidence`/`SourceRef` shape does **not yet map to the SDK `Evidence` shape**, and is missing the contract's two load-bearing pieces: a **`Provenance` object** (the SDK requires `{capturedAt, capturedBy: Attribution, captureMethod, pipelineVersion?, sourceHash?}` — integrations has none) and an explicit **`status: 'raw'`** non-authoritative marker. Worse, integrations' `pipeline.normalize` **hardcodes `emission_type="candidate"`** — which is exactly the "connector pre-judges a candidate decision" the SDK separates out (a connector emits *raw evidence*; candidate-extraction and promotion are the bot's job, GH #2/#481). The work is a **mapping + provenance build**, proven Beta on fixtures (the SDK consumes it), with the candidate/decision flow routed to the bot — no new connector authority.
 
 ## Findings
 
@@ -20,7 +20,7 @@
 | Evidence contracts (#7) | bicameral-sdk | **CLOSED** | The contract integrations must produce. **Hard dep — satisfied.** |
 | Decision promotion (#481) | bicameral-bot | OPEN | Consumer — integrations routes candidates to it; not a blocker. |
 | Contradiction/drift (#484) | bicameral-bot | OPEN | Consumer — not a blocker. |
-| Alex scoped monitoring (#5) | bicameral-sidecar | OPEN | Customer-scope owner — sidecar's job, not integrations'. |
+| Design-partner scoped monitoring (#5) | bicameral-sidecar | OPEN | Customer-scope owner — sidecar's job, not integrations'. |
 
 Live end-to-end is bot-gated (as ever, ADR-0012); **integrations earns Beta on recorded conformance fixtures** against the SDK shape.
 
