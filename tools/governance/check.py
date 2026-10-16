@@ -5,7 +5,8 @@
     python3 tools/governance/check.py --write  # regenerate CODEOWNERS and the architecture
                                                # index, then validate
 
-Steps: structure validation, architecture validation, unittest discovery in
+Steps: structure validation, architecture validation, publication preflight
+(check_publication.py), unittest discovery in
 tools/governance/tests. Exits nonzero if any step fails.
 """
 
@@ -25,6 +26,7 @@ if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
 import check_architecture  # noqa: E402
+import check_publication  # noqa: E402
 import check_structure  # noqa: E402
 
 
@@ -67,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
         check_architecture.run(root, write=True)
     results.append(_report("structure", check_structure.run(root)))
     results.append(_report("architecture", check_architecture.run(root)))
+    results.append(_report("publication", check_publication.run(root)))
     results.append(run_tests())
 
     if all(results):

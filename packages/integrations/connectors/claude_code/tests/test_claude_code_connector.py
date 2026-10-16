@@ -107,7 +107,7 @@ def test_excerpt_is_redact_and_passed():
 def test_cwd_home_prefix_scrubbed():
     # the OS username must not leak through cwd; the home prefix collapses to ~/.
     for raw, expect in [
-        ("C:\\Users\\krkna\\proj", "~/proj"),
+        ("C:\\Users\\dev\\proj", "~/proj"),
         ("/Users/alice/work/app", "~/work/app"),
         ("/home/bob/x", "~/x"),
         ("G:\\MythologIQ\\repo", "G:\\MythologIQ\\repo"),  # no Users segment -> unchanged

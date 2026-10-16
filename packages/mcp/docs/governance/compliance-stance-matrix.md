@@ -6,7 +6,7 @@
 
 This matrix declares the project's compliance posture for each framework.
 Claims are grounded in cited evidence; nothing is asserted as enforced unless
-code or CI proves it. See `docs/COMPLIANCE_AUDIT_2026-06-03.md` for the
+code or CI proves it. See the internal 2026-06-03 compliance audit (not published) for the
 full audit.
 
 ---
@@ -19,7 +19,7 @@ full audit.
 | SOC 2 (Availability) | Local single-tenant | **Met** | `docs/sla.md`; `docs/policies/ledger-export.md` | Scoped no-SLA stance |
 | SOC 2 (Confidentiality C1.x) | PII disposal | **Partial** | `pii_archive/store.py`; `erasure_gate.py`; this matrix | MCP ships erase-subject approval gate; daemon owns archive; see PII Disposal below |
 | SOC 2 (Privacy P3.x) | Third-party PII | **Partial** | See Lawful Basis below | Consent covers telemetry only; third-party PII documented as legitimate-interest |
-| OWASP Top 10 (Web+LLM) | All controls | **Met/Partial** | `docs/COMPLIANCE_AUDIT_2026-06-03.md` §4a | SurrealQL injection remediation tracked separately (#549 sibling) |
+| OWASP Top 10 (Web+LLM) | All controls | **Met/Partial** | Internal 2026-06-03 audit §4a | SurrealQL injection remediation tracked separately (#549 sibling) |
 | NIST AI RMF | GOVERN/MAP/MEASURE/MANAGE | **Partial** | `GOVERNANCE_INDEX.md`; ADRs; this matrix | MANAGE-1.1 human-oversight: see Human Oversight below |
 | NIST SSDF | PO/PS/PW/RV | **Met** | Supply chain, signed releases, SBOM | Action SHA-pinning tracked separately |
 | GDPR | Art.5-50 | **Partial** | See PII Disposal, Lawful Basis below | Limited to in-repo scope; operator-side obligations documented |

@@ -10,7 +10,7 @@ This roster identifies Bicameral's decision owner, repository maintainers, and c
 | Aritro Roy (WhatBytes) | [@officialaritro](https://github.com/officialaritro) | Bicameral engineering and open-source contribution; prospective component maintainer | Continuing six-month engagement communicated by Jin, October 15, 2026 |
 | Mayur Sonar (WhatBytes) | [@Mayurss331](https://github.com/Mayurss331) | Bicameral engineering and open-source contribution; prospective component maintainer | Continuing six-month engagement communicated by Jin, October 15, 2026; repository privileges remain subject to security and least-privilege clearance |
 
-Jin confirmed the continued engagement of Aritro and Mayur in [the October 15 discussion](https://bicameralgroup.slack.com/archives/D0AUDB31NMQ/p1792080983544719). The roster records participation without implying that either engineer has already been formally appointed a code owner or granted repository write permissions. Silong's GitHub identity is verified; his formal component-maintainer and code-ownership scope remain subject to governance approval.
+Jin confirmed the continued engagement of Aritro and Mayur on October 15, 2026. The roster records participation without implying that either engineer has already been formally appointed a code owner or granted repository write permissions. Silong's GitHub identity is verified; his formal component-maintainer and code-ownership scope remain subject to governance approval.
 
 ## Component maintenance charter
 

@@ -59,7 +59,7 @@ Informational, slow-drift. Drift signal: factual claims diverge from current cod
 | Artifact | Path |
 |----------|------|
 | Research briefs | `docs/research-brief-*.md` |
-| Compliance audit (2026-06-03) | `docs/COMPLIANCE_AUDIT_2026-06-03.md` |
+| Compliance audit (2026-06-03) | Internal audit record (not published) |
 | Shadow Genome | `docs/SHADOW_GENOME.md` |
 | Process Shadow Genome (upstream) | `docs/PROCESS_SHADOW_GENOME_UPSTREAM.md` |
 

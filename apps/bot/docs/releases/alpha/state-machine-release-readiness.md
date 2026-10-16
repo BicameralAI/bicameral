@@ -89,7 +89,6 @@ instead of becoming parallel vocabulary.
 
 ## P0 QA Release Matrix — #362
 
-**Devin run:** https://app.devin.ai/sessions/3f71bc23e8bf43a9aca9ada1160653d7
 **Build:** `cargo build --release` from main at `227e746`, binary version 0.1.4.
 **QA environment:** `BicameralAI/bicameral-qa-environment` at `9eb919a`.
 **Fixture pack:** `fixtures/release-alpha/qa-fixture-pack.json`.

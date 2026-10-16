@@ -128,14 +128,45 @@ Third-party material:
 
 ### Publication-sensitive retained material
 
-- **`services/cloud/.bicameral/factory-attestations/0d972754750c45d73aae4bf3606af248034e8dbf.validation-terminal-hosted-v0.1.10.json`** is a Factory session record:
-  - **What it contains:** the agent and session, notes on the local setup, an internal roadmap status, links to private pull requests and issues, and Factory learning signals. It has no credentials, customer data or personal data.
-  - **What reads it:** `tests/test_real_process_hosted_topology.py::test_factory_attestation_workflow_targets_this_validation_run`, which asserts only that the file exists, and the inactive `factory-attestation.yml` (excluded control plane).
-  - **Verified option:** a stub that keeps `version`, `factory_repo`, `factory_commit`, `target_repo`, `target_branch` and `timestamp` and drops the session context keeps that test file green (24 passed).
-  - **Approval:** replacing the record needs owner approval. The original stays in `bicameral-cloud`.
+- **`services/cloud/.bicameral/factory-attestations/0d972754750c45d73aae4bf3606af248034e8dbf.validation-terminal-hosted-v0.1.10.json`** is a synthetic placeholder (PR #19). The original Factory session record it replaced stays in `bicameral-cloud` and in this repository's private history; see "Publication history" below.
+- **Removed before publication** (internal material, not product source): `apps/bot/.gstack/browse-audit.jsonl` (a local browser-tool log), `apps/bot/docs/specs/mythologiq-librarian-kg-assessment.md` (an assessment of separately owned MythologIQ assets) and `packages/mcp/docs/COMPLIANCE_AUDIT_2026-06-03.md` (an internal audit deliverable). A personal address, a private Slack link, a Notion link and an agent-session URL were removed from the documents that held them. The originals stay in the source repositories.
 - **Private infrastructure identifiers** appear in workflows that are not activated: the GCP project `bicameral-cloud-500911` and service-account addresses in `services/cloud/.github/workflows/deploy-cloud-run.yml` and the three `atlas-release-assignment-status.yml` files. They are identifiers, not credentials.
 - **Links to private repositories** (Factory and the component repositories) appear throughout component documentation and contract metadata. They do not resolve publicly.
 - **MCP's `.bicameral/customer-artifact-boundary.json` and `.bicameral/validator-provenance/`** are packaging policy: which paths stay out of the customer wheel. They are not confidential.
+
+### Publication history
+
+This repository's history must not become public. Earlier commits and the `refs/pull/*` refs that GitHub keeps for every pull request (and that cannot be deleted from the repository) hold:
+- the original Factory session record replaced in PR #19;
+- the documents removed above;
+- pre-relicensing versions of files;
+- commit authors' personal addresses.
+
+Changing this repository's visibility would publish all of it.
+
+**Strategy.** Publish the approved tree, without its history, as a single parentless commit in a separate repository that has never held private objects. This repository stays private as the provenance record. The commit message names the private source commit, so the public tree can be traced back to its provenance here.
+
+```bash
+SOURCE=<approved main commit>
+git checkout "$SOURCE" && python3 tools/governance/check.py
+COMMIT=$(GIT_AUTHOR_NAME=BicameralAI GIT_AUTHOR_EMAIL=<organization address> \
+  GIT_COMMITTER_NAME=BicameralAI GIT_COMMITTER_EMAIL=<organization address> \
+  git commit-tree "$SOURCE^{tree}" -m "Bicameral source, published from private commit $SOURCE")
+python3 tools/governance/check_publication.py --history "$COMMIT"
+test "$(git rev-parse "$COMMIT^{tree}")" = "$(git rev-parse "$SOURCE^{tree}")"
+git push <new public repository> "$COMMIT:refs/heads/main"
+```
+
+`tools/governance/check_publication.py` runs in `python3 tools/governance/check.py` on every pull request. It rejects:
+- personal email addresses;
+- private Slack direct-message links;
+- Notion page links;
+- agent-session URLs;
+- local tool logs and key or environment files;
+- any Factory attestation that is not a synthetic placeholder;
+- root workflows that use `pull_request_target` or `workflow_run`, reference secrets, request write permissions or omit top-level permissions.
+
+`--history` checks that a publication commit has no parents.
 
 ## Release composition
 
