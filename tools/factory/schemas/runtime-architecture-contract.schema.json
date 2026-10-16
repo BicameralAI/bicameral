@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BicameralAI/bicameral-factory/schemas/runtime-architecture-contract.schema.json",
+  "title": "Runtime Architecture Contract",
+  "description": "Canonical renderer-neutral source contract for runtime topology, state, scenarios, and implementation conformance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "spec_id",
+    "title",
+    "components",
+    "relationships",
+    "states",
+    "transitions",
+    "scenarios",
+    "conformance"
+  ],
+  "properties": {
+    "$schema": {"type": "string", "minLength": 1},
+    "schema_version": {"type": "integer", "const": 1},
+    "spec_id": {"type": "string", "pattern": "^RUNTIME-SPEC-[A-Z0-9-]+$"},
+    "title": {"type": "string", "minLength": 1},
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/runtime_component"}
+    },
+    "relationships": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/runtime_relationship"}
+    },
+    "states": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/runtime_state"}
+    },
+    "transitions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/runtime_transition"}
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/runtime_scenario"}
+    },
+    "conformance": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/runtime_conformance"}
+    }
+  },
+  "$defs": {
+    "non_empty_string": {"type": "string", "minLength": 1},
+    "string_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/non_empty_string"}
+    },
+    "element_id": {"type": "string", "pattern": "^ELM-[A-Z0-9-]+$"},
+    "element_id_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/element_id"}
+    },
+    "relationship_id": {"type": "string", "pattern": "^REL-[A-Z0-9-]+$"},
+    "relationship_id_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/relationship_id"}
+    },
+    "state_id": {"type": "string", "pattern": "^STATE-[A-Z0-9-]+$"},
+    "state_id_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/state_id"}
+    },
+    "transition_id": {"type": "string", "pattern": "^TRANS-[A-Z0-9-]+$"},
+    "transition_id_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/transition_id"}
+    },
+    "runtime_component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "c4_kind",
+        "name",
+        "responsibility",
+        "process_boundary",
+        "repository_runtime",
+        "deployment_location",
+        "authority_role",
+        "inputs",
+        "outputs",
+        "state_ids",
+        "multiplicity",
+        "prohibited_authority"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/element_id"},
+        "c4_kind": {
+          "enum": ["person", "software_system", "container", "component", "datastore"]
+        },
+        "name": {"$ref": "#/$defs/non_empty_string"},
+        "responsibility": {"$ref": "#/$defs/non_empty_string"},
+        "process_boundary": {"$ref": "#/$defs/non_empty_string"},
+        "repository_runtime": {"$ref": "#/$defs/non_empty_string"},
+        "deployment_location": {"$ref": "#/$defs/non_empty_string"},
+        "authority_role": {"$ref": "#/$defs/non_empty_string"},
+        "inputs": {"$ref": "#/$defs/string_array"},
+        "outputs": {"$ref": "#/$defs/string_array"},
+        "state_ids": {"$ref": "#/$defs/state_id_array"},
+        "multiplicity": {"$ref": "#/$defs/non_empty_string"},
+        "prohibited_authority": {"$ref": "#/$defs/string_array"}
+      }
+    },
+    "runtime_relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source_id",
+        "destination_id",
+        "interaction",
+        "medium",
+        "handoff",
+        "state_ids",
+        "payloads",
+        "authority_boundaries"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/relationship_id"},
+        "source_id": {"$ref": "#/$defs/element_id"},
+        "destination_id": {"$ref": "#/$defs/element_id"},
+        "interaction": {"$ref": "#/$defs/non_empty_string"},
+        "medium": {"$ref": "#/$defs/non_empty_string"},
+        "handoff": {"$ref": "#/$defs/non_empty_string"},
+        "state_ids": {"$ref": "#/$defs/state_id_array"},
+        "payloads": {"$ref": "#/$defs/string_array"},
+        "authority_boundaries": {"$ref": "#/$defs/string_array"}
+      }
+    },
+    "runtime_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "artifact",
+        "classification",
+        "authoritative_writer_ids",
+        "persistence_owner_ids",
+        "persistence_location",
+        "reader_ids",
+        "routing_key",
+        "mutation_path",
+        "lifecycle",
+        "prohibited_fallbacks"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/state_id"},
+        "artifact": {"$ref": "#/$defs/non_empty_string"},
+        "classification": {
+          "enum": [
+            "canonical_state",
+            "accepted_event",
+            "evidence",
+            "candidate_or_proposal",
+            "derived_projection_or_read_model",
+            "cache",
+            "local_scratch",
+            "audit_receipt_or_log"
+          ]
+        },
+        "authoritative_writer_ids": {
+          "allOf": [{"$ref": "#/$defs/element_id_array"}, {"minItems": 1}]
+        },
+        "persistence_owner_ids": {
+          "allOf": [{"$ref": "#/$defs/element_id_array"}, {"minItems": 1}]
+        },
+        "persistence_location": {"$ref": "#/$defs/non_empty_string"},
+        "reader_ids": {"$ref": "#/$defs/element_id_array"},
+        "routing_key": {"$ref": "#/$defs/non_empty_string"},
+        "mutation_path": {"$ref": "#/$defs/non_empty_string"},
+        "lifecycle": {"$ref": "#/$defs/non_empty_string"},
+        "prohibited_fallbacks": {"$ref": "#/$defs/string_array"}
+      }
+    },
+    "runtime_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "trigger",
+        "actor_ids",
+        "source_state_id",
+        "destination_state_id",
+        "relationship_ids",
+        "persistence_effect"
+      ],
+      "anyOf": [
+        {"properties": {"source_state_id": {"type": "string"}}},
+        {"properties": {"destination_state_id": {"type": "string"}}}
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/transition_id"},
+        "trigger": {"$ref": "#/$defs/non_empty_string"},
+        "actor_ids": {
+          "allOf": [{"$ref": "#/$defs/element_id_array"}, {"minItems": 1}]
+        },
+        "source_state_id": {
+          "oneOf": [{"$ref": "#/$defs/state_id"}, {"type": "null"}]
+        },
+        "destination_state_id": {
+          "oneOf": [{"$ref": "#/$defs/state_id"}, {"type": "null"}]
+        },
+        "relationship_ids": {"$ref": "#/$defs/relationship_id_array"},
+        "persistence_effect": {"$ref": "#/$defs/non_empty_string"}
+      }
+    },
+    "runtime_scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "trigger",
+        "participant_ids",
+        "relationship_ids",
+        "state_read_ids",
+        "state_write_ids",
+        "transition_ids",
+        "authority_boundaries",
+        "expected_result",
+        "failure_behavior"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^SCN-[A-Z0-9-]+$"},
+        "name": {"$ref": "#/$defs/non_empty_string"},
+        "trigger": {"$ref": "#/$defs/non_empty_string"},
+        "participant_ids": {
+          "allOf": [{"$ref": "#/$defs/element_id_array"}, {"minItems": 1}]
+        },
+        "relationship_ids": {"$ref": "#/$defs/relationship_id_array"},
+        "state_read_ids": {"$ref": "#/$defs/state_id_array"},
+        "state_write_ids": {"$ref": "#/$defs/state_id_array"},
+        "transition_ids": {"$ref": "#/$defs/transition_id_array"},
+        "authority_boundaries": {"$ref": "#/$defs/string_array"},
+        "expected_result": {"$ref": "#/$defs/non_empty_string"},
+        "failure_behavior": {"$ref": "#/$defs/non_empty_string"}
+      }
+    },
+    "runtime_conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "source_ids",
+        "owner_module_or_seam",
+        "required_behavior",
+        "prohibited_fallback",
+        "validation_obligation",
+        "implementation_evidence"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^CONF-[A-Z0-9-]+$"},
+        "status": {"enum": ["proven", "partial", "missing", "unresolved"]},
+        "source_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(ELM|REL|STATE|TRANS|SCN)-[A-Z0-9-]+$"
+          }
+        },
+        "owner_module_or_seam": {"$ref": "#/$defs/non_empty_string"},
+        "required_behavior": {"$ref": "#/$defs/non_empty_string"},
+        "prohibited_fallback": {"$ref": "#/$defs/non_empty_string"},
+        "validation_obligation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "description"],
+          "properties": {
+            "kind": {
+              "enum": ["unit", "integration", "contract", "topology", "restart_replay", "manual"]
+            },
+            "description": {"$ref": "#/$defs/non_empty_string"}
+          }
+        },
+        "implementation_evidence": {"$ref": "#/$defs/string_array"}
+      }
+    }
+  }
+}

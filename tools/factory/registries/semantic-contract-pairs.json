@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "contracts": [
+    {
+      "artifact_location": "src/bicameral_cloud/contracts/hosted_bridge_contract.json",
+      "boundary_type": "semantic_contract",
+      "bypass_policy": {
+        "mode": "fail_closed",
+        "requires_expiry": true,
+        "requires_issue": true,
+        "requires_ledger_record": true
+      },
+      "consumer_repo": {
+        "name": "bicameral-cloud",
+        "owner": "BicameralAI"
+      },
+      "contract_home": "protocol/hosted-bridge/contract.json in BicameralAI/bicameral-bot",
+      "contract_id": "hosted-bridge.capability.v1",
+      "current_fingerprint": "sha256:26137c825145a1cc379a02c487dfb33d6c882f19b0e7f59c16e45be2849a7c70",
+      "enforcement_direction": "bidirectional",
+      "fingerprint_source": {
+        "digest": "sha256",
+        "kind": "artifact_specific",
+        "normalization": [
+          "artifact_specific_canonicalization"
+        ],
+        "semantic_scope": [
+          "hosted bridge protocol version",
+          "minimum supported protocol version",
+          "pending pairing minimum protocol version",
+          "legacy cloud compatibility envelope",
+          "capability compatibility-key declarations"
+        ],
+        "source_path": "protocol/hosted-bridge/contract.json"
+      },
+      "notes": "Bot CI verifies Rust and TypeScript against the manifest; Cloud vendors the exact bytes and fails closed on the dispatch fingerprint.",
+      "owner": "Bicameral Bot and Cloud maintainers",
+      "producer_repo": {
+        "name": "bicameral-bot",
+        "owner": "BicameralAI"
+      },
+      "status": "active"
+    },
+    {
+      "artifact_location": "contracts/semantic-resolution-capability-contract.md",
+      "boundary_type": "semantic_contract",
+      "bypass_policy": {
+        "mode": "fail_closed",
+        "requires_expiry": true,
+        "requires_issue": true,
+        "requires_ledger_record": true
+      },
+      "consumer_repo": {
+        "name": "bicameral-mcp",
+        "owner": "BicameralAI"
+      },
+      "contract_home": "docs/specs/semantic-resolution-capability-contract.md in BicameralAI/bicameral-bot",
+      "contract_id": "bicameral.semantic-resolution",
+      "current_fingerprint": "sha256:f35134886ed4a58a279aaef5de1c1404a4c3676f493f4470e3212d0e2f5a6459",
+      "enforcement_direction": "bidirectional",
+      "fingerprint_source": {
+        "digest": "sha256",
+        "kind": "artifact_specific",
+        "normalization": [
+          "artifact_specific_canonicalization"
+        ],
+        "semantic_scope": [
+          "stable SRC-* obligation identities",
+          "obligation evidence boundaries",
+          "current-conformance rules",
+          "release activation boundary",
+          "authority and failure semantics"
+        ],
+        "source_path": "docs/specs/semantic-resolution-capability-contract.md"
+      },
+      "notes": "Bot owns the release-independent semantic contract. MCP must vendor these exact bytes before claiming consumer conformance; implementation tickets cite obligation IDs without depending on a future release number.",
+      "owner": "Bicameral Bot and MCP maintainers",
+      "producer_repo": {
+        "name": "bicameral-bot",
+        "owner": "BicameralAI"
+      },
+      "status": "active"
+    }
+  ]
+}
