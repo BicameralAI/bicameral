@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "default_owners": [
+    "@jinhongkuan",
+    "@Knapp-Kevin"
+  ],
+  "canonical": {
+    "architecture_records": "docs/architecture/records"
+  },
+  "root_files": [
+    {
+      "path": "README.md",
+      "purpose": "Project overview, current status, layout and how to run governance checks.",
+      "required": true
+    },
+    {
+      "path": "LICENSE",
+      "purpose": "Apache License 2.0, the authorized outbound license (J-03).",
+      "required": true,
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
+      "path": "GOVERNANCE.md",
+      "purpose": "Interim governance model, decision ownership and review rules.",
+      "required": true,
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "purpose": "Contribution status, local checks, placement rules and PR evidence.",
+      "required": true
+    },
+    {
+      "path": "SECURITY.md",
+      "purpose": "Vulnerability reporting expectations.",
+      "required": true,
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
+      "path": "MAINTAINERS.md",
+      "purpose": "Recorded decision owner and maintainers.",
+      "required": true,
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
+      "path": "CODE_OF_CONDUCT.md",
+      "purpose": "Contributor Covenant 2.1, adopted by reference.",
+      "required": true
+    },
+    {
+      "path": ".gitignore",
+      "purpose": "Local, build and editor artifacts excluded from version control.",
+      "required": true
+    },
+    {
+      "path": ".gitattributes",
+      "purpose": "Line-ending normalization so generated outputs and license bytes are identical on every platform.",
+      "required": true
+    }
+  ],
+  "directories": [
+    {
+      "path": ".github",
+      "purpose": "GitHub workflows, PR template and generated CODEOWNERS.",
+      "children": "open",
+      "readme": false,
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
+      "path": "apps",
+      "purpose": "End-user applications.",
+      "children": "declared"
+    },
+    {
+      "path": "apps/dashboard",
+      "purpose": "Customer dashboard UI.",
+      "children": "open",
+      "status": "reserved",
+      "source": "BicameralAI/bicameral-bot"
+    },
+    {
+      "path": "crates",
+      "purpose": "Rust daemon, gateway, protocol and domain crates.",
+      "children": "declared",
+      "status": "reserved",
+      "source": "BicameralAI/bicameral-bot"
+    },
+    {
+      "path": "packages",
+      "purpose": "Language packages consumed by agents and integrations.",
+      "children": "declared"
+    },
+    {
+      "path": "packages/mcp",
+      "purpose": "Agent-facing MCP transport.",
+      "children": "open",
+      "status": "reserved",
+      "source": "BicameralAI/bicameral-mcp"
+    },
+    {
+      "path": "packages/integrations",
+      "purpose": "Provider-neutral evidence adapters.",
+      "children": "open",
+      "status": "reserved",
+      "source": "BicameralAI/bicameral-integrations"
+    },
+    {
+      "path": "services",
+      "purpose": "Network services.",
+      "children": "declared"
+    },
+    {
+      "path": "services/cloud",
+      "purpose": "Open-source hosted relay/backend and self-host configuration.",
+      "children": "open",
+      "status": "reserved",
+      "source": "BicameralAI/bicameral-cloud"
+    },
+    {
+      "path": "installer",
+      "purpose": "Installers, bootstrap and distribution build inputs.",
+      "children": "open",
+      "status": "reserved",
+      "source": "BicameralAI/bicameral-install"
+    },
+    {
+      "path": "governance",
+      "purpose": "Machine-readable repository governance inputs.",
+      "children": "declared",
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
+      "path": "tools",
+      "purpose": "Repository tooling.",
+      "children": "declared"
+    },
+    {
+      "path": "tools/governance",
+      "purpose": "Standard-library governance validators and their tests.",
+      "children": "open",
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
+      "path": "docs",
+      "purpose": "Project documentation.",
+      "children": "declared"
+    },
+    {
+      "path": "docs/architecture",
+      "purpose": "Architecture records, template and generated index.",
+      "children": "declared",
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
+      "path": "docs/architecture/records",
+      "purpose": "Canonical location of ARCH-NNNN architecture records.",
+      "children": "open"
+    },
+    {
+      "path": "docs/assets",
+      "purpose": "Static documentation assets.",
+      "children": "declared"
+    },
+    {
+      "path": "docs/assets/branding",
+      "purpose": "Approved Bicameral brand assets used by repository documentation.",
+      "children": "open"
+    },
+    {
+      "path": "migration",
+      "purpose": "Source provenance inventories and public, redacted migration attestations.",
+      "children": "open",
+      "status": "reserved"
+    }
+  ]
+}
