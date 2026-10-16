@@ -16,4 +16,15 @@ Formal maintainer privileges and component ownership are subject to [GOVERNANCE.
 
 Mayur's authorization must remain consistent with the incident follow-up and least-privilege controls in [Factory #967](https://github.com/BicameralAI/bicameral-factory/issues/967); his six-month engagement is not equivalent to security reinstatement.
 
+## Organizational contributors
+
+### WhatBytes
+
+**Role:** Engineering contributor  
+**Contribution:** Bicameral product engineering, maintenance, testing, and ongoing development.
+
+WhatBytes has provided engineering resources to Bicameral, including Aritro Roy and Mayur Sonar. Jin confirmed their continued six-month engagement during the open-source transition in October 2026. Bicameral acknowledges WhatBytes' engineering contributions and ongoing involvement.
+
+This acknowledgment does not create organizational code ownership, independent merge authority, licensing or publication authority, an exclusive partnership, or any exemption from security reviews and contribution policies.
+
 Changes to formal maintainer authority are high-risk changes under GOVERNANCE.md and require decision-owner approval.
