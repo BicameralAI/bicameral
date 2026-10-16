@@ -89,7 +89,7 @@
       "sha": "c7e682bc8a72f094f96a79be16f536ec47dcedd2",
       "destination": "tools/factory",
       "scope": "allowlist",
-      "files": 16,
+      "files": 22,
       "allowlist": [
         {
           "path": ".github/workflows/semantic-contract-conformance.yml",
@@ -115,6 +115,11 @@
           "sha256": "0c289cc9ffd613ce9d21598214d7934d1cfdf620e57b26a05d5a01655134f4c5"
         },
         {
+          "path": "registries/bot-release-closure-policy.v1.json",
+          "sha256": "434139ca01883723cd08ecabe80287a592fddacd8fe649ea501b196902a4ae89",
+          "source_sha": "98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5"
+        },
+        {
           "path": "registries/semantic-contract-pairs.json",
           "sha256": "257b9bf851f6c8b1242ad7a8fcb40f9539eef58e6585b242058a97eea3402f80"
         },
@@ -123,24 +128,32 @@
           "sha256": "b53bb0d454c7aa533f6e6dffe22e161d9c67f7a96f44dc2e60ed746d18417809"
         },
         {
+          "path": "schemas/release-rehearsal.schema.json",
+          "sha256": "1551525a73d4550613c798067948e3fea0c4ed7a458ac33e9ba4ba580221a1c3",
+          "source_sha": "98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5"
+        },
+        {
           "path": "schemas/runtime-architecture-contract.schema.json",
           "sha256": "d2cc46d79b58ba54900a258499839c78fa65cc7321e4893a9d12d64a481bd032"
         },
         {
-          "path": "scripts/__pycache__/runtime_architecture_contract.cpython-313.pyc",
-          "sha256": "288a4a501cb34ac7b05055c359256438d076165cb11a0c28149f3001e6cf19fe"
+          "path": "schemas/topology-environment-profile.schema.json",
+          "sha256": "d8ece13a3bb53956d256a7028573846cbb946546a48e4efd8baebe0741084277"
         },
         {
-          "path": "scripts/__pycache__/semantic_contract_conformance.cpython-313.pyc",
-          "sha256": "6e952477504be72a8b957dda77f27c95a469e549852dcd959d97142e152d129a"
+          "path": "scripts/release_manifest.py",
+          "sha256": "17400e75681303430c2f231fb22cac176396e5bf1b5247536ed34ce1a04914aa",
+          "source_sha": "98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5"
         },
         {
-          "path": "scripts/__pycache__/test_runtime_architecture_contract.cpython-313.pyc",
-          "sha256": "c5fba0a66898bb083fe3b715a67efb7900310cd45fe2d92278339baec1a49695"
+          "path": "scripts/release_rehearsal.py",
+          "sha256": "3b9c7257be5b1dfba3c32eccebe0c1242e74a3a67d2e431dbb658b19c3eb10a2",
+          "source_sha": "98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5"
         },
         {
-          "path": "scripts/__pycache__/test_semantic_contract_conformance.cpython-313.pyc",
-          "sha256": "6fbc45f4e76f6c7eda0834912f2f2984624df08f2eca3002776a0faded6357f6"
+          "path": "scripts/release_unit.py",
+          "sha256": "ff7bb2d6e1fe1ba275be1b064b83545e2f04cd51e26eea344cd0d7c872deba1f",
+          "source_sha": "98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5"
         },
         {
           "path": "scripts/runtime_architecture_contract.py",
@@ -151,19 +164,38 @@
           "sha256": "82de2714a0f954bb6ee457e3cb9bd6ee6b72f9c1275c21c2af2b678546611ea4"
         },
         {
+          "path": "scripts/test_release_manifest.py",
+          "sha256": "c0148fb76430df567f43968492880004378658c263df33b0db0843a0ad298015",
+          "source_sha": "98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5"
+        },
+        {
+          "path": "scripts/test_release_rehearsal.py",
+          "sha256": "21383c7eb94bbc37e04c7c90f2bcbf05347404ff34565e378b44aa021a2853ce",
+          "source_sha": "98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5"
+        },
+        {
+          "path": "scripts/test_release_unit.py",
+          "sha256": "8db82aa09da12a329d2ec8cef82f73093e3cbd8f4c1defec0b5fe31386dded32",
+          "source_sha": "98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5"
+        },
+        {
           "path": "scripts/test_runtime_architecture_contract.py",
           "sha256": "db06a2cdf4894db8bb9b3d479b786546f2d7d083ede68fb1a3d6d388136d6c7b"
         },
         {
           "path": "scripts/test_semantic_contract_conformance.py",
           "sha256": "88ae1fe467c846a5a1936bc96b34fefa572de4771c34a3f2cea8cefd14091252"
+        },
+        {
+          "path": "topology-environments/operator-service-environment-v1.json",
+          "sha256": "b169759e8bca4842e16c271bc4ac72b5c97ee3ef0fcd698f925f23154cb6d4fd"
         }
       ],
       "excluded": [
         "Every Factory path not on the allowlist (deny by default; #969 J-06/J-07)"
       ],
       "adjustments": [
-        "None to the copied files: all are byte-identical to the source SHA (doctrine files to the commit apps/bot/docs/governance/PIN.json pins, 09dd3184bf03a9ef6deccbfb7154306b521a6ad6)",
+        "None to the copied files: all are byte-identical to their source commit. Default c7e682b; doctrine files at the commit apps/bot/docs/governance/PIN.json pins (09dd318); release toolchain at the commit Bot's release rehearsal pins (98d3d9b), where release_manifest.py is also byte-identical to the 8ea192c pin of Cloud's release journey",
         "tools/factory/README.md added to describe the allowlisted subset (required by the structure manifest)"
       ]
     }
@@ -196,7 +228,7 @@
     ]
   },
   "factory_inventory": {
-    "method": "Every file path of bicameral-factory at c7e682b that any tracked monorepo file names (paths, checkouts, reusable workflows, $schema, links), plus files pinned by PIN.json, classified by how the consumer uses it. Generated by scanning, then each hit reviewed.",
+    "method": "Two independent scans of every tracked monorepo file against bicameral-factory at c7e682b (2,013 paths). Scan 1: Factory paths with a directory component in files that mention Factory. Scan 2: every Factory path and every distinctive Factory file basename in any file, Python imports and dynamic loads of Factory module names, paths used after any workflow checkout of the Factory repository, and FACTORY_* variables and --factory-* arguments. Each hit was reviewed against how its consumer uses it. Scan 2 found one dependency scan 1 missed (the operator-service topology profile); its other hits are identifier collisions (field and enum names), same-named root files (README.md, SECURITY.md, ...), references to excluded .qor/ records, attestation and repo-governance paths already excluded, and FACTORY_* variables of the excluded attestation scripts or provenance-only commit fields.",
     "entries": [
       {
         "factory_paths": [
@@ -252,18 +284,51 @@
           "scripts/release_manifest.py",
           "scripts/release_unit.py",
           "scripts/release_rehearsal.py",
-          "registries/bot-release-closure-policy.v1.json"
+          "registries/bot-release-closure-policy.v1.json",
+          "schemas/release-rehearsal.schema.json",
+          "scripts/test_release_manifest.py",
+          "scripts/test_release_unit.py",
+          "scripts/test_release_rehearsal.py"
+        ],
+        "factory_sha": "98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5",
+        "consumers": [
+          "apps/bot/.github/workflows/v0112-release-rehearsal.yml (pins Factory 98d3d9b)",
+          "services/cloud/.github/workflows/terminal-hosted-product-journey.yml receipt step (pins Factory 8ea192c; release_manifest.py byte-identical at 98d3d9b)"
+        ],
+        "purpose": "Release manifest validation, Release Unit proposals and merge eligibility, non-publishing release rehearsal",
+        "classification": "include",
+        "status": "copied",
+        "evidence": "Copied at the commits the consumers pin, not Factory main. At 98d3d9b these files contain no Atlas, IAP or other excluded references, import only the standard library, and their 22 tests pass in isolation. Bot's rehearsal runs from the copies (root bot-v0112-release-rehearsal.yml)."
+      },
+      {
+        "factory_paths": [
+          "scripts/release_manifest.py@4b74e4d",
+          "scripts/release_unit.py@4b74e4d",
+          "scripts/release_assignment.py@4b74e4d",
+          "scripts/trusted_topology_result.py@4b74e4d"
+        ],
+        "factory_sha": "4b74e4dce208338e12629f37dea7dd48954b9ee0",
+        "consumers": [
+          "services/cloud/.github/workflows/deploy-cloud-run.yml (served-identity check after deploy)"
+        ],
+        "purpose": "Release manifest at the version Cloud's deploy pins",
+        "classification": "blocked",
+        "status": "not imported",
+        "evidence": "At 4b74e4d release_manifest.py loads release_unit.py on import. That release_unit.py requires the release approval controller to be Atlas authenticated by Google IAP and verifies RSA signatures against Factory's trusted Atlas keys. The deploy step itself only uses validate_manifest and validate_served_identity, which do not call it, but the module cannot be loaded without the Atlas-coupled file. Deploy also needs separate authorization and production credentials."
+      },
+      {
+        "factory_paths": [
+          "topology-environments/operator-service-environment-v1.json",
+          "schemas/topology-environment-profile.schema.json"
         ],
         "factory_sha": "c7e682bc8a72f094f96a79be16f536ec47dcedd2",
         "consumers": [
-          "services/cloud/.github/workflows/deploy-cloud-run.yml",
-          "services/cloud/.github/workflows/terminal-hosted-product-journey.yml (receipt step)",
-          "apps/bot/.github/workflows/v0112-release-rehearsal.yml"
+          "apps/bot/scripts/run_operator_service_topology.py (--factory-repo <dir> reads topology-environments/operator-service-environment-v1.json)"
         ],
-        "purpose": "Release manifest, Release Unit and rehearsal policy",
-        "classification": "blocked",
-        "status": "pending",
-        "evidence": "release_manifest.py loads release_unit.py and release_assignment.py; release_unit.py requires the approval controller to be Atlas authenticated by Google IAP and verifies Atlas signatures. Importing it imports the excluded Atlas release authority. The consuming workflows are release/deploy paths that are not activated here"
+        "purpose": "Operator-service real-process topology environment profile",
+        "classification": "include",
+        "status": "copied",
+        "evidence": "Bot's runner reads the profile from a Factory checkout. The profile names Bot's runner as its runner and is classified core; Bicameral authors, no excluded references. Run with --factory-repo tools/factory --factory-commit <monorepo commit>. Factory's own test of the profile (scripts/test_operator_service_environment.py) also reads validate_alpha_architecture_atlas.py and is not imported."
       },
       {
         "factory_paths": [
@@ -361,7 +426,16 @@
         "status": "n/a",
         "evidence": "Each component carries its own file at this path; the references are to the local copy"
       }
-    ]
+    ],
+    "scan_results": {
+      "scan_1_paths": 44,
+      "scan_2_full_path_hits": 58,
+      "scan_2_basename_hits": 82,
+      "scan_2_import_hits": 8,
+      "scan_2_checkout_alias_paths": 8,
+      "scan_2_factory_variables": 6,
+      "new_dependencies_found": 1
+    }
   },
   "cross_repository_references": [
     {
@@ -385,20 +459,20 @@
     {
       "location": "apps/bot/.github/workflows/v0112-release-rehearsal.yml",
       "mechanism": "Factory checkout (release_unit.py, release_rehearsal.py)",
-      "disposition": "blocked",
-      "evidence": "Atlas-coupled release tooling; release path"
+      "disposition": "rewired",
+      "evidence": "Root bot-v0112-release-rehearsal.yml runs the same commands against tools/factory copies at 98d3d9b; the exact-commit check verifies their SHA-256 against the allowlist"
     },
     {
       "location": "services/cloud/.github/workflows/deploy-cloud-run.yml",
       "mechanism": "Factory and Bot checkouts",
       "disposition": "not activated",
-      "evidence": "Deploy needs separate authorization; also needs release_manifest.py (blocked)"
+      "evidence": "Deploy needs separate authorization and production credentials; its Factory input (release_manifest.py at 4b74e4d) loads Atlas-coupled release_unit.py and is blocked (factory_inventory)"
     },
     {
       "location": "services/cloud/.github/workflows/terminal-hosted-product-journey.yml",
       "mechanism": "Bot@version.json bot_commit (4deb004), MCP@bb47e97, Factory@8ea192c checkouts",
       "disposition": "decision required",
-      "evidence": "Composes a pinned Cloud release with pinned Bot and MCP releases; monorepo release composition model is undecided; receipt step needs release_manifest.py (blocked)"
+      "evidence": "Composes a pinned Cloud release with pinned Bot and MCP releases; the monorepo release composition model is undecided. Its Factory input (release_manifest.py at 8ea192c) is now in tools/factory, byte-identical"
     },
     {
       "location": "apps/bot dispatch-cloud-dashboard-vendor.yml -> services/cloud vendor-dashboard-bundle.yml",
@@ -422,7 +496,7 @@
       "location": "Product runtime code (Bot, MCP, Cloud, Installer)",
       "mechanism": "none",
       "disposition": "no dependency",
-      "evidence": "Installer downloads from Bicameral's R2 bucket and install.bicameral-ai.com; remaining URLs are schema $id identifiers, PR/issue links and commit-URL metadata, kept unchanged as contract identifiers"
+      "evidence": "Installer downloads from Bicameral's R2 bucket and install.bicameral-ai.com; remaining URLs are schema $id identifiers, PR/issue links and commit-URL metadata, kept unchanged as contract identifiers. Package metadata: apps/bot/Cargo.toml repository = BicameralAI/bicameral-bot (informational; changes with repository authority). Pinned producer commits (Cloud vendored dashboard bot_commit, Cloud onboarding source_commit, Integrations ingest schema pin, MCP semantic-resolution lock, Bot PIN.json, Bot rehearsal factory_commit) record the provenance of vendored bytes and fetch nothing"
     }
   ]
 }
