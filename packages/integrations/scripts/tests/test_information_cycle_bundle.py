@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -27,6 +28,10 @@ def _load(name: str):
 
 validator = _load("validate_information_cycle_bundle")
 generator = _load("generate_information_cycle_bundle")
+# Monorepo consolidation (BicameralAI/bicameral-factory#969): the snapshot carries no
+# Integrations history, so provenance is verified with migration evidence. In the
+# original repository the same calls fall back to the validator's own history checks.
+migration = _load("migration_provenance")
 
 _BUNDLE_PATH = _REPO / "ingest" / "evidence" / "local_directory-passive_import" / "bundle.json"
 _BUNDLE = json.loads(_BUNDLE_PATH.read_text(encoding="utf-8"))
@@ -51,8 +56,17 @@ def _errors(bundle: dict) -> list[str]:
     return validator.semantic_errors(bundle, head=_HEAD)
 
 
+def _provenance_aware_errors(bundle: dict) -> list[str]:
+    return migration.semantic_errors(bundle, _REPO, head=_HEAD)
+
+
+def _source_repo() -> Path | None:
+    env = os.environ.get(migration.SOURCE_ENV)
+    return Path(env) if env else None
+
+
 def test_committed_bundle_is_valid() -> None:
-    assert validator.validate_bundle(_BUNDLE_PATH, head=_HEAD) == []
+    assert migration.validate_bundle(_BUNDLE_PATH, head=_HEAD, source_repo=_source_repo()) == []
 
 
 def test_stage_ledger_is_the_exact_ordered_twenty() -> None:
@@ -67,11 +81,31 @@ def test_stage_ledger_is_the_exact_ordered_twenty() -> None:
 
 def test_reviewed_commit_is_ancestor_and_blobs_match() -> None:
     prov = _BUNDLE["implementation_provenance"]
-    assert validator.git_is_ancestor(_REPO, prov["reviewed_commit"], _HEAD)
+    if migration.commit_exists(_REPO, prov["reviewed_commit"]):
+        assert validator.git_is_ancestor(_REPO, prov["reviewed_commit"], _HEAD)
+        for component in prov["components"]:
+            at_reviewed = validator.git_blob_digest(_REPO, prov["reviewed_commit"], component["path"])
+            assert at_reviewed == component["blob_sha256"], component["path"]
+            assert validator.file_digest(_REPO / component["path"]) == component["blob_sha256"]
+        return
+    # Monorepo snapshot: ancestry is established by the migration verification and,
+    # when the source repository is available, re-verified against its history.
+    context, missing = migration.load_migration(_REPO)
+    assert context is not None and missing == []
+    verification = context["verification"]
+    assert verification["is_original_approval"] is False
+    assert verification["original_approval"]["reviewed_commit"] == prov["reviewed_commit"]
+    assert verification["ancestry"]["reviewed_commit_is_ancestor_of_source_sha"] is True
+    assert verification["source"]["sha"] == context["entry"]["sha"]
+    recorded = {c["path"]: c for c in verification["components"]}
     for component in prov["components"]:
-        at_reviewed = validator.git_blob_digest(_REPO, prov["reviewed_commit"], component["path"])
-        assert at_reviewed == component["blob_sha256"], component["path"]
+        record = recorded[component["path"]]
+        assert record["blob_sha256_at_reviewed_commit"] == component["blob_sha256"], component["path"]
+        assert record["blob_sha256_at_source_sha"] == component["blob_sha256"], component["path"]
         assert validator.file_digest(_REPO / component["path"]) == component["blob_sha256"]
+    assert migration.migration_provenance_errors(
+        _BUNDLE, _REPO, head=_HEAD, source_repo=_source_repo()
+    ) == []
 
 
 def test_non_ancestor_reviewed_commit_fails() -> None:
@@ -83,28 +117,29 @@ def test_non_ancestor_reviewed_commit_fails() -> None:
 def test_missing_implementation_path_fails() -> None:
     bundle = copy.deepcopy(_BUNDLE)
     bundle["implementation_provenance"]["components"][0]["path"] = "scripts/does-not-exist.py"
-    errors = _errors(_reseal(bundle))
+    errors = _provenance_aware_errors(_reseal(bundle))
     assert any("absent at reviewed_commit" in e for e in errors)
 
 
 def test_stale_blob_digest_fails() -> None:
     bundle = copy.deepcopy(_BUNDLE)
     bundle["implementation_provenance"]["components"][0]["blob_sha256"] = "sha256:" + "3" * 64
-    errors = _errors(_reseal(bundle))
+    errors = _provenance_aware_errors(_reseal(bundle))
     assert any("stale" in e or "changed after" in e for e in errors)
 
 
 def test_stage_citing_unregistered_implementation_fails() -> None:
     bundle = copy.deepcopy(_BUNDLE)
     bundle["stages"][3]["transformation"]["implementation"]["path"] = "scripts/unregistered.py"
-    assert any("not registered in implementation_provenance" in e for e in _errors(_reseal(bundle)))
+    errors = _provenance_aware_errors(_reseal(bundle))
+    assert any("not registered in implementation_provenance" in e for e in errors)
 
 
 def test_exact_head_receipt_recomputes() -> None:
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        receipt = validator.emit_head_receipt(_BUNDLE, _REPO, Path(tmp) / "receipt.json")
+        receipt = migration.emit_head_receipt(_BUNDLE, _REPO, Path(tmp) / "receipt.json")
     assert receipt["head_commit"] == _HEAD
     assert receipt["receipt_id"].startswith("sha256:")
     for component in receipt["components"]:
@@ -309,7 +344,10 @@ def test_human_accepted_claim_requires_acceptance_receipt() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_deterministic_regeneration(tmp_path: Path) -> None:
+def test_deterministic_regeneration(tmp_path: Path, monkeypatch) -> None:
+    # The generator reads component blobs at the reviewed commit. Without local
+    # history those digests come from the migration verification of that commit.
+    monkeypatch.setattr(generator, "git_blob_digest", migration.reviewed_blob_digest)
     regenerated = generator.build_bundle(
         "local_directory/passive_import",
         tmp_path,

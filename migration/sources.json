@@ -29,8 +29,14 @@
         "LICENSE"
       ],
       "adjustments": [
-        "README license badge and section point at root Apache-2.0 LICENSE"
-      ]
+        "README license badge and section point at root Apache-2.0 LICENSE",
+        "scripts/migration_provenance.py added: migration-aware provenance for the information-cycle bundle (the bundle, validator and generator are reviewed components and are unchanged)",
+        "scripts/tests/test_information_cycle_bundle.py: the seven history-dependent tests use the migration-aware checks; scripts/tests/test_migration_provenance.py adds acceptance and rejection cases"
+      ],
+      "migration_evidence": {
+        "manifest": "migration/manifests/bicameral-integrations.json",
+        "provenance_verification": "migration/verifications/bicameral-integrations.information-cycle-provenance.json"
+      }
     },
     {
       "source": "BicameralAI/bicameral-mcp",

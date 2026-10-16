@@ -49,7 +49,9 @@ jobs:
     - name: Alpha ingest manifest (closed schema + honesty semantics)
       run: python scripts/validate_alpha_ingest_manifest.py
     - name: Information-cycle evidence bundle (record chain + lineage + provenance)
-      run: python scripts/validate_information_cycle_bundle.py ingest/evidence/local_directory-passive_import/bundle.json
+      # Migration-aware entry point: the monorepo carries no Integrations history, so
+      # provenance is checked against migration/ evidence (scripts/migration_provenance.py).
+      run: python scripts/migration_provenance.py validate ingest/evidence/local_directory-passive_import/bundle.json
     - name: Redaction evaluation corpus and annotation gate
       run: python scripts/validate_redaction_evaluation_contract.py
     - name: Redaction evaluation review and decision gate
@@ -72,7 +74,7 @@ jobs:
         # Regression guard: a synthetic merge commit can never masquerade as
         # exact-head evidence.
         test "$(git rev-parse HEAD)" = "${EXPECTED}"
-        python scripts/validate_information_cycle_bundle.py             ingest/evidence/local_directory-passive_import/bundle.json             --emit-head-receipt /tmp/exact-head-validation-receipt.json             --expected-head "${EXPECTED}"
+        python scripts/migration_provenance.py validate             ingest/evidence/local_directory-passive_import/bundle.json             --emit-head-receipt /tmp/exact-head-validation-receipt.json             --expected-head "${EXPECTED}"
     - name: Upload exact-head validation receipt
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
       with:
