@@ -63,5 +63,5 @@ Include source evidence, expected behavior, and any relevant protocol contracts.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT
-license.
+By contributing, you agree that your contributions will be licensed under the license
+that governs this repository (see the root `LICENSE`).

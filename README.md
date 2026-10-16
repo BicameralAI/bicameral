@@ -86,7 +86,7 @@ This is the intended architecture of the consolidated repository. Each boundary 
 | --- | --- |
 | Repository governance: structure manifest, CODEOWNERS generation, architecture records, CI check | **In place** in this repository |
 | Foundational architecture records [ARCH-0001](docs/architecture/records/ARCH-0001-architecture-records-and-canonical-index.md) and [ARCH-0002](docs/architecture/records/ARCH-0002-repository-structure-and-structure-manifest.md) | **Accepted**; they govern architecture records, the architecture index, repository layout and code ownership |
-| License | **Apache-2.0** authorized for the whole product (decision J-03) |
+| License | **Apache-2.0** decided as the outbound license (J-03). Publication waits on the rights evidence in the [migration record](migration/README.md#rights-evidence), including the MCP and Integrations copyright holders' agreement |
 | Product components (runtime, dashboard, MCP, integrations, cloud, installer) | **Imported** as source snapshots with their existing build and test procedures; see the [migration inventory](migration/README.md) |
 | Releases, deployments, public contributions | **Not from this repository yet.** Release and deploy workflows remain inactive here until moved with authorization |
 
@@ -166,7 +166,7 @@ Whether outside contributions will use a DCO sign-off or a CLA (decision J-09) i
 
 ## License and attribution
 
-Bicameral is licensed under the [Apache License 2.0](LICENSE), the license authorized for the entire consolidated product.
+Bicameral's decided outbound license is the [Apache License 2.0](LICENSE) (J-03). MCP and Integrations, previously BSL 1.1, enter it only once each copyright holder agrees; the evidence still needed is listed in [`migration/README.md`](migration/README.md#rights-evidence).
 
 Components are imported as curated source snapshots with their provenance and any third-party notices preserved, without importing unrelated source histories. Navigator, Atlas, FinOps, TARA, related Qortara/Cortera development-support products and MythologIQ's Event Radar are separate products. They are not part of Bicameral and are not licensed by this repository.
 
