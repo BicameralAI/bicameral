@@ -25,7 +25,9 @@ The following security-reporting and publication checks must be completed before
 
 What is actually in place here:
 
-- CI runs on `pull_request` with a read-only token (`contents: read`), no secrets, no dependency installation, and an action pinned to a full commit SHA, with checkout credentials not persisted.
+- The root `governance` pull-request workflow uses `contents: read`, a SHA-pinned checkout with `persist-credentials: false`, and runs the in-repository governance checker without installing dependencies.
+- Other component verification workflows are mirrored at `.github/workflows/`. Their triggers, permission declarations, dependency installation, caches, and checkout credential behavior vary by workflow. Several install build/test dependencies; do not infer a uniform fork-safety or token policy from the governance workflow. These workflows must be assessed individually before accepting public fork contributions (see [Factory #971](https://github.com/BicameralAI/bicameral-factory/issues/971)).
+- Release, deployment, publishing and public-contributor security hardening remain separate authorization/readiness steps. A successful component CI run is not evidence that a publication or release approval has been granted.
 - The governance check validates repository layout, code ownership and architecture records on every pull request.
 - [GOVERNANCE.md](GOVERNANCE.md) requires every change to `main` to arrive by pull request with an independent code-owner approval. A repository ruleset enforcing this (required `governance` check, code-owner review, approval of the latest push, stale-approval dismissal, no force pushes or deletion, no bypass) is pending setup by a repository administrator.
 
