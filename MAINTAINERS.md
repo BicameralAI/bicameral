@@ -14,8 +14,6 @@ Jin confirmed the continued engagement of Aritro and Mayur in [the October 15 di
 
 Formal maintainer privileges and component ownership are subject to [GOVERNANCE.md](GOVERNANCE.md), the final maintainer/contributor policy, and approved repository access. The current default code owners remain `@jinhongkuan` and `@Knapp-Kevin` in [`governance/structure.json`](governance/structure.json), from which `.github/CODEOWNERS` is generated. These three identities have been verified against existing BicameralAI repository access. Do not add them to CODEOWNERS until formal code-ownership and access approvals are recorded.
 
-Mayur's authorization must remain consistent with the incident follow-up and least-privilege controls in [Factory #967](https://github.com/BicameralAI/bicameral-factory/issues/967); his six-month engagement is not equivalent to security reinstatement.
-
 ## Organizational contributors
 
 ### WhatBytes
