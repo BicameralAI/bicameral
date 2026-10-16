@@ -1,6 +1,6 @@
 # Maintainers and continuing contributors
 
-Bicameral is in private open-source consolidation staging. This roster identifies project decision authority, current repository maintenance, and continuing engineering contributors. **Listing someone here does not grant GitHub access, code-owner authority, or permission to bypass security clearance.**
+This roster identifies Bicameral's decision owner, repository maintainers, and continuing engineering contributors. **Listing someone here does not automatically grant GitHub access or code-owner authority.**
 
 | Name | GitHub | Responsibility | Status |
 | --- | --- | --- | --- |
