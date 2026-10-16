@@ -65,7 +65,19 @@ Either is consistent if publication waits for the signatures.
 
 ## 4. GitHub settings for the public repository
 
-None of this can be enforced from documentation, and none of it has been applied yet. #20 merged with no approving review, so the current private repository does not enforce review. On GitHub Free, rulesets and branch protection are not enforced on private repositories; on a public repository they are.
+**Status: proposed, not configured.** Nothing in this section has been applied or tested. A control counts as in place only after two things are recorded on #22: it is configured on the destination repository, and the negative tests below have been run against it. #20 merged here with no approving review, so the current private repository does not enforce review.
+
+**Plan entitlement.** Before relying on any rule, confirm what `BicameralAI`'s GitHub plan enforces, using the plan documentation current at the time:
+- Rulesets and branch protection on **private** repositories need GitHub Team or higher.
+- Organization rulesets that require a workflow from another repository also depend on the plan.
+- If the plan does not enforce rulesets on private repositories, the private staging step in section 5 cannot prove them. Run these tests in a disposable **public** repository that holds only a test file, never the source.
+
+### What a passing `governance` check proves
+
+`governance` runs from the pull request's own copy of `.github/workflows/governance.yml` and `tools/governance/`. A contributor can delete that workflow, or weaken the checker, and still receive a green result from GitHub Actions. Pinning the check to the Actions app (`integration_id` 15368) only stops statuses posted by other apps or through the statuses API. **The check is not a security boundary on its own.** Two controls make it one.
+
+1. **Code-owner review (required).** `.github/CODEOWNERS` assigns every path, including `/.github/` and `/tools/governance/`, to `@jinhongkuan` and `@Knapp-Kevin`. With `require_code_owner_review` and `require_last_push_approval` set, no change to a workflow or to the checker can merge unless a code owner approves its final commit. Reviewers must treat any diff under `.github/workflows/` or `tools/governance/` as security-relevant.
+2. **Trusted-base check (recommended where the plan allows).** Keep the publication checker in a separate repository that pull-request authors cannot change, for example a private `BicameralAI/bicameral-policy`. An organization ruleset's `workflows` rule then runs that repository's workflow, at a pinned commit, on every pull request to the public repository. The workflow checks out the base checker and reads the pull request's files only as data: it never executes the pull request's code and needs no secrets. Where the plan does not offer this, control 1 is the boundary, and the limitation is recorded on #22.
 
 ### Ruleset for `main`
 
@@ -96,7 +108,7 @@ None of this can be enforced from documentation, and none of it has been applied
 }
 ```
 
-`integration_id` 15368 is the GitHub Actions app. Pinning it means a commit status named `governance` that is posted by any other source cannot satisfy the check. A second ruleset with `target: tag` and rules `creation`, `update` and `deletion`, with no bypass, keeps tags (and so releases) closed until releases are authorized.
+`integration_id` 15368 is the GitHub Actions app; see "What a passing `governance` check proves" for what that pin does and does not do. With the trusted-base check, add the organization ruleset's `workflows` rule, naming the policy repository, its workflow path and a pinned commit. A second ruleset with `target: tag` and rules `creation`, `update` and `deletion`, with no bypass, keeps tags (and so releases) closed until releases are authorized.
 
 ### Repository settings
 
@@ -117,15 +129,18 @@ Also needed:
 
 ### Negative tests (run before visibility changes; record each result on #22)
 
-Use the new repository while it is still private, plus one account that is not a code owner. Each test must fail as described:
+Run them where the rules are enforced (see "Plan entitlement"). Use an account that is not a code owner, and a fork for the pull-request tests. Each must fail as described:
 
 1. A push directly to `main` is rejected (`GH013`).
-2. A force push to `main` is rejected.
+2. A force push to `main`, or deleting `main`, is rejected.
 3. A pull request with no approval cannot merge, and the author cannot approve their own pull request.
 4. Approve, then push a new commit: the approval is dismissed and the merge is blocked.
-5. A fork pull request that adds `${{ secrets.X }}` or `pull_request_target` to a root workflow fails `governance` (`check_publication.py`), and its workflows wait for approval.
-6. A commit status named `governance`, posted through the statuses API, does not satisfy the required check.
-7. A test secret (a revoked token) pushed on a branch is blocked by push protection.
+5. **Workflow deletion:** a fork pull request that deletes `.github/workflows/governance.yml` cannot merge. The required check never reports, and code-owner approval is still required.
+6. **Checker change:** a fork pull request cannot merge without code-owner approval when it combines two changes: `tools/governance/check_publication.py` edited to always pass, and a forbidden file added (for example `.env`). With the trusted-base check in place, that check also fails.
+7. **Path-filter bypass:** a fork pull request that changes only a file outside every component path still runs `governance`, which has no path filter, and still needs code-owner approval.
+8. **Forged status:** a `governance` commit status set to `success` through the statuses API, or by another app, does not satisfy the required check.
+9. **Workflow secrets and triggers:** a fork pull request that adds `${{ secrets.X }}` or `pull_request_target` to a root workflow fails `governance`, and its workflows wait for approval before running.
+10. **Push protection:** a test secret (a revoked token) pushed on a branch is blocked.
 
 ## 5. Publication procedure
 
