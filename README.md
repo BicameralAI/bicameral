@@ -132,7 +132,7 @@ Reserved locations contain only a README naming their source. The structure chec
 
 - **Reporting.** Do not file vulnerabilities as public issues. Follow [SECURITY.md](SECURITY.md).
 - **CI.** The `governance` check runs on every pull request with a read-only token, no secrets, no dependency installation and a commit-pinned checkout action.
-- **Review.** Changes to `main` go through pull requests with independent code-owner review.
+- **Review.** [GOVERNANCE.md](GOVERNANCE.md) requires every change to `main` to arrive by pull request with an independent code-owner approval. Enforcement by a repository ruleset is pending setup by a repository administrator.
 - **SOC 2.** Bicameral is **preparing for a SOC 2 Type 1 examination** (Security and Confidentiality). No examination has been completed, no report has been issued, and Bicameral does not claim SOC 2 compliance or certification. [Details →](SECURITY.md#compliance-posture)
 
 ## Development and testing

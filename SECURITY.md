@@ -27,7 +27,7 @@ What is actually in place here:
 
 - CI runs on `pull_request` with a read-only token (`contents: read`), no secrets, no dependency installation, and an action pinned to a full commit SHA, with checkout credentials not persisted.
 - The governance check validates repository layout, code ownership and architecture records on every pull request.
-- Changes to `main` are expected to go through pull requests with independent code-owner review; see [GOVERNANCE.md](GOVERNANCE.md).
+- [GOVERNANCE.md](GOVERNANCE.md) requires every change to `main` to arrive by pull request with an independent code-owner approval. A repository ruleset enforcing this (required `governance` check, code-owner review, approval of the latest push, stale-approval dismissal, no force pushes or deletion, no bypass) is pending setup by a repository administrator.
 
 ## Compliance posture
 
