@@ -155,6 +155,11 @@ Bicameral is not accepting public contributions yet. The rules that will apply a
 
 Whether outside contributions will use a DCO sign-off or a CLA (decision J-09) is still pending.
 
+
+## Organizational contributors
+
+**WhatBytes** contributes engineering, testing, and maintenance support to Bicameral through Aritro Roy and Mayur Sonar. See [Maintainers and continuing contributors](MAINTAINERS.md#organizational-contributors) for recognition and governance boundaries. Organizational participation does not confer repository or product authority.
+
 ## License and attribution
 
 Bicameral is licensed under the [Apache License 2.0](LICENSE), the license authorized for the entire consolidated product.
