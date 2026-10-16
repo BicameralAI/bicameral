@@ -2,7 +2,7 @@
 
 Consolidation of the Bicameral product repositories into this repository, tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969). This is a relocation: each component keeps its internal layout, interfaces, dependencies and behavior. Only mechanical changes required by the move are made. The machine-readable record is [`sources.json`](sources.json).
 
-Each component was copied from the tracked files of its default branch at the SHA below, as a source snapshot without Git history. All components are distributed under the repository's [Apache-2.0 license](../LICENSE) (decision J-03), so per-component license files were not carried over. Bot's third-party attribution moved to the root [`NOTICE`](../NOTICE).
+Each component was copied from the tracked files of its default branch at the SHA below, as a source snapshot without Git history. J-03 sets the repository's [Apache-2.0 license](../LICENSE) as the license for all components, so per-component license files were not carried over. For MCP and Integrations it takes effect only with the copyright holders' agreement, and for every component only with the evidence under "Rights evidence". Bot's third-party attribution moved to the root [`NOTICE`](../NOTICE).
 
 ## Inventory
 
@@ -23,7 +23,7 @@ Import order follows the dependencies: Bot, Integrations, MCP, Cloud, Installer,
 | --- | --- |
 | `.bicameral/` control-plane state (factory attestations, repo-governance records, spec-governance) | Confidential Factory artifacts, not product source (#969). Exceptions, because existing tests or CI read them: MCP's `.bicameral/customer-artifact-boundary.json` and `.bicameral/validator-provenance/` (packaging policy), and Cloud's `.bicameral/factory-attestations/0d972754…validation-terminal-hosted-v0.1.10.json` (read by `tests/test_real_process_hosted_topology.py`). The Cloud record contains Factory session context (loaded context, roadmap references); it must pass the publication-safety review before this repository is made public. |
 | `bicameral-cloud/docs/governance/soc2-application-controls.md` | SOC 2 control documentation with operational detail; private evidence under #969. |
-| Per-component `LICENSE`, `LICENSE-MIT`, `LICENSE-APACHE` | Superseded by the root Apache-2.0 license (J-03). Exception: `packages/mcp/LICENSE` now holds the Apache-2.0 text in place of BSL 1.1, because MCP's source distribution packages a license file. |
+| Per-component `LICENSE`, `LICENSE-MIT`, `LICENSE-APACHE` | Replaced by the root Apache-2.0 license (J-03), subject to "Rights evidence". Exception: `packages/mcp/LICENSE` holds the Apache-2.0 text in place of BSL 1.1, because MCP's source distribution packages a license file. The #969 correction says the license file is not flipped before the copyright holders sign; the owner decides whether to restore BSL 1.1 here until then or record this as approved. |
 | Git history | Curated snapshot per #969; history remains in the source repositories. |
 
 ## Mechanical adjustments
@@ -102,7 +102,7 @@ Cross-component pairs that agree: hosted bridge (Factory checker, both sides), e
 
 Integrations source files carried `SPDX-License-Identifier: MIT` headers. Bicameral-authored files now carry `Apache-2.0` (J-03), with only the header lines changed. Two exceptions:
 
-- **Reviewed components.** Ten files are reviewed components of the information-cycle bundle, which pins their exact bytes, so their MIT header stays until the next bundle review. Like the rest of the repository, they are distributed under the root Apache-2.0 [`LICENSE`](../LICENSE).
+- **Reviewed components.** Ten files are reviewed components of the information-cycle bundle, which pins their exact bytes, so their MIT header stays until the next bundle review. Like the rest of the repository, they are intended to be distributed under the root Apache-2.0 [`LICENSE`](../LICENSE), subject to "Rights evidence".
 - **Third-party text** keeps its own license and attribution. For example, the Contributor Covenant 2.0 text in the Integrations ingest fixtures.
 
 ## Publication-sensitive material and rights evidence
@@ -113,12 +113,14 @@ The repository is private. The items below must be resolved or accepted before a
 
 | Source | License at the source SHA | In this repository | Evidence still needed |
 | --- | --- | --- | --- |
-| `bicameral-bot` | `MIT OR Apache-2.0` (`LICENSE-MIT`, `LICENSE-APACHE`, copyright BicameralAI), `NOTICE` | Apache-2.0; `NOTICE` at the root | Confirmation that contributions by people outside the company (commits by Aritro, Mayur Sonar and `rev-9w`) were made under the project license or a contractor agreement |
-| `bicameral-mcp` | BSL 1.1, Licensor BicameralAI, change date 2030-07-10 | Apache-2.0 text in `packages/mcp/LICENSE`, `pyproject.toml` license Apache-2.0 | The copyright holders' written agreement to relicense, which J-04 assigns to Kevin; contributor list includes `ljschwarzer` (bicameral-ai.com) |
-| `bicameral-integrations` | BSL 1.1, Licensor BicameralAI, while its 315 source files declared `SPDX-License-Identifier: MIT` | Root Apache-2.0; 305 headers changed to Apache-2.0, 10 bundle-pinned files still declare MIT | Which of the two declarations governed past contributions, the relicensing agreement, and the provenance of one commit authored as `MythologIQ` (Kevin's address), since MythologIQ is a separately owned entity |
+| `bicameral-bot` | `MIT OR Apache-2.0` (`LICENSE-MIT`, `LICENSE-APACHE`, copyright BicameralAI), `NOTICE` | Apache-2.0; `NOTICE` at the root | Confirmation that contributions by people outside the company (commits by Aritro, Mayur Sonar and `rev-9w`) were made under the project license or a contractor agreement; MythologIQ's grant for the three workflow files it authored (`apps/bot/.github/workflows/{sbom,scorecard,dependency-review}.yml`, commit `791dbec`) |
+| `bicameral-mcp` | BSL 1.1, Licensor BicameralAI, change date 2030-07-10 | Apache-2.0 text in `packages/mcp/LICENSE`, `pyproject.toml` license Apache-2.0 | The copyright holders' written agreement to relicense, which J-04 assigns to Kevin. Authors: Jin Hong Kuan, Silong Tan (personal address, 274 commits), Kevin Knapp (including the `MythologIQ` alias, sole author of `packages/mcp/.github/workflows/sbom.yml`, commit `7ba8db9`) and `ljschwarzer` (bicameral-ai.com) |
+| `bicameral-integrations` | BSL 1.1, Licensor BicameralAI, while its 313 source files declared `SPDX-License-Identifier: MIT` | Root Apache-2.0; 303 headers changed to Apache-2.0 (plus 2 new files), 10 bundle-pinned files still declare MIT | Which of the two declarations governed past contributions, and the relicensing agreement from its authors (Kevin Knapp, Jin Hong Kuan). The one commit authored as `MythologIQ` (`58c7e39`) touched only `.bicameral/repo-governance.yaml`, which was not imported |
 | `bicameral-cloud` | No license file (all rights reserved) | Root Apache-2.0 | Owner authorization to license Cloud under Apache-2.0 and confirmation of contributor terms |
 | `bicameral-install` | No license file | Root Apache-2.0 | Same as Cloud |
 | `bicameral-factory` (allowlisted files) | No license file | Root Apache-2.0 | Owner authorization for the allowlisted files (the authorship is recorded in the PR that imports them) |
+
+Across components, most commits by team members (Kevin Knapp, Jin Hong Kuan, Silong Tan) were made from personal addresses. The record should confirm that this work belongs to BicameralAI, or is licensed to it, as part of the evidence above. The source repositories have no CLA or DCO; inbound terms for this repository are pending decision J-09.
 
 Third-party material:
 

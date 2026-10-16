@@ -25,7 +25,7 @@
   <img src="https://img.shields.io/badge/rust-1.75%2B-orange?logo=rust&logoColor=white" alt="Rust 1.75+">
   <img src="https://img.shields.io/badge/protocol-v2%20(ToolRequest)-blue" alt="Protocol v2">
   <img src="https://img.shields.io/badge/grounding-local%20(tree--sitter)-2ea44f" alt="Local grounding">
-  <a href="#license"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg" alt="License: MIT OR Apache-2.0"></a>
+  <a href="#license"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
 </p>
 
 ---
