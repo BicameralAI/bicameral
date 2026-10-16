@@ -83,6 +83,42 @@
         ".bicameral/"
       ],
       "adjustments": []
+    },
+    {
+      "source": "BicameralAI/bicameral-factory",
+      "sha": "c7e682bc8a72f094f96a79be16f536ec47dcedd2",
+      "destination": "tools/factory",
+      "scope": "allowlist",
+      "files": 5,
+      "allowlist": [
+        {
+          "path": ".github/workflows/semantic-contract-conformance.yml",
+          "sha256": "21a6c3ff5c779f35fd3c5818d4e4118bc2ae10488eff87d700ab5c6ce48adc6c"
+        },
+        {
+          "path": "registries/semantic-contract-pairs.json",
+          "sha256": "257b9bf851f6c8b1242ad7a8fcb40f9539eef58e6585b242058a97eea3402f80"
+        },
+        {
+          "path": "registries/semantic-contract-pairs.schema.json",
+          "sha256": "b53bb0d454c7aa533f6e6dffe22e161d9c67f7a96f44dc2e60ed746d18417809"
+        },
+        {
+          "path": "scripts/semantic_contract_conformance.py",
+          "sha256": "82de2714a0f954bb6ee457e3cb9bd6ee6b72f9c1275c21c2af2b678546611ea4"
+        },
+        {
+          "path": "scripts/test_semantic_contract_conformance.py",
+          "sha256": "88ae1fe467c846a5a1936bc96b34fefa572de4771c34a3f2cea8cefd14091252"
+        }
+      ],
+      "excluded": [
+        "Every Factory path not on the allowlist (deny by default; #969 J-06/J-07)"
+      ],
+      "adjustments": [
+        "None to the copied files: all are byte-identical to the source SHA",
+        "tools/factory/README.md added to describe the allowlisted subset (required by the structure manifest)"
+      ]
     }
   ],
   "root_workflows": {
@@ -99,8 +135,17 @@
       "cloud-release-provenance",
       "cloud-customer-distribution-boundary",
       "installer-unix",
-      "installer-windows"
+      "installer-windows",
+      "factory-semantic-contract"
     ],
-    "not_activated": "Release, publish, deploy (Cloud Run, GitHub Pages, PyPI, R2), cross-repository dispatch, Factory attestation, Atlas, notification and repository-governance workflows. They remain in each component's .github/ directory unchanged."
+    "not_activated": "Release, publish, deploy (Cloud Run, GitHub Pages, PyPI, R2), cross-repository dispatch, Factory attestation, Atlas, notification and repository-governance workflows. They remain in each component's .github/ directory unchanged.",
+    "rewired": [
+      {
+        "workflow": "bot-rust",
+        "job": "hosted-bridge-contract",
+        "source": "apps/bot/.github/workflows/rust.yml (job hosted-bridge-contract)",
+        "change": "Runs the same Factory checker, registry and contract id from tools/factory/ at the pinned Factory SHA, instead of calling BicameralAI/bicameral-factory/.github/workflows/semantic-contract-conformance.yml@main with a cross-repository token. The --repository and --repo-root arguments name bicameral-bot and apps/bot, so the registry and checker are unchanged."
+      }
+    ]
   }
 }

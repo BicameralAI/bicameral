@@ -99,17 +99,39 @@ jobs:
     - name: Build dashboard
       working-directory: apps/bot/dashboard
       run: npm run build
+  hosted-bridge-contract:
+    name: hosted-bridge-contract
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    # apps/bot/.github/workflows/rust.yml calls the Factory reusable workflow
+    # semantic-contract-conformance.yml cross-repository. The same checker and registry
+    # are in tools/factory/ (migration/sources.json), so no cross-repository token is used.
+    - name: Verify active semantic contract
+      working-directory: .
+      run: |
+        python3 tools/factory/scripts/semantic_contract_conformance.py \
+          --registry tools/factory/registries/semantic-contract-pairs.json \
+          --contract-id hosted-bridge.capability.v1 \
+          --repository BicameralAI/bicameral-bot \
+          --repo-root apps/bot
 'on':
   workflow_dispatch: null
   pull_request:
     paths:
     - apps/bot/**
+    - tools/factory/scripts/semantic_contract_conformance.py
+    - tools/factory/registries/semantic-contract-pairs.json
     - .github/workflows/bot-rust.yml
   push:
     branches:
     - main
     paths:
     - apps/bot/**
+    - tools/factory/scripts/semantic_contract_conformance.py
+    - tools/factory/registries/semantic-contract-pairs.json
     - .github/workflows/bot-rust.yml
 permissions:
   contents: read

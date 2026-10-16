@@ -1,0 +1,30 @@
+# Runs the Factory semantic contract checker's own tests, as Factory's
+# dashboard-tests.yml does for these files. Steps execute in tools/factory/ so the
+# Factory command is unchanged.
+name: 'factory: semantic contract conformance tests'
+jobs:
+  tests:
+    name: semantic-contract-conformance-tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - name: Run semantic contract conformance tests
+      run: python3 -m unittest scripts.test_semantic_contract_conformance
+'on':
+  workflow_dispatch: null
+  pull_request:
+    paths:
+    - tools/factory/**
+    - .github/workflows/factory-semantic-contract.yml
+  push:
+    branches:
+    - main
+    paths:
+    - tools/factory/**
+    - .github/workflows/factory-semantic-contract.yml
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: tools/factory

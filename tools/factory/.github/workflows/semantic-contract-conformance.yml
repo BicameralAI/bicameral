@@ -1,0 +1,56 @@
+name: Semantic Contract Conformance
+
+on:
+  workflow_call:
+    inputs:
+      contract_id:
+        description: Active contract id from registries/semantic-contract-pairs.json
+        required: true
+        type: string
+    secrets:
+      cross_repo_token:
+        description: Token able to read BicameralAI/bicameral-factory
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve latest Factory revision exactly once
+        env:
+          FACTORY_REF: ${{ job.workflow_sha }}
+          FACTORY_WORKFLOW_REF: ${{ job.workflow_ref }}
+          FACTORY_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+        run: |
+          set -euo pipefail
+          [[ "$FACTORY_REF" =~ ^[0-9a-f]{40}$ ]]
+          test "$FACTORY_WORKFLOW_REPOSITORY" = "BicameralAI/bicameral-factory"
+          test "$FACTORY_WORKFLOW_REF" = \
+            "BicameralAI/bicameral-factory/.github/workflows/semantic-contract-conformance.yml@refs/heads/main"
+
+      - name: Check out product repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: product
+
+      - name: Check out resolved Factory validator
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: BicameralAI/bicameral-factory
+          ref: ${{ job.workflow_sha }}
+          token: ${{ secrets.cross_repo_token }}
+          path: factory
+
+      - name: Verify active semantic contract
+        env:
+          CONTRACT_ID: ${{ inputs.contract_id }}
+          PRODUCT_REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 factory/scripts/semantic_contract_conformance.py \
+            --registry factory/registries/semantic-contract-pairs.json \
+            --contract-id "${CONTRACT_ID}" \
+            --repository "${PRODUCT_REPOSITORY}" \
+            --repo-root product

@@ -13,8 +13,9 @@ Each component was copied from the tracked files of its default branch at the SH
 | `BicameralAI/bicameral-mcp` | `9657ae288637cb3b4e4ef4dc1d43ae42a02b17c7` | [`packages/mcp/`](../packages/mcp/) | `lint-and-typecheck.yml`, `mcp-deterministic-tests.yml` (Python 3.11): `pip install --require-hashes -r requirements-ci.lock`, `pip install --no-deps .`, `ruff check .`, `ruff format --check .`, `mypy .`, `python scripts/sim_issue_108_flows.py --check`, `pytest tests/`, `python -m build` | Bot daemon at runtime (HTTP), no build-time dependency |
 | `BicameralAI/bicameral-cloud` | `4e72bba576bedbd5b5bd23bc3a5bb1d1e3dffc8d` | [`services/cloud/`](../services/cloud/) | `contract-conformance.yml` (3.12), `hosted-security-hardening.yml` (3.11), `reconciliation-evidence.yml` (3.12): `pip install -e '.[dev]'`, `pytest` groups, `ruff`, `mypy`, `scripts/*.py` validators | Vendored Bot dashboard bundle and Bot release descriptor; Bot and MCP in hosted journey tests |
 | `BicameralAI/bicameral-install` | `b492638ad4141b44a916dbf6420d7776c8cfc1a3` | [`installer/`](../installer/) | `unix-installer-ci.yml`: `sh -n site/install.sh`, `tests/test-unix-reconcile.sh`; `windows-installer-ci.yml`: PowerShell parse and `tests/test-windows-publication.ps1` | Bot release artifacts (`latest.json`, published binaries) |
+| `BicameralAI/bicameral-factory` (allowlist only) | `c7e682bc8a72f094f96a79be16f536ec47dcedd2` | [`tools/factory/`](../tools/factory/) | Factory `dashboard-tests.yml`: `python3 -m unittest scripts.test_semantic_contract_conformance`; Bot `rust.yml` job `hosted-bridge-contract` calls Factory's reusable `semantic-contract-conformance.yml` | Bot's `hosted-bridge-contract` CI job; reads Bot's `protocol/hosted-bridge/contract.json` |
 
-Import order follows the dependencies: Bot, Integrations, MCP, Cloud, Installer.
+Import order follows the dependencies: Bot, Integrations, MCP, Cloud, Installer, then the Factory allowlist.
 
 ## Not carried over
 
@@ -42,6 +43,23 @@ The Integrations information-cycle bundle records an original review (`reviewed_
 **Trust boundary.** The records are hashes, not signatures. Offline, which is how CI runs (it has no credentials for the private source repository), a record that is edited and fully re-digested is only caught by code review: changes under `migration/` trigger the Integrations CI and require code-owner review. Running with the original repository re-verifies everything against its history and is authoritative.
 
 Both records are regenerated only from the original history: `python scripts/migration_provenance.py write-records <bundle> --source-repo <path>`.
+
+## Factory allowlist
+
+Factory is not imported as a component. Per #969 (J-06/J-07), only Bicameral-owned files that the components' own CI depends on are copied, deny by default. The allowlist with each file's SHA-256 is in [`sources.json`](sources.json); all files are byte-identical to the Factory SHA.
+
+| Slice | Files | Why | Review |
+| --- | --- | --- | --- |
+| Semantic contract conformance | `scripts/semantic_contract_conformance.py`, its test, `registries/semantic-contract-pairs.json` and `.schema.json`, `.github/workflows/semantic-contract-conformance.yml` | Bot's `hosted-bridge-contract` job ran this checker through a cross-repository reusable workflow, so the job could not run here | Standard library only; one Bicameral author; no secrets, private URLs or references to Navigator, Atlas, FinOps, TARA, Qortara or MythologIQ |
+
+The root `bot-rust.yml` runs the same checker with the same registry and contract id against `apps/bot` (see `root_workflows.rewired` in `sources.json`). Two differences from the source follow from the move:
+
+- The source job used Factory's `main` at run time; the monorepo uses the pinned SHA. Until this import is accepted, Factory stays authoritative and changes are brought over by re-copying at a new SHA.
+- No cross-repository token is used.
+
+**Recorded, not changed:** the registry's other active pair, `bicameral.semantic-resolution`, does not verify at the source either. Bot's `docs/specs/semantic-resolution-capability-contract.md` hashes to `sha256:10381c1b…` against the registry's `sha256:f3513488…`, and MCP has no `contracts/semantic-resolution-capability-contract.md`. No workflow invokes that pair in any source repository, so no check is activated for it here.
+
+`BicameralAI/bicameral-daemon` is not a #969 source. Its README describes it as the legacy architecture staging repository (documentation and ADRs only), so it is not imported.
 
 ## License headers
 

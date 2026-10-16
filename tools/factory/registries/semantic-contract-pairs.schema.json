@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BicameralAI/bicameral-factory/registries/semantic-contract-pairs.schema.json",
+  "title": "Bicameral semantic contract pair registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "contracts"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "contracts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/contractPair" }
+    }
+  },
+  "$defs": {
+    "repoRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "name"],
+      "properties": {
+        "owner": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 }
+      }
+    },
+    "fingerprintSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "normalization", "digest"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "canonical_json",
+            "canonical_yaml",
+            "artifact_specific"
+          ]
+        },
+        "source_path": {
+          "type": "string",
+          "description": "Contract source path relative to the producing repo."
+        },
+        "normalization": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "parse_structured_document",
+              "sort_object_keys",
+              "preserve_array_order",
+              "drop_comments",
+              "drop_formatting_only_whitespace",
+              "drop_generated_timestamps",
+              "include_semantic_defaults",
+              "artifact_specific_canonicalization"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "semantic_scope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fields or sections included in the semantic digest."
+        },
+        "digest": {
+          "type": "string",
+          "enum": ["sha256"]
+        }
+      }
+    },
+    "bypassPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "requires_issue", "requires_expiry", "requires_ledger_record"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["fail_closed"] },
+        "requires_issue": { "type": "boolean", "const": true },
+        "requires_expiry": { "type": "boolean", "const": true },
+        "requires_ledger_record": { "type": "boolean", "const": true }
+      }
+    },
+    "contractPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "active" } },
+            "required": ["status"]
+          },
+          "then": { "required": ["current_fingerprint"] }
+        }
+      ],
+      "required": [
+        "contract_id",
+        "boundary_type",
+        "status",
+        "producer_repo",
+        "consumer_repo",
+        "contract_home",
+        "artifact_location",
+        "fingerprint_source",
+        "enforcement_direction",
+        "owner",
+        "bypass_policy"
+      ],
+      "properties": {
+        "contract_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "boundary_type": {
+          "type": "string",
+          "const": "semantic_contract"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "active", "deprecated"]
+        },
+        "producer_repo": { "$ref": "#/$defs/repoRef" },
+        "consumer_repo": { "$ref": "#/$defs/repoRef" },
+        "contract_home": {
+          "type": "string",
+          "description": "Human-readable source of truth for the contract."
+        },
+        "artifact_location": {
+          "type": "string",
+          "description": "Concrete path, package, or tag where the consumer obtains the contract."
+        },
+        "current_fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Current producer-recorded contract fingerprint; required for active pairs."
+        },
+        "fingerprint_source": { "$ref": "#/$defs/fingerprintSource" },
+        "enforcement_direction": {
+          "type": "string",
+          "enum": [
+            "producer_to_consumer",
+            "consumer_to_producer",
+            "bidirectional"
+          ]
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bypass_policy": { "$ref": "#/$defs/bypassPolicy" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}
