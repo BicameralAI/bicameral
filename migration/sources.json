@@ -66,7 +66,8 @@
         "docs/governance/soc2-application-controls.md"
       ],
       "adjustments": [
-        "tests/test_line_ending_policy.py reads blobs as HEAD:./<path> so paths resolve from the component directory"
+        "tests/test_line_ending_policy.py reads blobs as HEAD:./<path> so paths resolve from the component directory",
+        "src/bicameral_cloud/routes/connect_local_accountability.py: 31 pre-existing E501 findings resolved without behavior change (Python string literals split, AST verified identical; the five embedded HTML/CSS/JS templates carry a string-scoped noqa: E501 because their bytes must match the served page)"
       ]
     },
     {

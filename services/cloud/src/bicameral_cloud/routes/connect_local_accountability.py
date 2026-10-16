@@ -45,7 +45,8 @@ LINUX_BOOTSTRAP_COMMAND = (
     "elif command -v apt-get >/dev/null 2>&1; then "
     "echo \"Installing required download tool (curl)...\" >&2; "
     "command -v sudo >/dev/null 2>&1 || { "
-    "echo \"sudo is required to install curl on this supported Linux target\" >&2; exit 1; }; "
+    "echo \"sudo is required to install curl on this supported Linux target\" >&2; "
+    "exit 1; }; "
     "sudo apt-get update >&2; "
     "sudo apt-get install -y curl >&2; "
     "curl -fsSL \"$url\" -o \"$tmp\"; "
@@ -57,7 +58,10 @@ LINUX_BOOTSTRAP_COMMAND = (
 
 
 def _apply_linux_bootstrap(html: str) -> str:
-    hook = "        commands = ['curl -fsSL https://install.bicameral-ai.com/install.sh | sh'];"
+    hook = (
+        "        commands = ['curl -fsSL "
+        "https://install.bicameral-ai.com/install.sh | sh'];"
+    )
     if html.count(hook) != 1:
         raise RuntimeError('Linux bootstrap accountability repair failed closed')
 
@@ -83,7 +87,7 @@ _LEGACY_PROBE_HOOK = '''    async function probeDaemon(timeoutMs) {
       } finally {
         if (timer) window.clearTimeout(timer);
       }
-    }'''
+    }'''  # noqa: E501 - embedded browser template; bytes must match the served page
 
 _LOCAL_STATUS_PROBE = f'''    let lastLocalStatus = null;
     async function probeDaemon(timeoutMs) {{
@@ -132,14 +136,15 @@ _LOCAL_STATUS_PROBE = f'''    let lastLocalStatus = null;
       }} finally {{
         if (legacyTimer) window.clearTimeout(legacyTimer);
       }}
-    }}'''
+    }}'''  # noqa: E501 - embedded browser template; bytes must match the served page
 
 
 def _apply_local_status_probe(html: str) -> str:
     count = html.count(_LEGACY_PROBE_HOOK)
     if count != 1:
         raise RuntimeError(
-            f'Local status accountability repair failed closed: legacy probe matched {count} times'
+            'Local status accountability repair failed closed: '
+            f'legacy probe matched {count} times'
         )
     return html.replace(_LEGACY_PROBE_HOOK, _LOCAL_STATUS_PROBE, 1)
 
@@ -151,7 +156,7 @@ _DEVICE_STYLE = '''
     .device-summary-row span { color:var(--muted); font-size:.86rem; }
     .device-summary-row strong { text-align:right; font-size:.88rem; font-weight:700; }
     .device-summary-row .good { color:var(--ok); }
-'''
+'''  # noqa: E501 - embedded browser template; bytes must match the served page
 
 _DEVICE_MARKUP = '''        <div id="device-summary" class="device-summary" hidden aria-label="Connected device status">
           <div class="device-summary-row"><span>Environment</span><strong id="device-environment">Detected locally</strong></div>
@@ -162,7 +167,7 @@ _DEVICE_MARKUP = '''        <div id="device-summary" class="device-summary" hidd
           <div class="device-summary-row"><span>Status</span><strong id="device-connection" class="good">Connected</strong></div>
           <div class="device-summary-row"><span>Google Drive</span><strong id="device-drive">Not connected yet</strong></div>
         </div>
-'''
+'''  # noqa: E501 - embedded browser template; bytes must match the served page
 
 # Raw string is intentional. This contains JavaScript regular expressions; a
 # normal Python string would translate `\b` into a backspace and corrupt the
@@ -232,15 +237,21 @@ _DEVICE_FUNCTIONS = r'''
         continueDrive.onclick = () => { window.location.href = '/app?onboarding=drive'; };
       }
     }
-'''
+'''  # noqa: E501 - embedded browser template; bytes must match the served page
 
 
 def _apply_device_connected_step(html: str) -> str:
     style_hook = '</style>'
     markup_hook = '        <details id="developer-help">'
-    action_hook = '          <button id="cancel" class="btn secondary" type="button" hidden>Cancel</button>'
+    action_hook = (
+        '          <button id="cancel" class="btn secondary" type="button" hidden>'
+        'Cancel</button>'
+    )
     status_hook = '    let lastLocalStatus = null;'
-    redirect_hook = "        window.setTimeout(() => { window.location.href = '/app?onboarding=drive'; }, 450);"
+    redirect_hook = (
+        "        window.setTimeout(() => "
+        "{ window.location.href = '/app?onboarding=drive'; }, 450);"
+    )
 
     expected = {
         'style': html.count(style_hook),
@@ -252,14 +263,17 @@ def _apply_device_connected_step(html: str) -> str:
     invalid = {name: count for name, count in expected.items() if count != 1}
     if invalid:
         raise RuntimeError(
-            f'Device-connected accountability repair failed closed: hook counts {invalid!r}'
+            'Device-connected accountability repair failed closed: '
+            f'hook counts {invalid!r}'
         )
 
     html = html.replace(style_hook, _DEVICE_STYLE + '  </style>', 1)
     html = html.replace(markup_hook, _DEVICE_MARKUP + markup_hook, 1)
     html = html.replace(
         action_hook,
-        '          <button id="continue-drive" class="btn primary" type="button" hidden>Continue to Google Drive →</button>\n'
+        '          <button id="continue-drive" class="btn primary" '
+        'type="button" hidden>'
+        'Continue to Google Drive →</button>\n'
         + action_hook,
         1,
     )
