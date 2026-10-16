@@ -2,15 +2,21 @@
 
 This roster identifies Bicameral's decision owner, repository maintainers, and continuing engineering contributors. **Listing someone here does not automatically grant GitHub access or code-owner authority.**
 
-| Name | GitHub | Responsibility | Status |
-| --- | --- | --- | --- |
-| Jin Kuan | [@jinhongkuan](https://github.com/jinhongkuan) | Product and governance decision owner | Confirmed |
-| Kevin Knapp | [@Knapp-Kevin](https://github.com/Knapp-Kevin) | Lead Engineer & Technical Maintainer: technical leadership, architecture stewardship within approved scope, cross-component quality, CI/security engineering, OSS transition | Confirmed as technical lead under the approved role charter |
-| Silong Tan | [@silongtan](https://github.com/silongtan) | Core Bicameral engineering; prospective component maintainer | Continuing team member; maintainer scope to confirm |
-| Aritro Roy (WhatBytes) | [@officialaritro](https://github.com/officialaritro) | Bicameral engineering and open-source contribution; prospective component maintainer | Continuing six-month engagement communicated by Jin, October 15, 2026 |
-| Mayur Sonar (WhatBytes) | [@Mayurss331](https://github.com/Mayurss331) | Bicameral engineering and open-source contribution; prospective component maintainer | Continuing six-month engagement communicated by Jin, October 15, 2026; repository privileges remain subject to security and least-privilege clearance |
+## Maintainer and contributor roster
 
-Jin confirmed the continued engagement of Aritro and Mayur on October 15, 2026. The roster records participation without implying that either engineer has already been formally appointed a code owner or granted repository write permissions. Silong's GitHub identity is verified; his formal component-maintainer and code-ownership scope remain subject to governance approval.
+**Role** identifies the person's organizational function. **Scope and responsibilities** define the work they are accountable for. **Decision authority** describes what they may decide under the governance charter. **Repository privileges** describe recorded code-ownership eligibility, not a verified GitHub access grant; actual roles/rulesets are configured separately in GitHub. An assignment, a CODEOWNERS entry, and an active GitHub permission are distinct.
+
+| Person / GitHub | Role | Scope and responsibilities | Decision authority | Repository privileges / status |
+| --- | --- | --- | --- | --- |
+| Jin Kuan ([@jinhongkuan](https://github.com/jinhongkuan)) | Product & Governance Decision Owner | Product direction; scope, policy, license, architecture and publication decisions; final escalation | Final product/governance authority under [GOVERNANCE.md](GOVERNANCE.md), subject to required review and security controls; not unilateral PR self-approval | Listed in generated default CODEOWNERS. Actual GitHub role/ruleset enforcement must be verified in settings. Decision-owner role confirmed |
+| Kevin Knapp ([@Knapp-Kevin](https://github.com/Knapp-Kevin)) | Lead Engineer & Technical Maintainer | Technical leadership; cross-component architecture stewardship within accepted records; compatibility, quality, CI/security engineering, reviews and maintainer coordination | Technical review, implementation coordination and escalation within approved architecture; cannot independently change license, product scope, publication authority or approved architecture | Listed in generated default CODEOWNERS. Actual GitHub role/ruleset enforcement must be verified in settings. Technical lead charter confirmed |
+| Silong Tan ([@silongtan](https://github.com/silongtan)) | Engineering Contributor; prospective Component Maintainer | Core Bicameral engineering, implementation, tests and repairs; specific ownership domain unassigned | May propose changes and review as permitted by actual access; **no appointed component ownership or independent release authority recorded** | Continuing team member; GitHub identity verified. Formal maintainer scope and permissions pending decision |
+| Aritro Roy, WhatBytes ([@officialaritro](https://github.com/officialaritro)) | Engineering Contributor; prospective Component Maintainer | Product development, testing, maintenance and technical follow-through; specific ownership domain unassigned | Contribution and review within actually granted access; **no code-owner appointment, merge exemption or publication authority recorded** | Continued engagement communicated October 15, 2026; repository access and potential maintainer appointment must be verified independently |
+| Mayur Sonar, WhatBytes ([@Mayurss331](https://github.com/Mayurss331)) | Engineering Contributor; prospective Component Maintainer | Product development, tests, maintenance and remediation; specific ownership domain unassigned | Contribution and review within actually granted access; **no code-owner appointment, merge exemption or publication authority recorded** | Continued engagement communicated October 15, 2026; repository privileges subject to explicit security/least-privilege clearance |
+
+**Access evidence:** `governance/structure.json` generates `.github/CODEOWNERS` with Jin and Kevin as default owners. That file is **not proof** of either person's current GitHub permission level, nor of enforced branch protections. A GitHub administrator must independently check effective repository roles, teams, rulesets, and active code-owner review enforcement before marking access as verified.
+
+Jin confirmed continued engagement of Aritro and Mayur in the October 15 confirmation. The roster records participation, not automatic repository access or code ownership. Silong's formal component-maintainer scope is also pending.
 
 ## Component maintenance charter
 
