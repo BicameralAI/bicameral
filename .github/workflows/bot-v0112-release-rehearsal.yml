@@ -1,0 +1,146 @@
+# Mirrors apps/bot/.github/workflows/v0112-release-rehearsal.yml at the repository root. GitHub only
+# runs root workflows; run steps execute in apps/bot/ so the component's commands are unchanged.
+# The source checks out BicameralAI/bicameral-factory at FACTORY_COMMIT with a cross-repository token.
+# The Factory files it runs are in tools/factory/ at that commit (migration/sources.json), so the
+# exact-commit check verifies their SHA-256 against the allowlist entries recorded for FACTORY_COMMIT.
+name: 'bot: v0.1.12 release rehearsal'
+permissions:
+  contents: read
+env:
+  FACTORY_COMMIT: 98d3d9b54aea2de3167ab1ff2216bd0f2e18aed5
+  FACTORY: ../../tools/factory
+jobs:
+  rehearse:
+    name: validate non-publishing v0.1.12 rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - name: Check out exact Bot candidate
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      with:
+        persist-credentials: false
+    - name: Verify immutable Factory controller
+      shell: bash
+      working-directory: .
+      run: |
+        python3 - <<'PY'
+        import hashlib
+        import json
+        import os
+        from pathlib import Path
+
+        commit = os.environ["FACTORY_COMMIT"]
+        required = {
+            "scripts/release_unit.py",
+            "scripts/release_rehearsal.py",
+            "registries/bot-release-closure-policy.v1.json",
+        }
+        sources = json.loads(Path("migration/sources.json").read_text(encoding="utf-8"))
+        factory = next(c for c in sources["components"] if c["destination"] == "tools/factory")
+        pinned = {e["path"]: e["sha256"] for e in factory["allowlist"] if e.get("source_sha") == commit}
+        missing = required - pinned.keys()
+        assert not missing, f"no allowlist entry at {commit} for {sorted(missing)}"
+        for path in sorted(required):
+            actual = hashlib.sha256((Path("tools/factory") / path).read_bytes()).hexdigest()
+            assert actual == pinned[path], f"{path} differs from Factory {commit}"
+        print(f"Factory controller files match {commit}")
+        PY
+    - name: Validate proposed release units
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 "${FACTORY}/scripts/release_unit.py" validate-proposal \
+          release-units/v0112-installer-updater-publication.json
+        python3 "${FACTORY}/scripts/release_unit.py" validate-proposal \
+          release-units/v0112-desktop-hosted-key-pairing.json
+    - name: Prove retroactive proposals cannot authorize merge
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p rehearsal-output
+        for proposal in release-units/v0112-*.json; do
+          unit="$(basename "${proposal}" .json)"
+          status=0
+          python3 "${FACTORY}/scripts/release_unit.py" merge-eligibility \
+            --proposal "${proposal}" > "rehearsal-output/${unit}-merge-eligibility.json" || status=$?
+          test "${status}" -eq 1
+          python3 - "rehearsal-output/${unit}-merge-eligibility.json" <<'PY'
+        import json
+        import sys
+
+        result = json.load(open(sys.argv[1], encoding="utf-8"))
+        assert result["state"] == "awaiting_assignment", result
+        assert result["authorizes_merge"] is False, result
+        PY
+        done
+    - name: Validate exact non-publishing rehearsal contract
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import json
+        import os
+
+        contract = json.load(open("release-rehearsals/v0.1.12-retroactive-simulation.json", encoding="utf-8"))
+        assert contract["evaluated_under"]["factory_commit"] == os.environ["FACTORY_COMMIT"]
+        assert all(value is False for value in contract["publication"].values())
+        PY
+        python3 "${FACTORY}/scripts/release_rehearsal.py" validate \
+          release-rehearsals/v0.1.12-retroactive-simulation.json \
+          --release-plan release-plans/v0.1.12-retroactive-simulation.json \
+          --closure-policy "${FACTORY}/registries/bot-release-closure-policy.v1.json" \
+          | tee rehearsal-output/rehearsal-result.json
+    - name: Assemble simulation evidence
+      shell: bash
+      run: |
+        set -euo pipefail
+        cp release-plans/v0.1.12-retroactive-simulation.json rehearsal-output/
+        cp release-units/v0112-*.json rehearsal-output/
+        cp release-rehearsals/v0.1.12-retroactive-simulation.json rehearsal-output/
+        python3 - <<'PY'
+        import json
+        from pathlib import Path
+
+        output = Path("rehearsal-output")
+        result = json.loads((output / "rehearsal-result.json").read_text())
+        summary = {
+            "version": "0.1.12",
+            "evidence_class": "simulated_reconstruction",
+            "proposal_count": 2,
+            "assignment_state": "awaiting_assignment",
+            "topology_state": "simulated_not_authoritative",
+            "authorizes_merge": False,
+            "authorizes_publish": result["authorizes_publish"],
+            "released": False,
+            "production_actions": {
+                "git_tag": False,
+                "github_release": False,
+                "production_r2_latest": False,
+                "cloud_deploy": False,
+            },
+        }
+        (output / "simulation-summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+        PY
+    - name: Retain retroactive simulation evidence
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: v0.1.12-release-rehearsal-${{ github.sha }}
+        path: apps/bot/rehearsal-output/
+        if-no-files-found: error
+        retention-days: 90
+'on':
+  pull_request:
+    paths:
+    - apps/bot/release-plans/v0.1.12-retroactive-simulation.json
+    - apps/bot/release-units/v0112-*.json
+    - apps/bot/release-rehearsals/v0.1.12-retroactive-simulation.json
+    - apps/bot/.github/workflows/v0112-release-rehearsal.yml
+    - apps/bot/scripts/tests/test_v0112_release_rehearsal_workflow.py
+    - tools/factory/scripts/release_unit.py
+    - tools/factory/scripts/release_rehearsal.py
+    - tools/factory/registries/bot-release-closure-policy.v1.json
+    - .github/workflows/bot-v0112-release-rehearsal.yml
+  workflow_dispatch: null
+defaults:
+  run:
+    working-directory: apps/bot

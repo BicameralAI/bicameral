@@ -1,0 +1,63 @@
+# Runs the tests of the Factory tools in tools/factory/, as Factory's own workflows
+# do (dashboard-tests.yml for the semantic contract checker, runtime-architecture-
+# contract.yml for the runtime architecture contract, release-assignment-policy-ci.yml for the
+# release toolchain). Steps execute in
+# tools/factory/ so the Factory commands are unchanged.
+name: 'factory: tools'
+jobs:
+  semantic-contract-conformance-tests:
+    name: semantic-contract-conformance-tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - name: Run semantic contract conformance tests
+      run: python3 -m unittest scripts.test_semantic_contract_conformance
+  runtime-architecture-contract:
+    name: runtime-architecture-contract
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    # Factory also runs scripts.test_runtime_spec_conformance_contract, which tests
+    # Factory's spec-authoring skills; those skills are not imported.
+    - name: Run runtime architecture contract tests
+      run: python3 -m unittest scripts.test_runtime_architecture_contract
+    - name: Validate representative accepted spec
+      run: >-
+        python3 scripts/runtime_architecture_contract.py validate
+        fixtures/runtime-architecture-contract/accepted-explicit-product-registration.json
+    - name: Prove renderer-neutral projection
+      run: >-
+        python3 scripts/runtime_architecture_contract.py project
+        fixtures/runtime-architecture-contract/accepted-explicit-product-registration.json
+        > /tmp/runtime-architecture-projection.json
+    - name: Validate projection JSON
+      run: python3 -m json.tool /tmp/runtime-architecture-projection.json >/dev/null
+  release-toolchain:
+    name: release-toolchain
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    # Factory runs these in its release CI at 98d3d9b, together with release-assignment and workflow
+    # tests that cover Factory files not imported here.
+    - name: Run release manifest, unit and rehearsal tests
+      run: python3 -m unittest scripts.test_release_manifest scripts.test_release_unit scripts.test_release_rehearsal
+'on':
+  workflow_dispatch: null
+  pull_request:
+    paths:
+    - tools/factory/**
+    - .github/workflows/factory-tools.yml
+  push:
+    branches:
+    - main
+    paths:
+    - tools/factory/**
+    - .github/workflows/factory-tools.yml
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: tools/factory

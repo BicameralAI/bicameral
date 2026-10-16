@@ -1,0 +1,107 @@
+{
+  "$schema": "../schemas/topology-environment-profile.schema.json",
+  "schema_version": 1,
+  "id": "operator-service-environment-v1",
+  "status": "partial",
+  "evidence_profile": "headless-real-process",
+  "classification": "core",
+  "privilege_class": "disposable-local",
+  "runner": "BicameralAI/bicameral-bot/scripts/run_operator_service_topology.py",
+  "composes_with": [
+    "local-product-environment-v1"
+  ],
+  "platform_lanes": [
+    {
+      "id": "macos-launchd-user-v1",
+      "os": "macos",
+      "service_manager": "launchd-user",
+      "install_command": "bicameral onboard --install-daemon",
+      "start_command": "bicameral service start",
+      "stop_command": "bicameral service stop",
+      "status_command": "bicameral service status",
+      "uninstall_command": "bicameral service uninstall",
+      "status": "partial"
+    },
+    {
+      "id": "linux-systemd-user-v1",
+      "os": "linux",
+      "service_manager": "systemd-user",
+      "install_command": "bicameral onboard --install-daemon",
+      "start_command": "bicameral service start",
+      "stop_command": "bicameral service stop",
+      "status_command": "bicameral service status",
+      "uninstall_command": "bicameral service uninstall",
+      "status": "partial"
+    }
+  ],
+  "required_capabilities": [
+    "released_artifact_install",
+    "native_user_service_lifecycle",
+    "clean_operator_home",
+    "zero_product_health",
+    "multi_product_registry",
+    "workspace_binding_persistence",
+    "product_scoped_mcp",
+    "crash_restart_rehydrate",
+    "bounded_binding_fault",
+    "exact_provenance",
+    "deterministic_teardown"
+  ],
+  "artifact_provenance": {
+    "input": "Exact release artifact or locally built candidate bound to full repository commit and SHA-256 digest.",
+    "rejection": "Floating refs, uncommitted source, a mismatched binary digest, or an unpinned MCP checkout fail during preparation.",
+    "record": "Receipt records repository commits, binary digest, MCP executable digest, Factory commit, and profile digest."
+  },
+  "service_contract": {
+    "install": "Use the shipped onboarding install path under a disposable operator HOME.",
+    "manager": "Use the native user service manager for the selected platform lane.",
+    "health": "Observe the production loopback status and capability endpoints after manager-reported startup.",
+    "restart": "Terminate or stop the manager-owned daemon and require the manager to start a fresh process.",
+    "isolation": "Use a unique operator home, loopback port, and service identity that cannot target an existing user installation."
+  },
+  "product_route_contract": {
+    "registry": "Seed at least two reopenable Product event-store routes through production Product creation or migration paths.",
+    "bindings": "Create per-Product workspace bindings through the production MCP-to-ToolRequest path.",
+    "routing": "Every Product-scoped MCP operation selects a daemon-validated Product and emits ToolRequest.product_id.",
+    "rehydration": "After a fresh service process starts, registry routes and workspace bindings reopen from operator-local persistence."
+  },
+  "fault_contract": {
+    "scope": "Fault injection may alter only one disposable Product workspace-binding record after its digest is recorded.",
+    "assertion": "The damaged Product reports repair-required while another Product remains routable and readable.",
+    "recovery": "Restore the recorded binding bytes before teardown; never synthesize a healthy response."
+  },
+  "receipt_contract": {
+    "schema": "BicameralAI/bicameral-bot/schemas/operator-service-topology-receipt.schema.json",
+    "aggregate_schema": "schemas/release-unit-topology-receipt.schema.json",
+    "required_execution_lanes": [
+      "macos-launchd-user-v1",
+      "linux-systemd-user-v1"
+    ],
+    "authority": "diagnostic_until_topology_execution_request",
+    "required_fields": [
+      "profile_id",
+      "platform_lane",
+      "journey_revision",
+      "artifact_provenance",
+      "service_observations",
+      "product_observations",
+      "observed_check_ids",
+      "teardown",
+      "outcome"
+    ]
+  },
+  "teardown_contract": {
+    "service": "Stop and uninstall the exact disposable service identity even after an assertion failure.",
+    "processes": "Terminate only child processes whose identities were recorded by the runner.",
+    "files": "Remove disposable operator roots after verifying the service manager no longer references them.",
+    "failure": "A teardown failure makes the run non-terminal and requires owner review before retry."
+  },
+  "prohibited_substitutions": [
+    "direct_process_spawn_cannot_satisfy_native_user_service_lifecycle",
+    "raw_http_cannot_satisfy_product_scoped_mcp",
+    "hand_written_registry_cannot_satisfy_multi_product_registry",
+    "in_memory_store_cannot_satisfy_restart_rehydrate",
+    "component_test_cannot_satisfy_real_process_integration"
+  ],
+  "honest_limit": "The profile remains partial until both the macOS launchd-user and Linux systemd-user lanes have terminal real-process evidence using a released artifact and a production MCP build that validates Product selection and sends product_id on every Product-scoped ToolRequest."
+}

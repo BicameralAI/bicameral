@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BicameralAI/bicameral-factory/schemas/topology-environment-profile.schema.json",
+  "title": "Reusable Topology Environment Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "status",
+    "evidence_profile",
+    "classification",
+    "privilege_class",
+    "runner",
+    "composes_with",
+    "platform_lanes",
+    "required_capabilities",
+    "artifact_provenance",
+    "service_contract",
+    "product_route_contract",
+    "fault_contract",
+    "receipt_contract",
+    "teardown_contract",
+    "prohibited_substitutions",
+    "honest_limit"
+  ],
+  "properties": {
+    "$schema": {"type": "string", "minLength": 1},
+    "schema_version": {"const": 1},
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*-v[0-9]+$"
+    },
+    "status": {
+      "enum": ["implemented", "partial", "design-required", "deprecated"]
+    },
+    "evidence_profile": {
+      "enum": ["headless-real-process", "headed-video"]
+    },
+    "classification": {
+      "enum": ["core", "privileged-extension"]
+    },
+    "privilege_class": {
+      "enum": ["disposable-local", "privileged-external"]
+    },
+    "runner": {
+      "type": "string",
+      "pattern": "^[^/]+/[^/]+/.+"
+    },
+    "composes_with": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*-v[0-9]+$"
+      }
+    },
+    "platform_lanes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/platformLane"}
+    },
+    "required_capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/snakeId"}
+    },
+    "artifact_provenance": {"$ref": "#/$defs/stringMap"},
+    "service_contract": {"$ref": "#/$defs/stringMap"},
+    "product_route_contract": {"$ref": "#/$defs/stringMap"},
+    "fault_contract": {"$ref": "#/$defs/stringMap"},
+    "receipt_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "authority", "required_fields"],
+      "properties": {
+        "schema": {"type": "string", "minLength": 1},
+        "aggregate_schema": {"type": "string", "minLength": 1},
+        "required_execution_lanes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "authority": {"const": "diagnostic_until_topology_execution_request"},
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/snakeId"}
+        }
+      }
+    },
+    "teardown_contract": {"$ref": "#/$defs/stringMap"},
+    "prohibited_substitutions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/snakeId"}
+    },
+    "honest_limit": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "snakeId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "stringMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "platformLane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "os",
+        "service_manager",
+        "install_command",
+        "start_command",
+        "stop_command",
+        "status_command",
+        "uninstall_command",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*-v[0-9]+$"
+        },
+        "os": {"enum": ["macos", "linux"]},
+        "service_manager": {"enum": ["launchd-user", "systemd-user"]},
+        "install_command": {"type": "string", "minLength": 1},
+        "start_command": {"type": "string", "minLength": 1},
+        "stop_command": {"type": "string", "minLength": 1},
+        "status_command": {"type": "string", "minLength": 1},
+        "uninstall_command": {"type": "string", "minLength": 1},
+        "status": {"enum": ["implemented", "partial", "design-required"]}
+      }
+    }
+  }
+}

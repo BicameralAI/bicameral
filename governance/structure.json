@@ -170,6 +170,12 @@
       ]
     },
     {
+      "path": "tools/factory",
+      "purpose": "Allowlisted Bicameral-owned validators imported from BicameralAI/bicameral-factory; everything else in Factory stays out (#969).",
+      "children": "open",
+      "status": "active"
+    },
+    {
       "path": "docs",
       "purpose": "Project documentation.",
       "children": "declared"

@@ -4,7 +4,7 @@
 
 Bicameral is preparing its public open-source repository and contribution process. During the transition, changes are coordinated by the [maintainers](MAINTAINERS.md) and invited contributors. **Unsolicited external pull requests are not yet being accepted.** The rules below also apply to current contributions.
 
-Component code is not imported yet. Do not copy source from other Bicameral repositories into this tree except through an authorized import tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
+The Bot, MCP, Integrations, Cloud and Installer components are imported as source snapshots, each in its own directory with its own build and tests; [`migration/README.md`](migration/README.md) records their sources and every migration change. Do not copy source from other Bicameral repositories into this tree except through an authorized import tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969) and recorded in `migration/sources.json`.
 
 ## Local checks
 
@@ -37,7 +37,7 @@ Generated files (`.github/CODEOWNERS`, `docs/architecture/INDEX.md`, `docs/archi
 - **Directories** are declared in `directories`. A `declared` directory only allows files directly inside it plus subdirectories that are themselves declared. An `open` directory allows any layout beneath it.
 - **Reserved** directories hold only their README until an authorized import marks them `active` in the same pull request that brings in the code and its provenance record.
 - Declared directories need a `README.md` describing their purpose unless the manifest sets `"readme": false`.
-- Architecture records live only in `docs/architecture/records/`. Directories named `adr`, `adrs`, `decisions`, `architecture-decisions` or `design-docs` are rejected anywhere.
+- Architecture records live only in `docs/architecture/records/`. Directories named `adr`, `adrs`, `decisions`, `architecture-decisions` or `design-docs` are rejected anywhere, except the pre-consolidation decision directories of imported components that the manifest lists as `legacy_decision_dirs`.
 - Symbolic links are rejected.
 
 To add a location, add it to the manifest (parents before children), add its README, run `--write` so CODEOWNERS is regenerated, and explain the change in the pull request. Manifest changes are high-risk changes under [GOVERNANCE.md](GOVERNANCE.md).

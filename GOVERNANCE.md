@@ -9,16 +9,42 @@ The authoritative program record is [Factory #969](https://github.com/BicameralA
 | Role | Holder | Authority |
 | --- | --- | --- |
 | **Decision owner** | Jin Kuan ([@jinhongkuan](https://github.com/jinhongkuan)) | Final say on product scope, licensing, governance policy, architecture acceptance, publication and releases. |
-| **Maintainer** | Kevin Knapp ([@Knapp-Kevin](https://github.com/Knapp-Kevin)) | Reviews and merges changes within accepted policy; maintains repository tooling, CI and settings. |
+| **Lead Engineer & Technical Maintainer (proposed designation)** | Kevin Knapp ([@Knapp-Kevin](https://github.com/Knapp-Kevin)) | Leads engineering execution, cross-component technical coherence, architecture stewardship within accepted decisions, quality/CI/security engineering, migration verification, and maintainer coordination. Formal title subject to decision-owner approval in this PR. |
+| **Component Maintainer (appointment required)** | Named assignee per component | Owns module correctness, contract compatibility, tests, dependencies, documentation, triage, and regression repair within approved scope. |
+| **Security / Release Approver (designation required)** | Designated independent reviewer(s) | Reviews sensitive privilege/credential changes, security boundaries and release provenance; no release authority is inferred from a title alone. |
+| **Contributor** | Any eligible contributor | Submits traceable changes, test/provenance evidence, and remediation; has no automatic merge or publication authority. |
 
 The current roster is in [MAINTAINERS.md](MAINTAINERS.md). Adding or removing a maintainer is a decision owner decision and is recorded by a reviewed change to that file.
 
-### What maintainers do
+### Technical leadership responsibilities
 
-- Review pull requests for correctness, security, provenance and fit with accepted architecture.
-- Keep the governance checks, CI workflow and generated files healthy.
-- Propose architecture records and policy changes.
-- Escalate high-risk changes (below) to the decision owner.
+The Lead Engineer & Technical Maintainer coordinates Bicameral engineering **within approved product scope and accepted architectural records**. Responsibilities include:
+
+- Establish implementation priorities and technical review criteria without changing product scope or ratifying architecture unilaterally.
+- Maintain cross-component compatibility across Bot, MCP, Integrations, Cloud, Installer and product-owned tooling; ensure canonical contracts, fixtures, and provenance remain coherent.
+- Own the technical migration/equivalence program, the proposed CI/security engineering roadmap, release-readiness evidence, and credible defect follow-through.
+- Coordinate component maintainers, distribute review/triage ownership, establish backups and escalate cross-module disputes.
+- Recommend engineering policies and architecture records to the decision owner; document tradeoffs and verification evidence.
+- Stop or request changes to unsafe/incomplete contributions with technical evidence, without bypassing independent review or acquiring unilateral publication authority.
+
+### Component maintainer responsibilities
+
+Each appointed component maintainer must have a recorded domain, backup/escalation contact, and permitted review scope. Duties are:
+
+- Review relevant pull requests for correctness, security boundaries, interface/schema compatibility, migrations, tests and reproducible source provenance.
+- Maintain existing component tests, documentation, dependency hygiene and known limitations; flag vulnerable or license-incompatible changes.
+- Triage assigned issues and regressions, provide actionable review feedback, verify repairs, and support safe rollback when a change fails after merge.
+- Keep integration contracts and component status accurate; coordinate changes crossing other owners' domains.
+- Escalate protected policy, credential, rights, architectural and release decisions to the designated responsible authority.
+- Arrange review coverage during absence; do not claim round-the-clock support or a response-time SLA that has not been staffed and approved.
+
+### Appointment, accountability and scope
+
+- Component-maintainer assignment is not automatic from contribution volume, AI-tool choice or reputation scores. The decision owner approves a documented domain/role appointment, with technical-lead input and evidence of responsible review, reproducibility and repair capability.
+- Record the effective date, primary/backup component coverage, review expectations, approval boundaries and escalation contacts in the maintainer roster or its approved linked policy.
+- GitHub role/permissions, CODEOWNERS path ownership, architecture acceptance, security approval and release/publication authority are **distinct**. A title or roster entry alone changes none of them; least-privilege grants require separately recorded approval.
+- Periodically review access and capacity; specify temporary handoff, inactivity/offboarding, emergency credential restriction and correction/appeal procedures. Changes in review authority must use a reviewed high-risk PR.
+- Preserve independent current-head review: nobody approves or merges their own change, regardless of rank. High-risk decisions remain subject to the existing decision-owner rule and any separately authorized security review.
 
 ### What maintainers do not do
 

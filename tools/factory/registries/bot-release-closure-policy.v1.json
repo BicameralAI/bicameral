@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "policy_id": "bot-release-closures-v1",
+  "repository": "BicameralAI/bicameral-bot",
+  "release_units": {
+    "bot_daemon": {
+      "requires_release_units": [],
+      "required_closures": ["hosted_dashboard_browser_v1", "integration_bot_mcp_v1"],
+      "component_descriptors": ["bot"]
+    },
+    "hosted_dashboard": {
+      "requires_release_units": [],
+      "required_closures": ["hosted_dashboard_browser_v1"],
+      "component_descriptors": ["bot"]
+    },
+    "integration_connectors": {
+      "requires_release_units": [],
+      "required_closures": ["integration_bot_mcp_v1"],
+      "component_descriptors": ["bot"]
+    },
+    "mcp_surface": {
+      "requires_release_units": [],
+      "required_closures": ["integration_bot_mcp_v1"],
+      "component_descriptors": ["bot"]
+    },
+    "installer_updater": {
+      "requires_release_units": [],
+      "required_closures": ["installer_updater_v1"],
+      "component_descriptors": ["bot"]
+    },
+    "desktop_hosted_key_pairing": {
+      "requires_release_units": [],
+      "required_closures": ["desktop_hosted_key_pairing_v1"],
+      "component_descriptors": ["bot"]
+    }
+  },
+  "closures": {
+    "integration_bot_mcp_v1": {
+      "profile_version": "v1",
+      "components": ["bot", "integrations", "mcp"]
+    },
+    "hosted_dashboard_browser_v1": {
+      "profile_version": "v1",
+      "components": ["bot", "cloud"]
+    },
+    "desktop_hosted_key_pairing_v1": {
+      "profile_version": "v1",
+      "components": ["bot", "cloud"]
+    },
+    "installer_updater_v1": {
+      "profile_version": "v1",
+      "components": ["bot"]
+    }
+  }
+}
