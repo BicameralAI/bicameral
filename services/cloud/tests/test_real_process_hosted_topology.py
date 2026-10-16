@@ -505,3 +505,20 @@ def test_factory_attestation_workflow_targets_this_validation_run() -> None:
         / f"{factory_ref}.validation-terminal-hosted-v0.1.10.json"
     )
     assert attestation.is_file()
+    payload = json.loads(attestation.read_text(encoding="utf-8"))
+    assert payload["fixture_kind"] == "synthetic-test-placeholder"
+    assert payload["validation_run"] == "validation-terminal-hosted-v0.1.10"
+    assert not (
+        {
+            "loaded_context",
+            "context_evidence",
+            "local_setup_divergence",
+            "roadmap_reconciliation",
+            "state_refinement",
+            "end_of_session_capture",
+            "attested_by",
+            "agent",
+            "session",
+        }
+        & payload.keys()
+    )
