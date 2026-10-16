@@ -2,7 +2,7 @@
 
 ## Current status
 
-This repository is **private staging**. Contributions currently come from the maintainers listed in [MAINTAINERS.md](MAINTAINERS.md) and people they invite. **Public pull requests are not being solicited yet.** This guide describes the rules that already apply, so they are in place before outside contributions open.
+Bicameral is preparing its public open-source repository and contribution process. During the transition, changes are coordinated by the [maintainers](MAINTAINERS.md) and invited contributors. **Unsolicited external pull requests are not yet being accepted.** The rules below also apply to current contributions.
 
 Component code is not imported yet. Do not copy source from other Bicameral repositories into this tree except through an authorized import tracked in [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969).
 
