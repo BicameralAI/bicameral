@@ -2,7 +2,7 @@
 
 Date: 2026-06-19
 Status: requirements delta, not implementation plan
-Source material: Alex setup notes, `docs/specs/librarian-recall-readme.md`, `docs/specs/mythologiq-librarian-kg-assessment.md`, four asset-specific `$bic:to-runtime-spec` passes for CODEGENOME, FailSafe, EvolveAI, and qortara-governance, factory product-validation roadmap, cognitive-debt alpha posture docs, and bot alpha release readiness docs.
+Source material: Alex setup notes, `docs/specs/librarian-recall-readme.md`, an internal asset assessment (not published), four asset-specific `$bic:to-runtime-spec` passes for CODEGENOME, FailSafe, EvolveAI, and qortara-governance, factory product-validation roadmap, cognitive-debt alpha posture docs, and bot alpha release readiness docs.
 
 ## Purpose
 

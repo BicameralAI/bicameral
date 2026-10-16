@@ -82,7 +82,7 @@ connections:
     auth_method: oauth
   google:
     status: connected
-    account_label: jinhongkuan@gmail.com
+    account_label: user@example.com
     capabilities:
       - drive.file
       - drive.docs.read

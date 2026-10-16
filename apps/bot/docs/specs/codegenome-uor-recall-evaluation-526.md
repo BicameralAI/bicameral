@@ -19,7 +19,7 @@ A corollary: an alpha **narrows scope, it does not lower the completeness bar.**
 - **CodeGenome** (`MythologIQ-Labs-LLC/CodeGenome`): Rust 1.88+; 9 overlays (Syntax / Semantic / Flow / Process / PDG / Runtime / SCIP / LSP); BLAKE3 content identity; noisy-OR confidence fusion `P = 1 − ∏(1 − cᵢ)`; signal propagation; 4-tier Auto Research loop (Mechanical → Adaptive → Agent-Guided → Autopoietic). RUN-001: 224,703 iterations / ~62h. Reported finding: one architectural change (fusion) improved the baseline by **+0.35**; 224K parameter-tuning iterations improved it by **+0.006**.
 - **uor-addr** (`UOR-Foundation/uor-addr`): deterministic `sha256:<64hex>` labels with **semantic equivalence across serialized forms** (JCS for JSON, Rivest S-expr, XML-C14N 1.1, DER) before hashing; 361 tests; `no_std`/`no_alloc` core; Rust/C/WASM bindings; Apache-2.0.
 - **UOR-Framework** (`UOR-Foundation/UOR-Framework`): algebraic content-addressed ontology (Z/(2ⁿ)Z); 34 namespaces / 474 classes / 948 properties; exports JSON-LD/Turtle/OWL/SHACL; Rust + Lean; v0.5.2.
-- **Local anchors:** ADR-0024 role taxonomy; `mythologiq-librarian-kg-assessment.md` (2026-06-19); `codegenome-authority-cleanup-221.md` (#221 — CodeGenome retained as substrate/signal, MCP-local authority retired).
+- **Local anchors:** ADR-0024 role taxonomy; `codegenome-authority-cleanup-221.md` (#221 — CodeGenome retained as substrate/signal, MCP-local authority retired).
 
 ## Recommendation: **C + constrained-A; explicitly not B**
 
@@ -79,6 +79,6 @@ Content addresses (BLAKE3 or `uor-addr`) are **identity substrate** — they ass
 
 ## See also
 
-- `docs/specs/codegenome-authority-cleanup-221.md` · `docs/specs/mythologiq-librarian-kg-assessment.md` · `docs/specs/graph-provider-abstraction.md`
+- `docs/specs/codegenome-authority-cleanup-221.md` · `docs/specs/graph-provider-abstraction.md`
 - `docs/adr/0024-signal-variables-authority-gates-durable-state.md`
 - `https://github.com/MythologIQ-Labs-LLC/CodeGenome` · `https://github.com/UOR-Foundation/uor-addr` · `https://github.com/UOR-Foundation/UOR-Framework`

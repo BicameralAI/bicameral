@@ -7,7 +7,7 @@
 **Level:** L1
 **Related:** ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0007;
 `../specs/dashboard-removal-shred-policy.md`
-**UI reference:** historical mockup at `/Users/jinhongkuan/github/bicameral/site/src/routes/mockup`
+**UI reference:** historical mockup at `site/src/routes/mockup` (a historical, unpublished mockup)
 
 ## Context
 
@@ -20,7 +20,7 @@ Bicameral needs to make it simple and safe for owners/members to configure or vi
 - ADR-0005 separates event store substrate, ingestion connectors, review UX, and governance policy.
 - ADR-0007 defines the substrate-neutral governance flow and the boundary between core-owned invariants and customizable integration behavior.
 
-The current UI mockup under `/Users/jinhongkuan/github/bicameral/site/src/routes/mockup` adds an important product constraint: the UI should not expand into many top-level pages. The two surfaces that matter for the spike are:
+The current UI mockup under `site/src/routes/mockup` (a historical, unpublished mockup) adds an important product constraint: the UI should not expand into many top-level pages. The two surfaces that matter for the spike are:
 
 1. **Ingestion Gate** — represented today by `channels/+page.svelte`.
 2. **Ledger View** — represented today by `decisions/+page.svelte`, displays the Decision Ledger and emits review commands.
@@ -301,7 +301,7 @@ Optional supporting controls such as member invites, settings, source configurat
 
 ## Acceptance Criteria
 
-- The spike references `/Users/jinhongkuan/github/bicameral/site/src/routes/mockup` as the UI reference.
+- The spike references `site/src/routes/mockup` (a historical, unpublished mockup) as the UI reference.
 - The Ingestion Gate includes source excerpts, extracted candidates, source-to-candidate highlighting, and an ingest action.
 - The `Ingest` action promotes the remaining candidate set for a source snapshot; it is not a manual candidate creation form.
 - The Ledger View preserves the mockup's hierarchy: feature → decision → child decision → code region.
