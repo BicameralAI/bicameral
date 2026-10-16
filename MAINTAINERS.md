@@ -5,7 +5,7 @@ This roster identifies Bicameral's decision owner, repository maintainers, and c
 | Name | GitHub | Responsibility | Status |
 | --- | --- | --- | --- |
 | Jin Kuan | [@jinhongkuan](https://github.com/jinhongkuan) | Product and governance decision owner | Confirmed |
-| Kevin Knapp | [@Knapp-Kevin](https://github.com/Knapp-Kevin) | Lead Engineer & Technical Maintainer (proposed designation): technical leadership, architecture stewardship within approved scope, cross-component quality, CI/security engineering, OSS transition | Existing maintainer confirmed; formal title pending decision-owner review |
+| Kevin Knapp | [@Knapp-Kevin](https://github.com/Knapp-Kevin) | Lead Engineer & Technical Maintainer: technical leadership, architecture stewardship within approved scope, cross-component quality, CI/security engineering, OSS transition | Confirmed as technical lead under the approved role charter |
 | Silong Tan | [@silongtan](https://github.com/silongtan) | Core Bicameral engineering; prospective component maintainer | Continuing team member; maintainer scope to confirm |
 | Aritro Roy (WhatBytes) | [@officialaritro](https://github.com/officialaritro) | Bicameral engineering and open-source contribution; prospective component maintainer | Continuing six-month engagement communicated by Jin, October 15, 2026 |
 | Mayur Sonar (WhatBytes) | [@Mayurss331](https://github.com/Mayurss331) | Bicameral engineering and open-source contribution; prospective component maintainer | Continuing six-month engagement communicated by Jin, October 15, 2026; repository privileges remain subject to security and least-privilege clearance |
