@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0130-spa-first-event-proof-forward",
+  "label": "SPA fail-closed forward of first_event_commit_proof (#1195)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1195",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.30",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-09-02T22:30:00Z",
+  "proposal_digest": "sha256:28f7667c646ac6510ada66e83a3c3b91c35e824a4d19f9bcba2303b33053a731"
+}

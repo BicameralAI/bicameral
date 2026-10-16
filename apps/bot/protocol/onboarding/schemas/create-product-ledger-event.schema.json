@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/onboarding/v1/create-product-ledger-event.schema.json",
+  "title": "CreateProductLedgerEvent",
+  "description": "Canonical CreateProduct EventStoreEntry as written to Drive/Git (the ledger file hashed into ProductCreationCommitProof.event_digest). Distinct from ProductCreationResult, which is the SPA command response. See docs/specs/product-creation-and-discovery-runtime-architecture.md and bot#1193.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "event_type",
+    "payload",
+    "timestamp",
+    "actor",
+    "governance_result_id"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Canonical event UUID; Drive object name is {id}.json."
+    },
+    "event_type": {
+      "type": "string",
+      "const": "create_product"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_id",
+        "creator_cloud_account_id",
+        "creator_roles",
+        "governance_policy_version",
+        "receipt_id",
+        "idempotency_key",
+        "product_display_name",
+        "created_at"
+      ],
+      "properties": {
+        "product_id": { "type": "string" },
+        "creator_cloud_account_id": { "type": "string" },
+        "creator_roles": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["Policy Owner", "Product Owner"] },
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true
+        },
+        "governance_policy_version": { "type": "string" },
+        "receipt_id": { "type": "string" },
+        "idempotency_key": { "type": "string" },
+        "product_display_name": { "type": "string" },
+        "team_display_name": { "type": "string" },
+        "verified_domain": { "type": "string" },
+        "event_store_hint": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "substrate": { "type": "string" },
+            "provider": { "type": "string" }
+          }
+        },
+        "required_connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "provider": { "type": "string" }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "actor": { "type": "string" },
+    "governance_result_id": {
+      "type": ["string", "null"],
+      "description": "Always null for CreateProduct; field is present on the envelope."
+    }
+  }
+}

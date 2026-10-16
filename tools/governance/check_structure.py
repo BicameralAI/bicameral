@@ -40,7 +40,9 @@ TOP_LEVEL_KEYS = {"version", "default_owners", "canonical", "root_files", "direc
 REQUIRED_TOP_LEVEL_KEYS = TOP_LEVEL_KEYS
 CANONICAL_KEYS = {"architecture_records"}
 ROOT_FILE_KEYS = {"path", "purpose", "required", "owners"}
-DIRECTORY_KEYS = {"path", "purpose", "children", "owners", "readme", "status", "source"}
+DIRECTORY_KEYS = {
+    "path", "purpose", "children", "owners", "readme", "status", "source", "legacy_decision_dirs"
+}
 CHILD_POLICIES = ("declared", "open")
 STATUSES = ("active", "reserved")
 SOURCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$")
@@ -68,6 +70,7 @@ class Directory:
     readme: bool
     status: str
     source: str | None
+    legacy_decision_dirs: tuple[str, ...] = ()
 
 
 @dataclass
@@ -271,8 +274,19 @@ def parse_manifest(text: str) -> Manifest:
                 errors.append(f"{where}: source is only meaningful for reserved directories")
             elif not readme:
                 errors.append(f"{where}: reserved directories with a source must keep a README")
+        legacy: tuple[str, ...] = ()
+        if "legacy_decision_dirs" in entry:
+            raw = entry["legacy_decision_dirs"]
+            if not isinstance(raw, list) or not all(
+                normalized_relative_path(item) for item in raw
+            ):
+                errors.append(f"{where}: legacy_decision_dirs must be a list of relative paths")
+            elif children != "open":
+                errors.append(f"{where}: legacy_decision_dirs requires an open directory")
+            else:
+                legacy = tuple(f"{path}/{item}" for item in raw)
         manifest.directories[path] = Directory(
-            path, purpose, children, owners, readme, status, source
+            path, purpose, children, owners, readme, status, source, legacy
         )
 
     if records_dir and records_dir not in manifest.directories:
@@ -435,6 +449,16 @@ def _check_file_location(manifest: Manifest, path: str) -> str | None:
     return None
 
 
+def _legacy_decision_dir(manifest: Manifest, directory: str) -> bool:
+    """True if a forbidden-named directory is a declared, pre-consolidation component
+    decision directory (non-authoritative history imported with its component)."""
+    return any(
+        directory == legacy or directory.startswith(legacy + "/")
+        for entry in manifest.directories.values()
+        for legacy in entry.legacy_decision_dirs
+    )
+
+
 def _inside_root(root: Path, rel: str) -> bool:
     try:
         resolved = (root / rel).resolve()
@@ -470,8 +494,10 @@ def validate(root: Path, manifest: Manifest) -> list[str]:
             errors.append(f"{path}: resolves outside the repository")
             continue
         parts = path.split("/")
-        for part in parts[:-1]:
-            if part.lower() in FORBIDDEN_DIRECTORY_NAMES:
+        for index, part in enumerate(parts[:-1]):
+            if part.lower() in FORBIDDEN_DIRECTORY_NAMES and not _legacy_decision_dir(
+                manifest, "/".join(parts[: index + 1])
+            ):
                 errors.append(
                     f"{path}: forbidden decision-directory name {part!r}; architecture "
                     f"records belong in {records_dir}/"
@@ -492,7 +518,9 @@ def validate(root: Path, manifest: Manifest) -> list[str]:
 
     for directory in directories:
         name = posixpath.basename(directory)
-        if name.lower() in FORBIDDEN_DIRECTORY_NAMES:
+        if name.lower() in FORBIDDEN_DIRECTORY_NAMES and not _legacy_decision_dir(
+            manifest, directory
+        ):
             errors.append(
                 f"{directory}/: forbidden decision-directory name {name!r}; architecture "
                 f"records belong in {records_dir}/"

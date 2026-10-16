@@ -1,0 +1,29 @@
+{
+  "_comment": "Bot-MCP lifecycle: accepted preflight.run — read-only constraint lookup",
+  "_expected_response": "Ok — relevant decisions/candidates, source links, readiness warnings",
+  "mcp_tool": "bicameral.preflight",
+  "tool_request": {
+    "request_id": "a0000002-0000-4000-8000-000000000002",
+    "command": {
+      "name": "preflight.run",
+      "params": {
+        "files": ["src/routes/healthz.rs", "src/db/pool.rs"],
+        "symbols": ["HealthCheckHandler"],
+        "diff_context": null,
+        "branch": "feature/healthz"
+      }
+    },
+    "authority": {
+      "actor_id": "agent-copilot-02",
+      "auth_method": "mcp_session",
+      "session_id": "sess-lifecycle-002",
+      "workspace": "/home/user/project",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp",
+        "mcp_tool": "bicameral.preflight"
+      }
+    },
+    "issued_at": "2026-06-10T10:01:00Z"
+  }
+}

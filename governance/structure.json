@@ -23,6 +23,15 @@
       ]
     },
     {
+      "path": "NOTICE",
+      "purpose": "Third-party attribution notices carried with imported components.",
+      "required": true,
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
       "path": "GOVERNANCE.md",
       "purpose": "Interim governance model, decision ownership and review rules.",
       "required": true,
@@ -87,18 +96,12 @@
       "children": "declared"
     },
     {
-      "path": "apps/dashboard",
-      "purpose": "Customer dashboard UI.",
+      "path": "apps/bot",
+      "purpose": "Local runtime: Rust daemon, gateway, protocol and dashboard (imported from BicameralAI/bicameral-bot).",
       "children": "open",
-      "status": "reserved",
-      "source": "BicameralAI/bicameral-bot"
-    },
-    {
-      "path": "crates",
-      "purpose": "Rust daemon, gateway, protocol and domain crates.",
-      "children": "declared",
-      "status": "reserved",
-      "source": "BicameralAI/bicameral-bot"
+      "legacy_decision_dirs": [
+        "docs/adr"
+      ]
     },
     {
       "path": "packages",
@@ -107,17 +110,21 @@
     },
     {
       "path": "packages/mcp",
-      "purpose": "Agent-facing MCP transport.",
+      "purpose": "Agent-facing MCP transport (imported from BicameralAI/bicameral-mcp).",
       "children": "open",
-      "status": "reserved",
-      "source": "BicameralAI/bicameral-mcp"
+      "status": "active",
+      "legacy_decision_dirs": [
+        "docs/adr"
+      ]
     },
     {
       "path": "packages/integrations",
-      "purpose": "Provider-neutral evidence adapters.",
+      "purpose": "Provider-neutral evidence adapters (imported from BicameralAI/bicameral-integrations).",
       "children": "open",
-      "status": "reserved",
-      "source": "BicameralAI/bicameral-integrations"
+      "status": "active",
+      "legacy_decision_dirs": [
+        "docs/adr"
+      ]
     },
     {
       "path": "services",
@@ -126,17 +133,18 @@
     },
     {
       "path": "services/cloud",
-      "purpose": "Open-source hosted relay/backend and self-host configuration.",
+      "purpose": "Open-source hosted relay/backend and self-host configuration (imported from BicameralAI/bicameral-cloud).",
       "children": "open",
-      "status": "reserved",
-      "source": "BicameralAI/bicameral-cloud"
+      "status": "active",
+      "legacy_decision_dirs": [
+        "docs/adr"
+      ]
     },
     {
       "path": "installer",
-      "purpose": "Installers, bootstrap and distribution build inputs.",
+      "purpose": "Installers, bootstrap scripts and install site (imported from BicameralAI/bicameral-install).",
       "children": "open",
-      "status": "reserved",
-      "source": "BicameralAI/bicameral-install"
+      "status": "active"
     },
     {
       "path": "governance",
@@ -194,7 +202,7 @@
       "path": "migration",
       "purpose": "Source provenance inventories and public, redacted migration attestations.",
       "children": "open",
-      "status": "reserved"
+      "status": "active"
     }
   ]
 }

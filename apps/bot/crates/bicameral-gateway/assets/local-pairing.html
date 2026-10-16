@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Bicameral — Approve this browser</title>
+  <style>
+    :root { --ink:#0f1115; --muted:#5b6474; --line:#e4e7ec; --surface:#fff; --page:#fbfcfd; --cyan:#0891b2; --cyan-strong:#0e7490; --ok:#16a34a; --error:#dc2626;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:var(--page); color:var(--ink); display:grid; place-items:start center; }
+    main { width:min(560px, calc(100vw - 32px)); padding:48px 0 64px; }
+    .overline { margin:0 0 8px; color:var(--cyan-strong); font-size:.72rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
+    h1 { margin:0 0 12px; font-size:clamp(1.6rem, 5vw, 2.2rem); line-height:1.1; letter-spacing:-.02em; }
+    p { line-height:1.5; color:var(--muted); }
+    .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px; margin-top:20px; }
+    dl { margin:0; display:grid; grid-template-columns:max-content 1fr; gap:10px 16px; }
+    dt { color:var(--muted); font-size:.85rem; }
+    dd { margin:0; font-weight:600; overflow-wrap:anywhere; }
+    ul { margin:6px 0 0; padding-left:18px; color:var(--ink); }
+    li { margin:3px 0; }
+    .caps { margin-top:16px; display:grid; gap:12px; }
+    .caps h2 { margin:0; font-size:.85rem; color:var(--muted); font-weight:600; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
+    button { appearance:none; border:1px solid transparent; border-radius:8px; padding:11px 18px; font:inherit; font-weight:650; cursor:pointer; }
+    button:disabled { opacity:.55; cursor:default; }
+    .primary { background:var(--cyan); color:#fff; }
+    .primary:hover:not(:disabled) { background:var(--cyan-strong); }
+    .secondary { background:var(--surface); color:var(--ink); border-color:var(--line); }
+    .ok { color:var(--ok); } .err { color:var(--error); }
+    .request { display:flex; justify-content:space-between; align-items:center; gap:12px; border-top:1px solid var(--line); padding:12px 0; }
+    .request:first-child { border-top:0; }
+    .fine { font-size:.82rem; color:var(--muted); margin-top:18px; }
+    [hidden] { display:none !important; }
+    @media (max-width:520px) { dl { grid-template-columns:1fr; gap:2px 0; } dd { margin-bottom:8px; } .actions button { width:100%; } }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="overline">Bicameral on this computer</p>
+    <h1 id="title">Checking for a connection request…</h1>
+    <p id="lead">This page is served by Bicameral running on this computer. Only you, here, can approve it.</p>
+
+    <section id="review" class="card" hidden>
+      <dl>
+        <dt>Requested by</dt><dd id="origin"></dd>
+        <dt>Cloud account</dt><dd id="account"></dd>
+        <dt>Expires</dt><dd id="expires"></dd>
+      </dl>
+      <div class="caps">
+        <div><h2>This browser will be able to</h2><ul id="allowed"></ul></div>
+        <div><h2>It will never get</h2><ul id="forbidden"></ul></div>
+      </div>
+      <div class="actions">
+        <button id="approve" class="primary" type="button">Approve this browser</button>
+        <button id="deny" class="secondary" type="button">Deny</button>
+      </div>
+    </section>
+
+    <section id="choose" class="card" hidden>
+      <div id="requests"></div>
+    </section>
+
+    <p id="result" hidden></p>
+    <p class="fine">Didn’t start this from Bicameral Cloud? Choose Deny. You can also review requests in a terminal with <code>bicameral pairing approve</code>.</p>
+  </main>
+  <script src="/local/pairing.js"></script>
+</body>
+</html>

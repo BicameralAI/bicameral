@@ -337,6 +337,29 @@ class RepositoryLayoutTests(TempRepoTestCase):
             self.skipTest("cannot create symlinks")
         self.assertLayoutError("tools/governance/outside: symbolic links are not allowed")
 
+    def _with_legacy(self, legacy: list) -> None:
+        manifest = copy.deepcopy(self.manifest)
+        for entry in manifest["directories"]:
+            if entry["path"] == "tools/governance":
+                entry["legacy_decision_dirs"] = legacy
+        self.write_manifest(manifest)
+
+    def test_declared_legacy_decision_dir_allowed(self) -> None:
+        self._with_legacy(["docs/adr"])
+        self.write("tools/governance/docs/adr/0001-old.md")
+        self.assertEqual(check_structure.run(self.root), [])
+
+    def test_undeclared_decision_dir_still_rejected_beside_legacy(self) -> None:
+        self._with_legacy(["docs/adr"])
+        self.write("tools/governance/other/adr/0001-old.md")
+        self.assertLayoutError("forbidden decision-directory name 'adr'")
+
+    def test_legacy_decision_dirs_require_open_directory(self) -> None:
+        manifest = copy.deepcopy(self.manifest)
+        manifest["directories"][1]["legacy_decision_dirs"] = ["adr"]
+        self.write_manifest(manifest)
+        self.assertLayoutError("legacy_decision_dirs requires an open directory")
+
     def test_tracked_files_are_checked(self) -> None:
         self.write("stray.cfg")
         import subprocess

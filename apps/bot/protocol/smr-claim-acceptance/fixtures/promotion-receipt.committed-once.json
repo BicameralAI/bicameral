@@ -1,0 +1,97 @@
+{
+  "receipt_schema_version": 1,
+  "digest_profile_version": 1,
+  "operation_id": "6f1c9d2e-4a83-4b17-9c05-2d7e8f3a1b64",
+  "typed_result": "committed_once",
+  "journey_id": "developer_host_mcp_smr_claim_acceptance_v1",
+  "journey_environment_ids": [
+    "local-product-environment-v1"
+  ],
+  "contract_versions": {
+    "event_schema_version": 1,
+    "proposal_schema_version": 1,
+    "confirmation_protocol_version": 2,
+    "digest_profile_version": 1
+  },
+  "routing": {
+    "product_id": "product.bicameral.core",
+    "event_stream_id": "stream.product.bicameral.core.governance"
+  },
+  "artifact_binding": {
+    "repository_id": "bicameral/bicameral-bot",
+    "git_head": "d4f768368e5b917fe54a4d5b0e4dc68a60cce8af",
+    "artifact_path": "docs/specs/rendezvous-state-machine.md",
+    "blob_id": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+  },
+  "candidate": {
+    "candidate_id": "b2a7f4c1-8e93-4d5a-a016-3f9c7b2e5d80",
+    "generation": 3,
+    "kind": "smr_claim_set_v1",
+    "claim_set_digest": "sha256:d656f2b3221e5b3bc8eb178b70c46ad37aaca5bc4b448ae658e6dbcf70a714b6",
+    "claim_scope_digest": "sha256:567ef037e01da1a08450846e92adb9701a892e05d780fcd0b05f28756ee0c09a",
+    "currentness": "current",
+    "promotion_eligibility": "eligible",
+    "analysis_status": "complete",
+    "visibility": "visible"
+  },
+  "canonical": {
+    "appended": true,
+    "event_id": "7b18e4c9-05a3-4d72-9e61-3fa8c02d5b47",
+    "event_type": "claim_set_candidate_promoted",
+    "base_event_position": 1487,
+    "canonical_event_log_digest_before": "sha256:0776dc6eb1c97c75e6804d4346a9f4bece239f1076e9cddef0f3d7f9848e9738",
+    "canonical_event_log_digest_after": "sha256:2c992954ee725d6c9ac0393737e56b808b52326f008db91e6e15972d0f710862",
+    "claim_projection_digest_before": "sha256:4b5572986671c315407176da4dc46af61c54a8ea2835a19273a52349e778d8da",
+    "claim_projection_digest_after": "sha256:dc89fdba01a543b351f2a3fa70089fcc992875bc647dad5f43311339ea1728f9",
+    "resulting_decision_id": "3a5d7c19-6b24-5e08-9f13-8c47b0e2d96a",
+    "resulting_decision_signoff_state": "approved"
+  },
+  "confirmation": {
+    "protocol_version": 2,
+    "binding_digest": "sha256:fd7890286bfcd3f9e64cc8bc701312827b953516ac6edeed9c3768fdabc515f4",
+    "display_summary_digest": "sha256:a7a1fe75d77947220647f9b0197482f04cf30f326825f084690be62ebb85790a",
+    "actor_id": "actor.product-member-01",
+    "action": "promote_smr_claim_set"
+  },
+  "working_state": {
+    "status_before": "proposed",
+    "status_after": "promoted",
+    "reconciliation_result": "reconciled"
+  },
+  "smr": {
+    "projection_digest_before": "sha256:4b5572986671c315407176da4dc46af61c54a8ea2835a19273a52349e778d8da",
+    "projection_digest_after": "sha256:dc89fdba01a543b351f2a3fa70089fcc992875bc647dad5f43311339ea1728f9",
+    "replay_projection_digest": "sha256:dc89fdba01a543b351f2a3fa70089fcc992875bc647dad5f43311339ea1728f9",
+    "provider_calls_during_replay": 0
+  },
+  "assertions": [
+    {
+      "assertion_id": "T3.append-exactly-once",
+      "result": "passed"
+    },
+    {
+      "assertion_id": "T5.replay-same-projection",
+      "result": "passed"
+    }
+  ],
+  "negative_controls": [
+    {
+      "control_id": "T1.mutate-claim-set-digest",
+      "expected_typed_result": "proposal_identity_mismatch",
+      "observed_typed_result": "proposal_identity_mismatch",
+      "failed_closed": true
+    }
+  ],
+  "sanitization": {
+    "secrets_redacted": true,
+    "raw_artifact_content_retained": false
+  },
+  "teardown": {
+    "completed": true,
+    "residue": []
+  },
+  "outcome": "diagnostic_passed",
+  "limitations": [
+    "Component and real-process local topology only. developer-host-environment-v1 authentic-host validation was not run, so this evidence is diagnostic and cannot claim terminal readiness."
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "ancestry": {
+    "reviewed_commit_is_ancestor_of_source_sha": true,
+    "verified_against": "BicameralAI/bicameral-integrations Git history"
+  },
+  "components": [
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:99fc4abc6802f02d9a74ed2aa8d3c9848f18be6a523c85dccd1bc167eb3d04ee",
+      "blob_sha256_at_source_sha": "sha256:99fc4abc6802f02d9a74ed2aa8d3c9848f18be6a523c85dccd1bc167eb3d04ee",
+      "path": "adapter/core/redaction_receipt.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:e59ecec7b2c3cedeb2460dc56bbf1d4538e6644c8c0400c4d4250d7f81c91e6b",
+      "blob_sha256_at_source_sha": "sha256:e59ecec7b2c3cedeb2460dc56bbf1d4538e6644c8c0400c4d4250d7f81c91e6b",
+      "path": "adapter/core/pipeline.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:aa44bd88795bd0bb5aba3b93bbe1dee0460cce420c7eaf0661f748715d01f83a",
+      "blob_sha256_at_source_sha": "sha256:aa44bd88795bd0bb5aba3b93bbe1dee0460cce420c7eaf0661f748715d01f83a",
+      "path": "adapter/core/heuristics.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:c46ecc153382dd4fc864834117f77f62cb5b6fbf20fd0bd4cc5888338fed12d7",
+      "blob_sha256_at_source_sha": "sha256:c46ecc153382dd4fc864834117f77f62cb5b6fbf20fd0bd4cc5888338fed12d7",
+      "path": "connectors/local_directory/connector.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:bbdbc2ab3655efc6be5c751e9a348f61074d6248b16212580a9f65104e23af1b",
+      "blob_sha256_at_source_sha": "sha256:bbdbc2ab3655efc6be5c751e9a348f61074d6248b16212580a9f65104e23af1b",
+      "path": "runtime/ingest_conformance_harness.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:73e1b13621c3765446ac8f3f6cc023da6a4c9b7a9c23fd53819345f7aacc5f41",
+      "blob_sha256_at_source_sha": "sha256:73e1b13621c3765446ac8f3f6cc023da6a4c9b7a9c23fd53819345f7aacc5f41",
+      "path": "runtime/gateway_mapping.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:77a28a040c7d4e5d3ccb29d027603e233d124783a0d3bb82efd1aa214b2a92eb",
+      "blob_sha256_at_source_sha": "sha256:77a28a040c7d4e5d3ccb29d027603e233d124783a0d3bb82efd1aa214b2a92eb",
+      "path": "runtime/cursor_policy.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:3c0aff1302e21b0b3610092805b7b97baad6db37f64e69b02a7d6b9d660ecd12",
+      "blob_sha256_at_source_sha": "sha256:3c0aff1302e21b0b3610092805b7b97baad6db37f64e69b02a7d6b9d660ecd12",
+      "path": "scripts/capture_sanitize.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:75303c9fd9b0a731160c9dacad2841eb04d488fd479c1d02cff968c0f3995527",
+      "blob_sha256_at_source_sha": "sha256:75303c9fd9b0a731160c9dacad2841eb04d488fd479c1d02cff968c0f3995527",
+      "path": "scripts/generate_information_cycle_bundle.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:ec0113bd71fbbace333fd32cd0f2c38e210d80f09eeece6992f4f2c16919bf27",
+      "blob_sha256_at_source_sha": "sha256:ec0113bd71fbbace333fd32cd0f2c38e210d80f09eeece6992f4f2c16919bf27",
+      "path": "scripts/validate_information_cycle_bundle.py"
+    },
+    {
+      "blob_sha256_at_reviewed_commit": "sha256:bc33a6bb33329babe513f8590286494873c2be3b326ece6032aeaa42c0e75ff8",
+      "blob_sha256_at_source_sha": "sha256:bc33a6bb33329babe513f8590286494873c2be3b326ece6032aeaa42c0e75ff8",
+      "path": "ingest/_schema/information-cycle-evidence-bundle.schema.json"
+    }
+  ],
+  "is_original_approval": false,
+  "kind": "bicameral.migration.provenance-verification",
+  "manifest_digest": "sha256:192487d0d4649f8f5fa5d7cac471a07ab4293201bf89c09bd9ec2c02e0cdbe6b",
+  "original_approval": {
+    "bundle_id": "sha256:bedd9d524de93a403e904d82335d060799e85d24dcb58b98e4f91506e580e9e6",
+    "evidence": "ingest/evidence/local_directory-passive_import/bundle.json",
+    "repository": "BicameralAI/bicameral-integrations",
+    "reviewed_commit": "3b8436e3cbdbc9be2a5c2b68aba491badede5c6c"
+  },
+  "schema_version": 1,
+  "scope": "Migration compatibility only: confirms that the originally reviewed commit is an ancestor of the imported source snapshot and that every reviewed component is byte-identical at both. It is not a review or approval of the implementation.",
+  "source": {
+    "repository": "BicameralAI/bicameral-integrations",
+    "sha": "3e00781d1fff7cf96346fd2f819658a336fa8e7b"
+  },
+  "verification_digest": "sha256:c4545327110337367a63d579b7a48e3508435f14e78a34e3dcb7c1bf8457337b"
+}

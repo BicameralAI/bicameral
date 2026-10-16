@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/resolve-conflict.schema.json",
+  "title": "ResolveConflict",
+  "description": "The owner resolves one whole conflict set in one commit. person_id and daemon_id sit on the command. A member row has no actor. Factory #946. ADR-0034.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["person_id", "daemon_id", "members"],
+  "properties": {
+    "person_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The owner who resolved the set."
+    },
+    "daemon_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Daemon that cranked the write."
+    },
+    "members": {
+      "type": "array",
+      "minItems": 2,
+      "description": "The whole conflict set. At most one state is approved. A rejected member is currently tracked. A superseded member is currently approved, and the approved member is its successor. All rejected is valid.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_uri", "snapshot_addr", "state"],
+        "properties": {
+          "source_uri": { "type": "string", "minLength": 1 },
+          "snapshot_addr": { "type": "string", "minLength": 1 },
+          "state": { "type": "string", "enum": ["approved", "rejected", "superseded"] }
+        }
+      }
+    }
+  }
+}

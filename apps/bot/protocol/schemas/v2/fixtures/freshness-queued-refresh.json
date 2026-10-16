@@ -1,0 +1,47 @@
+{
+  "_comment": "Commit-driven preflight freshness read-model (issue #625): freshness-queued-refresh. Daemon-authored, evidence-only; surfaces render this verbatim.",
+  "_expected": {
+    "commit_freshness": "unknown_stale",
+    "currentness": "graph_unavailable",
+    "evidence_state": "unknown_not_indexed",
+    "graph_readiness": "indexing"
+  },
+  "freshness": {
+    "caveats": [
+      {
+        "code": "refresh_queued",
+        "current_head_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+        "message": "A bounded touched-scope refresh is queued and not yet ready; freshness cannot be confirmed for HEAD.",
+        "snapshot_id": "snap-2026-06-12-aaaa1111"
+      }
+    ],
+    "commit_freshness": "unknown_stale",
+    "currentness": "graph_unavailable",
+    "evidence_state": "unknown_not_indexed",
+    "graph_readiness": "indexing",
+    "graph_snapshot": {
+      "commit_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+      "graph_snapshot_id": "snap-2026-06-12-aaaa1111",
+      "index_version": "idx-7",
+      "ref_name": "refs/heads/dev",
+      "repo_id": "repo-bicameral-bot"
+    },
+    "next_actions": [
+      "retry_when_ready",
+      "proceed_snapshot_scoped"
+    ],
+    "refresh_outcome": "queued",
+    "scope": {
+      "completeness": "file_scoped",
+      "graph_slice_id": "slice-queued",
+      "scope_fingerprint": "fp-slice-queued",
+      "scope_kind": "file_scoped"
+    },
+    "touched_scope": {
+      "detection": "diff_context",
+      "files": [
+        "crates/bicameral-runtime/src/dispatch.rs"
+      ]
+    }
+  }
+}

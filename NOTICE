@@ -1,0 +1,20 @@
+Bicameral Bot
+Copyright 2026 BicameralAI
+
+This product includes software derived from the ZeroClaw project:
+
+  ZeroClaw — https://github.com/zeroclaw-labs/zeroclaw
+  Copyright (c) ZeroClaw Labs
+  Licensed under MIT OR Apache-2.0
+  Pinned commit at extraction time: cbf915d43a3c43116d63c122732942cf8782ff16
+
+The following Bicameral crates contain code adapted from ZeroClaw:
+
+  bicameral-runtime  — adapted from zeroclaw-runtime (daemon, service, approval)
+  bicameral-gateway  — adapted from zeroclaw-gateway (HTTP server, routes)
+  bicameral-config   — adapted from zeroclaw-config (paths, schema, workspace)
+  bicameral-api      — adapted from zeroclaw-api (protocol types)
+  bicameral-audit    — adapted from zeroclaw-runtime/security/audit (receipts)
+  bicameral-mods     — adapted from zeroclaw-plugins (manifest, runner)
+
+See runtime/UPSTREAM-ZEROCLAW.md for detailed extraction notes.

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0130-cloud-pairing-authorization-verify",
+  "label": "Cloud PairingAuthorizationV1 verify on daemon identity enrollment",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "BicameralAI/bicameral-cloud#305",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.30",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-09-02T22:00:00Z",
+  "proposal_digest": "sha256:6c5c4cf74ba847c7c699e9dddaf618c4364e876155ab8219c8eb37c5965daef4"
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0114-mcp-sdk-v1-bound",
+  "label": "Keep fresh MCP installs on the supported SDK v1 runtime",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#762",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.14",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-07-30T10:20:07Z",
+  "proposal_digest": "sha256:500a45b3c7061f4eb8d3d8a3f97361739632baf6b3907ecb726d403c01868ab2"
+}

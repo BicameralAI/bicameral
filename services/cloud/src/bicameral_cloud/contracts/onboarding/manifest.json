@@ -1,0 +1,33 @@
+{
+  "contract": "domain-product-onboarding-contract",
+  "contract_version": "1.0.0",
+  "fixtures": {
+    "hosted-project-preview.valid.json": "66895a498f2d21ccf65bdf1ee17aed4591fb7aad658f236d7121f729e7f827a2",
+    "product-creation-publication.retry.json": "d4358f08f5ed7c24e0b75351f570ac57ee7f01d29228b306584f1f0cbf19f7db",
+    "product-creation-publication.valid.json": "a2c92ba7504ca19cc5d06491a357641159328b7b76542201bc62253b31960dfc",
+    "product-creation-result.valid.json": "423333b1efe6bccd7c91a0c77a5809e2ffaba915ee6882e0bca95e847b5f4b48",
+    "product-join-request.valid.json": "609a037481459af89256bebc58d2dd8b9f8070668f7efd83d2cbadfaad2feba8",
+    "product-join-result.expired-ticket.json": "513b63eb34deec6069903a8d5ab1f83d1409189481568e33a0c22ef29024b68a",
+    "product-join-result.granted.json": "5ce6f30af749ea5964fd0be20deb76641f70da47ceb8caca0e71560b68c5b744",
+    "product-join-result.invalid-signature.json": "cadf4981fcd087fb9de78ba74a0fe2d38e83ccfe42185f0b5e9ff1404b8587fd",
+    "product-join-result.missing-pairing.json": "764cba88b5cd035aaa8dd094eb674a66754fdd903a0f2f935df315750639e230",
+    "product-join-result.not-yet-valid.json": "c1b092e181517e59b74b20cb460f5ce88792c8c885822bea376f805539983b98",
+    "product-join-result.policy-changed.json": "b859e40443b1e3a5151f279ed7fca0d334d3e3f7e1de660b8ca7c8cdaaddc6da",
+    "product-join-result.replayed-ticket.json": "f0e2a76c0d40deba6cddcbfa4c53946e44dff3b70bc1f9d99436cc157cb081d8",
+    "product-join-result.wrong-account.json": "4e77074aef93a86a1e365d021e0845de843909f5fed5275688857da327a62b77",
+    "product-join-result.wrong-audience.json": "eba7d64962ad4f52ff8f999b84fe8087551f554606dd82e332adaa169176e017",
+    "product-join-result.wrong-domain.json": "669513abe615d59532c4e08a0475acee752f1832905c19be0a5aa22c61037a89",
+    "product-join-result.wrong-product.json": "3f5e024f698c8a7d8f67333b238c5f7243b1eb950396870d417392fa9b5c12fd",
+    "product-join-ticket.valid.json": "923f446e14a690a269bf6429ace61952e3e828260856c98b34b6bbb9bd6b306c"
+  },
+  "schemas": {
+    "hosted-project-preview.schema.json": "5e4b49fbcdec85819ab56804104bbb119f479534c1ee43ca06b73e93ddff1011",
+    "product-creation-publication.schema.json": "7aeb418ef44b1b6bfe9a3c0cd859d025f298b218a27f0ae841cb8fc9241ca8c1",
+    "product-creation-result.schema.json": "a651ed021ea0e7c23e0e268cf89188c58cfadd43e7ab1626fc66dbb9e1fff4d4",
+    "product-join-request.schema.json": "c8a1dafbdc4e312b0878e8a43682814ce89aa2243956b474d84c1fbcca034dbd",
+    "product-join-result.schema.json": "1740bb7837c0a28d79a354fc28312716305d85aeb8dfdd41afc47446fbd10f79",
+    "product-join-ticket.schema.json": "94ee0292c73b90c021d6106de7926b6c61942f8a667b944132c506f02ed26bd4"
+  },
+  "semantic_fingerprint": "236243a322fcc945ccbff71cdb00271b7d5d4c263a6bcb800bb3c47ba690397f",
+  "source_commit": "92ff48fad81cd5401d72a9c16ba66041fd60a119"
+}

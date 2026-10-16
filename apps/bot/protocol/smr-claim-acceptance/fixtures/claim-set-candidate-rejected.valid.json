@@ -1,0 +1,22 @@
+{
+  "event_schema_version": 1,
+  "digest_profile_version": 1,
+  "operation_id": "9d2f7b04-3c18-4e6a-8b52-7f04c9a1e386",
+  "routing": {
+    "product_id": "product.bicameral.core",
+    "event_stream_id": "stream.product.bicameral.core.governance"
+  },
+  "candidate": {
+    "candidate_id": "b2a7f4c1-8e93-4d5a-a016-3f9c7b2e5d80",
+    "generation": 3,
+    "kind": "smr_claim_set_v1"
+  },
+  "claim_set_digest": "sha256:d656f2b3221e5b3bc8eb178b70c46ad37aaca5bc4b448ae658e6dbcf70a714b6",
+  "rejection_fingerprint": "sha256:e0f21830d07a367d04797bc0996f44a8a08da23a4fc7280b5bd70eb38ad002ff",
+  "artifact_binding_digest": "sha256:857401756c34430d687ab29f87aedfc8381d7cff093d0e18dadba286eede5592",
+  "claim_scope_digest": "sha256:567ef037e01da1a08450846e92adb9701a892e05d780fcd0b05f28756ee0c09a",
+  "reason_code": "semantically_incorrect",
+  "actor_id": "actor.product-member-01",
+  "confirmation_binding_digest": "sha256:263325b95d18c59f2900443b12f31dbbf905a8aa46600355942737af1fe5b6de",
+  "rejected_at": "2026-07-27T20:16:41Z"
+}

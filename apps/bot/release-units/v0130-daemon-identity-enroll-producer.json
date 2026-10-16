@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0130-daemon-identity-enroll-producer",
+  "label": "Daemon PairingAuthorizationV1 mint + Cloud identity enroll (#1196)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1196",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.30",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-09-03T01:30:00Z",
+  "proposal_digest": "sha256:d47ff88aa530b0b97e7b29c263a7c8d8d1c0de41772674351b807eccb311c7b7"
+}

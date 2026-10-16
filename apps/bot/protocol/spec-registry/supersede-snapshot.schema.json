@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/supersede-snapshot.schema.json",
+  "title": "SupersedeSnapshot",
+  "description": "The owner supersedes one approved snapshot. The approval event stays in the log. Records the owner, the successor snapshot, and the daemon that cranked the write. Policy does not supersede. Factory #946. ADR-0034.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_uri", "snapshot_addr", "successor_snapshot_addr", "person_id", "daemon_id"],
+  "properties": {
+    "source_uri": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Same string as Source.uri."
+    },
+    "snapshot_addr": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Approved snapshot being superseded."
+    },
+    "successor_snapshot_addr": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Snapshot that replaces the superseded one."
+    },
+    "person_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The owner who superseded the snapshot."
+    },
+    "daemon_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Daemon that cranked the write."
+    }
+  }
+}

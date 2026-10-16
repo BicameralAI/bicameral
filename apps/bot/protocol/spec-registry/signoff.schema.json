@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/signoff.schema.json",
+  "title": "Signoff",
+  "description": "Approved state of one GovernedDomain. Tracked, rejected, and superseded are the other states and are not this object. Records the daemon that cranked the write, whether the actor is manual or policy, and the check records that were required for the approval. A manual signoff also records the person and role. A conflict record against another approved domain refuses this event. Factory #935 E2. ADR-0034.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["snapshot_addr", "domain_digest", "daemon_id", "actor", "check_records"],
+  "properties": {
+    "snapshot_addr": {
+      "type": "string",
+      "minLength": 1
+    },
+    "domain_digest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "source_digest of the GovernedDomain that was approved."
+    },
+    "daemon_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Daemon that cranked the write, including when actor is policy."
+    },
+    "actor": {
+      "type": "string",
+      "enum": ["manual", "policy"]
+    },
+    "role": {
+      "type": "string",
+      "enum": ["owner", "member"]
+    },
+    "person_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The person who approved. Required when actor is manual."
+    },
+    "check_records": {
+      "type": "array",
+      "description": "CheckRecord payloads submitted with this signoff. Empty only when no other domain is approved. A record with conflict true against an approved domain refuses the approval.",
+      "items": {
+        "$ref": "https://bicameral.dev/protocol/spec-registry/v1/check-record.schema.json"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "actor": { "const": "manual" } },
+        "required": ["actor"]
+      },
+      "then": { "required": ["role", "person_id"] }
+    },
+    {
+      "if": {
+        "properties": { "actor": { "const": "policy" } },
+        "required": ["actor"]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["role"] },
+            { "required": ["person_id"] }
+          ]
+        }
+      }
+    }
+  ]
+}

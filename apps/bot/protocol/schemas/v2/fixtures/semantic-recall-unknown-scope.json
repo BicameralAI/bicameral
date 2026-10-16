@@ -1,0 +1,72 @@
+{
+  "_comment": "Semantic recall contribution read-model (issue #640): semantic-recall-unknown-scope. Daemon-authored, evidence-only; surfaces render this verbatim. Approximate hints and graph-verified targets are kept in separate collections and never collapsed.",
+  "_expected": {
+    "approximate_hint_count": 1,
+    "caveat_codes": [
+      "approximate_hints_present",
+      "unknown_scope"
+    ],
+    "next_actions": [
+      "verify_with_graph_proof",
+      "inspect_candidate",
+      "narrow_scope"
+    ],
+    "no_result_in_searched_scope": false,
+    "provider_status": "ready",
+    "verified_target_count": 0
+  },
+  "semantic_recall": {
+    "approximate_hints": [
+      {
+        "caveats": [
+          "approximate semantic hint: not graph-verified"
+        ],
+        "confidence": "low",
+        "evidence_state": "approximate_candidate",
+        "file": "crates/bicameral-gateway/src/routes.rs",
+        "reasons": [
+          "Approximate semantic hint; requires deterministic graph proof before binding."
+        ],
+        "tier": "approximate_hint"
+      }
+    ],
+    "caveats": [
+      {
+        "code": "approximate_hints_present",
+        "message": "Approximate semantic hints are advisory and require deterministic graph proof before they can be treated as verified targets."
+      },
+      {
+        "code": "unknown_scope",
+        "message": "Part of the requested scope was not covered by the semantic provider; coverage is partial for the searched scope."
+      }
+    ],
+    "currentness": "current",
+    "next_actions": [
+      "verify_with_graph_proof",
+      "inspect_candidate",
+      "narrow_scope"
+    ],
+    "no_result_in_searched_scope": false,
+    "provenance": {
+      "index_version": "sem-idx-12",
+      "model_id": "fake-embed",
+      "model_version": "v0",
+      "provider_id": "fake-semantic-provider",
+      "provider_version": "0.1.0"
+    },
+    "provider_status": "ready",
+    "searched_scope": {
+      "corpus_id": "corpus-bicameral-bot",
+      "corpus_version": "sem-idx-12",
+      "scope_fingerprint": "fp-semantic-query",
+      "scope_kind": "query"
+    },
+    "unknown_scope": [
+      {
+        "detail": "Vendored sources are outside the semantic index.",
+        "reason": "not_indexed",
+        "scope": "vendor/"
+      }
+    ]
+  }
+}

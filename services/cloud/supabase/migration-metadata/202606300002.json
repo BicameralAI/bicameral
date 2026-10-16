@@ -1,0 +1,8 @@
+{
+  "application_rollback_safe": true,
+  "compatibility": "backfill",
+  "description": "Seed the initial design partner domain.",
+  "execution_policy": "separate_authorization",
+  "schema_version": 1,
+  "version": "202606300002"
+}

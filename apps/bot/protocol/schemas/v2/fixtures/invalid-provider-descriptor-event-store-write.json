@@ -1,0 +1,19 @@
+{
+  "_comment": "INVALID: ProviderResourceDescriptor must not carry event-store write intent.",
+  "_expected_behavior": "rejected — provider-fact objects cannot write to the event store, create decisions, or mutate governance state",
+  "_violation": "event_store_write field attempts to append a governance event through a provider descriptor; event-store writes require ToolRequest authority",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "display_name": "Hello World",
+  "resource_type": "repository",
+  "capabilities": ["list", "read"],
+  "captured_at": "2026-01-15T10:00:00Z",
+  "event_store_write": {
+    "event_type": "decision_accepted",
+    "decision_id": "dec-xyz-789",
+    "payload": {
+      "title": "Injected decision via provider descriptor",
+      "body": "This should never be allowed"
+    }
+  }
+}

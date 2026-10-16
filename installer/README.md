@@ -1,7 +1,14 @@
-# `installer/`: Installer (reserved)
+# Bicameral Install
 
-**Status: reserved. No code has been imported.**
+Static installer site for Bicameral Bot.
 
-This location is reserved for installers, bootstrap and distribution build inputs. Its intended source is [`BicameralAI/bicameral-install`](https://github.com/BicameralAI/bicameral-install), where the code currently lives and is still developed.
+Primary install command:
 
-Code arrives here only through an authorized, provenance-recorded import under [Factory #969](https://github.com/BicameralAI/bicameral-factory/issues/969). The pull request that imports it also marks this directory `active` in [`governance/structure.json`](../governance/structure.json). Until then the governance check rejects any file here other than this README.
+```bash
+curl -fsSL https://install.bicameral-ai.com/install.sh | sh
+bicameral dashboard
+```
+
+This repository is deployed with GitHub Pages at `install.bicameral-ai.com`.
+Release binaries are published by `bicameral-bot` to Cloudflare R2 and
+downloaded through `https://pub-7eab94b264754bee8019fd89ca9b5b0b.r2.dev/bicameral`.

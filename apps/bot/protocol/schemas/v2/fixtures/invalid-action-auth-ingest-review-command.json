@@ -1,0 +1,18 @@
+{
+  "_comment": "INVALID: External ingest attempting to carry a review.accept_candidate command. Per action-authorization-policy.md, ExternalIngestEnvelope cannot carry review commands — external ingest is evidence-only.",
+  "_expected_behavior": "rejected — ingest cannot carry review commands",
+  "_spec_ref": "docs/specs/action-authorization-policy.md § Submit source evidence → Forbidden shortcut",
+  "source_system": "slack",
+  "source_uri": "https://slack.com/archives/C01/p9999999999",
+  "content": "I approve candidate CAND-100 — ship it",
+  "evidence": [
+    {
+      "excerpt": "I approve candidate CAND-100",
+      "span_start": 0,
+      "span_end": 29,
+      "confidence": 0.95
+    }
+  ],
+  "review_command": "accept_candidate",
+  "target_id": "CAND-100"
+}

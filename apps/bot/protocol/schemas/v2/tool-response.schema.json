@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ToolResponse",
+  "description": "Canonical local tool API response. Returned by the daemon after validating and executing a ToolRequest.",
+  "type": "object",
+  "required": ["request_id", "status", "responded_at"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Correlates with ToolRequest.request_id."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "rejected", "error"],
+      "description": "ok = success, rejected = governance policy rejection, error = internal failure."
+    },
+    "result": {
+      "description": "Command-specific result payload. Null when status is error.",
+      "default": null
+    },
+    "message": {
+      "type": ["string", "null"],
+      "description": "Human-readable message (error detail, governance rejection reason, etc.)."
+    },
+    "governance_result": {
+      "description": "Governance result produced by policy evaluation, when applicable.",
+      "default": null
+    },
+    "responded_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp at which the daemon produced this response."
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "_comment": "Conformance fixture: unavailable ref returns readiness/snapshot-resolution outcome, not not_found (ADR-0010 §Branch Visibility Boundary)",
+  "_acceptance_criteria": "issue #101 criteria 5 and 6",
+  "scenarios": [
+    {
+      "name": "unavailable_ref",
+      "description": "Requested ref does not exist locally. Must return RefNotAvailable, not NotFound.",
+      "requested_ref": "refs/remotes/origin/hosted-only-branch",
+      "expected_resolution": "ref_not_available",
+      "expected_readiness": "failed",
+      "must_not_be": ["verified", "not_found"],
+      "explanation": "RefNotAvailable means the snapshot could not be resolved — it was never inspected. NotFound means the snapshot WAS inspected and the target was absent."
+    },
+    {
+      "name": "hosted_only_scope",
+      "description": "Ref requires hosted/team graph visibility not available locally.",
+      "requested_ref": "refs/remotes/origin/team-branch-xyz",
+      "expected_resolution": "ref_not_available",
+      "expected_readiness": "not ready",
+      "must_not_be": ["verified", "not_found"],
+      "explanation": "Hosted-only scope refs return a readiness failure. They are never collapsed into not_found."
+    },
+    {
+      "name": "inspected_absent_target",
+      "description": "Snapshot IS available and inspected, but the target file/symbol is absent.",
+      "requested_ref": "HEAD",
+      "target_file": "src/does_not_exist.rs",
+      "expected_resolution": "resolved",
+      "expected_evidence_state": "not_found",
+      "explanation": "not_found is verified negative evidence: the snapshot was inspected and the target was absent. This is distinct from RefNotAvailable."
+    }
+  ]
+}

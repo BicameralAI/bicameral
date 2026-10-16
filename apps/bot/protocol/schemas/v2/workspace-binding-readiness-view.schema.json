@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkspaceBindingReadinessView",
+  "description": "Hosted-safe projection of workspace binding readiness for a project.\n\nSAFE to cross the hosted bridge: carries the durable [`WorkspaceBindingState`] and redacted [`ProjectSafeDisplayMetadata`], and **never** the local `candidate_path` or any absolute path. It is a readiness projection, not an authority object.",
+  "type": "object",
+  "required": [
+    "bind_available",
+    "display",
+    "project_id",
+    "state"
+  ],
+  "properties": {
+    "bind_available": {
+      "description": "Whether a bind proposal/flow may be offered to the operator.",
+      "type": "boolean"
+    },
+    "display": {
+      "description": "Redacted display metadata safe for hosted-bridge exposure.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/ProjectSafeDisplayMetadata"
+        }
+      ]
+    },
+    "project_id": {
+      "description": "The project this readiness view describes.",
+      "type": "string"
+    },
+    "state": {
+      "description": "Durable workspace binding state.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/WorkspaceBindingState"
+        }
+      ]
+    },
+    "status_message": {
+      "description": "Optional human-readable status.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "definitions": {
+    "ProjectSafeDisplayMetadata": {
+      "description": "Redacted, project-safe display metadata for a binding proposal.\n\nSAFE to cross the hosted bridge: contains no local filesystem path, provider secret, source body, or event-store body. Any folder hint here must be a non-path label (e.g. a basename), never an absolute path.",
+      "type": "object",
+      "required": [
+        "display_name"
+      ],
+      "properties": {
+        "candidate_label": {
+          "description": "Optional non-path folder label to help a human recognize the candidate (e.g. the folder basename only). MUST NOT be an absolute path.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "display_name": {
+          "description": "Human-readable project display name. No path/remote/secret leakage.",
+          "type": "string"
+        },
+        "project_slug": {
+          "description": "Optional short project slug/label. Safe, opaque display token.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "WorkspaceBindingState": {
+      "description": "Durable local workspace binding lifecycle state.\n\nThese are the only durable workspace states. `WorkspaceBindingProposal` is a transient protocol object, not a state in this enum.",
+      "oneOf": [
+        {
+          "description": "Project is registered but has no local workspace binding yet.",
+          "type": "string",
+          "enum": [
+            "local_workspace_unbound"
+          ]
+        },
+        {
+          "description": "Project has a materialized local workspace binding.",
+          "type": "string",
+          "enum": [
+            "local_workspace_bound"
+          ]
+        },
+        {
+          "description": "A previously usable binding is broken and must be repaired before use.",
+          "type": "string",
+          "enum": [
+            "local_workspace_repair_required"
+          ]
+        }
+      ]
+    }
+  }
+}

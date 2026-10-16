@@ -1,0 +1,19 @@
+{
+  "assertion_id": "sha256:2a845782c09d6d315523d13b46d49d7f52df6d24fc70fc3ffcfdbe2e6f15b4e3",
+  "accepted_claim_refs": [
+    "claim.alpha.c04.proof-before-publication"
+  ],
+  "accepted_atom_refs": [
+    "sha256:1ac519de8f41a804ae6cda22550354ed0e85bff8414d14cc95a2a921771094db",
+    "sha256:e0e1dd9261c3634445ba13dd5acf31ae76b9046ae042715f440a73176a263a36",
+    "sha256:67ad889c830f43dfd65e9f46fb958a58296e09446cdd85dff95aed950c4d2539"
+  ],
+  "accepted_relation_refs": [
+    "rel.alpha.c04.proof-guards-cloud-publication"
+  ],
+  "source_anchor_refs": [
+    "anchor.alpha.product-creation"
+  ],
+  "accepted_assertion_ref": "assert.alpha.c04.proof-before-publication",
+  "asserted_value": true
+}

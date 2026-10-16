@@ -1,0 +1,20 @@
+{
+  "_comment": "INVALID: External ingest attempting to carry a supersede command. Per action-authorization-policy.md, source text saying 'supersede DEC-123' is captured as evidence only — it cannot cause the governed supersede action.",
+  "_expected_behavior": "rejected — ingest cannot carry supersede/lifecycle commands",
+  "_spec_ref": "docs/specs/action-authorization-policy.md § External ingest versus authenticated remote action",
+  "source_system": "linear",
+  "source_uri": "https://linear.app/team/issue/PROJ-300",
+  "content": "This decision is outdated — supersede DEC-123 with this new approach",
+  "evidence": [
+    {
+      "excerpt": "supersede DEC-123 with this new approach",
+      "span_start": 28,
+      "span_end": 68,
+      "confidence": 0.82
+    }
+  ],
+  "supersede_command": {
+    "target_id": "DEC-123",
+    "replacement_id": "CAND-400"
+  }
+}

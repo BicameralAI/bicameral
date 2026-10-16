@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/onboarding/v1/product-join-ticket.schema.json",
+  "title": "ProductJoinTicket",
+  "description": "Narrow, signed, short-lived Cloud assertion authorizing one eligible account to request daemon membership for one Product. Carries only the minimum bounded claims. additionalProperties is false: the daemon fails closed on any claim outside this set. It never carries the full hosted (Supabase) session token, refresh tokens, roles, or membership assertions. See docs/specs/domain-product-onboarding-contract.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "issuer",
+    "audience",
+    "product_id",
+    "cloud_account_id",
+    "verified_domain",
+    "issued_at",
+    "expiry",
+    "nonce",
+    "registration_ref"
+  ],
+  "properties": {
+    "issuer": {
+      "type": "string",
+      "description": "Hosted issuer identity (who minted the ticket)."
+    },
+    "audience": {
+      "type": "string",
+      "description": "Intended daemon audience for the ticket."
+    },
+    "product_id": {
+      "type": "string",
+      "description": "Canonical Product the ticket authorizes a join request for."
+    },
+    "cloud_account_id": {
+      "type": "string",
+      "description": "The single eligible Cloud account."
+    },
+    "verified_domain": {
+      "type": "string",
+      "description": "Verified identity domain for same-domain eligibility."
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiry": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Short-lived expiry timestamp."
+    },
+    "nonce": {
+      "type": "string",
+      "description": "Single-use nonce / JTI for replay detection."
+    },
+    "registration_ref": {
+      "type": "string",
+      "description": "Opaque reference the daemon uses to correlate the directory row; not canonical settings."
+    },
+    "provider_hint": {
+      "type": "string",
+      "enum": ["github", "google"],
+      "description": "Optional safe provider hint for setup routing."
+    },
+    "substrate_hint": {
+      "type": "string",
+      "enum": ["git", "drive_folder"],
+      "description": "Optional safe event-store substrate hint for setup routing."
+    }
+  }
+}

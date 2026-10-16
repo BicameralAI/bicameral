@@ -1,0 +1,21 @@
+{
+  "_comment": "Golden ProviderItemEnvelope for Google Drive (#523): one screened document fetched from the folder named by the descriptor's resource_id.",
+  "_expected_behavior": "accepted — describes a fetched Google Drive document without governance, review, or binding authority",
+  "_authority_boundary": "Provisional alpha provider-fact handoff object. It is NOT Source, SourceSnapshot, SourceEvidence, DecisionCandidate, Decision, ToolRequest, ExternalIngestEnvelope, or event-store authority. content and provider_metadata are screened, non-secret provider facts only.",
+  "provider": "google_drive",
+  "resource_id": "folder-abc123",
+  "item_id": "doc-7f3a",
+  "item_type": "document",
+  "title": "Graph snapshot service — runtime architecture",
+  "content": "The snapshot service materializes a content-addressed code state anchored by commit SHA. Readiness is reported as a typed currentness outcome.",
+  "content_hash": "sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+  "uri": "https://docs.google.com/document/d/7f3a/edit",
+  "freshness": {
+    "last_modified": "2026-06-09T14:40:00Z",
+    "etag": "rev-118"
+  },
+  "provider_metadata": {
+    "mime_type": "application/vnd.google-apps.document"
+  },
+  "fetched_at": "2026-06-15T12:05:00Z"
+}

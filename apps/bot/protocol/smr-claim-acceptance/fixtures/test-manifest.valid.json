@@ -1,0 +1,344 @@
+{
+  "test_manifest_version": 1,
+  "contract_id": "state-machine-resolver-v1-runtime-architecture",
+  "groups": [
+    {
+      "group_id": "T1",
+      "name": "exact proposal identity",
+      "conformance_ids": [
+        "CONF-SMR-PROPOSAL-SCHEMA-01",
+        "CONF-SMR-DIGEST-PROFILE-01",
+        "CONF-SMR-BASE-POSITION-01"
+      ],
+      "environment": {
+        "environment_id": "local-product-environment-v1",
+        "topology": "component"
+      },
+      "positive_proof": [
+        "every bound digest and identity matches the challenge binding",
+        "base_event_position re-derives smr_base_snapshot_digest"
+      ],
+      "negative_controls": [
+        {
+          "control_id": "T1.mutate-claim-set-digest",
+          "mutation": "mutate claim_set_digest",
+          "expected_typed_result": "proposal_identity_mismatch",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T1.mutate-base-position",
+          "mutation": "mutate base_event_position",
+          "expected_typed_result": "proposal_identity_mismatch",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T1.mutate-artifact-blob",
+          "mutation": "mutate artifact_binding.blob_id",
+          "expected_typed_result": "proposal_identity_mismatch",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T1.oversize-claim-set",
+          "mutation": "exceed the claims bound",
+          "expected_typed_result": "proposal_too_large",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T1.missing-relation-support",
+          "mutation": "remove AtomRelation supporting_claim_ids or supporting_source_anchor_ids",
+          "expected_typed_result": "proposal_identity_mismatch",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T1.dangling-relation-support",
+          "mutation": "reference a Claim or SourceAnchor outside the same NormalizedClaimSetV1, or an anchor not reachable through a supporting Claim",
+          "expected_typed_result": "proposal_identity_mismatch",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T1.provider-derivation-classification",
+          "mutation": "provider supplies a source_explicit, rule_derived, or model_inferred relation classification",
+          "expected_typed_result": "proposal_identity_mismatch",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T1.nonnormal-relation-support",
+          "mutation": "duplicate or unsort AtomRelation support identities",
+          "expected_typed_result": "proposal_identity_mismatch",
+          "must_fail_closed": true
+        }
+      ],
+      "expected_typed_result": "exact_match",
+      "run_state": "not_run",
+      "human_readable_result": "Not run. This manifest is the contract, not a completed run.",
+      "human_acceptance_required": false
+    },
+    {
+      "group_id": "T2",
+      "name": "authority boundary",
+      "conformance_ids": [
+        "CONF-SMR-PROVIDER-BOUNDARY-01",
+        "CONF-SMR-CLAIM-AUTHORITY-01"
+      ],
+      "environment": {
+        "environment_id": "local-product-environment-v1",
+        "topology": "real_process_local"
+      },
+      "positive_proof": [
+        "daemon mints and consumes the challenge",
+        "MCP transports and renders only",
+        "daemon alone appends canonical state"
+      ],
+      "negative_controls": [
+        {
+          "control_id": "T2.mcp-self-confirm",
+          "mutation": "MCP mints or self-confirms a challenge",
+          "expected_typed_result": "daemon_only",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T2.extractor-authority",
+          "mutation": "extractor supplies an authority field",
+          "expected_typed_result": "daemon_only",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T2.integrations-identity",
+          "mutation": "Integrations submits canonical identity",
+          "expected_typed_result": "daemon_only",
+          "must_fail_closed": true
+        }
+      ],
+      "expected_typed_result": "daemon_only",
+      "run_state": "not_run",
+      "human_readable_result": "Not run. This manifest is the contract, not a completed run.",
+      "human_acceptance_required": false
+    },
+    {
+      "group_id": "T3",
+      "name": "canonical transaction and reconciliation",
+      "conformance_ids": [
+        "CONF-SMR-CANONICAL-COMMIT-01",
+        "CONF-SMR-ROUTING-DERIVATION-01"
+      ],
+      "environment": {
+        "environment_id": "local-product-environment-v1",
+        "topology": "real_process_local"
+      },
+      "positive_proof": [
+        "exactly one event appended",
+        "SQLite reconciles after append",
+        "SMR rebuilds from canonical history"
+      ],
+      "negative_controls": [
+        {
+          "control_id": "T3.append-failure",
+          "mutation": "inject canonical append failure",
+          "expected_typed_result": "not_committed",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T3.sqlite-failure-after-append",
+          "mutation": "inject SQLite failure after append",
+          "expected_typed_result": "reconciliation_required",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T3.caller-supplied-stream",
+          "mutation": "caller supplies event_stream_id",
+          "expected_typed_result": "routing_mismatch",
+          "must_fail_closed": true
+        }
+      ],
+      "expected_typed_result": "committed_once",
+      "run_state": "not_run",
+      "human_readable_result": "Not run. This manifest is the contract, not a completed run.",
+      "human_acceptance_required": false
+    },
+    {
+      "group_id": "T4",
+      "name": "restart-safe idempotency",
+      "conformance_ids": [
+        "CONF-SMR-OPERATION-IDENTITY-01",
+        "CONF-SMR-CONFIRMATION-V2-01"
+      ],
+      "environment": {
+        "environment_id": "local-product-environment-v1",
+        "topology": "real_process_local"
+      },
+      "positive_proof": [
+        "retry with the same operation_id after restart returns the prior receipt with no duplicate append"
+      ],
+      "negative_controls": [
+        {
+          "control_id": "T4.conflicting-binding",
+          "mutation": "same operation_id, different confirmation binding",
+          "expected_typed_result": "operation_conflict",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T4.expired-challenge",
+          "mutation": "confirm after 300 seconds",
+          "expected_typed_result": "challenge_expired",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T4.restart-before-append",
+          "mutation": "restart before canonical append, present old challenge",
+          "expected_typed_result": "challenge_expired",
+          "must_fail_closed": true
+        }
+      ],
+      "expected_typed_result": "replayed_result",
+      "run_state": "not_run",
+      "human_readable_result": "Not run. This manifest is the contract, not a completed run.",
+      "human_acceptance_required": false
+    },
+    {
+      "group_id": "T5",
+      "name": "deterministic replay",
+      "conformance_ids": [
+        "CONF-SMR-ACCEPTANCE-JOURNEY-01"
+      ],
+      "environment": {
+        "environment_id": "local-product-environment-v1",
+        "topology": "real_process_local"
+      },
+      "positive_proof": [
+        "delete SQLite working state, restart, replay",
+        "same Claim identities and projection digest",
+        "provider_calls_during_replay is 0"
+      ],
+      "negative_controls": [
+        {
+          "control_id": "T5.provider-invoked-during-replay",
+          "mutation": "allow a provider call during replay",
+          "expected_typed_result": "not_committed",
+          "must_fail_closed": true
+        }
+      ],
+      "expected_typed_result": "same_projection",
+      "run_state": "not_run",
+      "human_readable_result": "Not run. This manifest is the contract, not a completed run.",
+      "human_acceptance_required": false
+    },
+    {
+      "group_id": "T6",
+      "name": "working-candidate lifecycle",
+      "conformance_ids": [
+        "CONF-SMR-REJECTION-REPLAY-01"
+      ],
+      "environment": {
+        "environment_id": "local-product-environment-v1",
+        "topology": "real_process_local"
+      },
+      "positive_proof": [
+        "typed currentness, promotion_eligibility, analysis_status, and visibility are observable",
+        "rejection tombstone survives SQLite deletion"
+      ],
+      "negative_controls": [
+        {
+          "control_id": "T6.resurface-rejected-fingerprint",
+          "mutation": "automatic ingest resurfaces an exact rejection_fingerprint",
+          "expected_typed_result": "not_committed",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T6.confirm-after-artifact-drift",
+          "mutation": "confirm after artifact digest changes",
+          "expected_typed_result": "proposal_identity_mismatch",
+          "must_fail_closed": true
+        }
+      ],
+      "expected_typed_result": "compatible",
+      "run_state": "not_run",
+      "human_readable_result": "Not run. This manifest is the contract, not a completed run.",
+      "human_acceptance_required": false
+    },
+    {
+      "group_id": "T7",
+      "name": "backward compatibility",
+      "conformance_ids": [
+        "CONF-SMR-LEGACY-CANDIDATE-COMPAT-01",
+        "CONF-SMR-CHALLENGE-BINDING-SUPERSET-01"
+      ],
+      "environment": {
+        "environment_id": "local-product-environment-v1",
+        "topology": "component"
+      },
+      "positive_proof": [
+        "existing decision_v1 promotion is unaffected",
+        "RecallPacket renders both kinds unambiguously",
+        "v2 binding retains every v1 bound field and typed outcome"
+      ],
+      "negative_controls": [
+        {
+          "control_id": "T7.v1-challenge-for-smr",
+          "mutation": "present a v1 challenge for an smr_claim_set_v1 candidate",
+          "expected_typed_result": "unsupported_contract_version",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T7.v2-challenge-for-legacy",
+          "mutation": "present a v2 challenge for a decision_v1 candidate",
+          "expected_typed_result": "unsupported_contract_version",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T7.unknown-candidate-kind",
+          "mutation": "present an unknown candidate kind",
+          "expected_typed_result": "unsupported_contract_version",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T7.workspace-mismatch",
+          "mutation": "mutate the bound workspace",
+          "expected_typed_result": "unsupported_contract_version",
+          "must_fail_closed": true
+        }
+      ],
+      "expected_typed_result": "compatible",
+      "run_state": "not_run",
+      "human_readable_result": "Not run. This manifest is the contract, not a completed run.",
+      "human_acceptance_required": false
+    },
+    {
+      "group_id": "T8",
+      "name": "released-host terminal topology",
+      "conformance_ids": [
+        "CONF-SMR-ACCEPTANCE-JOURNEY-01"
+      ],
+      "environment": {
+        "environment_id": "developer-host-environment-v1",
+        "topology": "released_host_terminal"
+      },
+      "positive_proof": [
+        "released host to packaged MCP to production daemon to SQLite to event store to SMR to MCP, then restart and replay"
+      ],
+      "negative_controls": [
+        {
+          "control_id": "T8.daemon-unavailable",
+          "mutation": "daemon unavailable mid-journey",
+          "expected_typed_result": "not_committed",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T8.lost-response",
+          "mutation": "response lost after append",
+          "expected_typed_result": "replayed_result",
+          "must_fail_closed": true
+        },
+        {
+          "control_id": "T8.secret-leak-check",
+          "mutation": "inspect retained trace for secret or raw-content leakage",
+          "expected_typed_result": "not_committed",
+          "must_fail_closed": true
+        }
+      ],
+      "expected_typed_result": "committed_once",
+      "run_state": "not_run",
+      "human_readable_result": "Not run. This manifest is the contract, not a completed run.",
+      "human_acceptance_required": true
+    }
+  ]
+}

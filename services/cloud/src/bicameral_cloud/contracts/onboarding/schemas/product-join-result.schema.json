@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/onboarding/v1/product-join-result.schema.json",
+  "title": "ProductJoinResult",
+  "description": "Daemon-authoritative outcome of a same-domain product.join. On success the daemon grants Product Member ONLY and appends a canonical membership event + receipt. On failure it returns a typed rejection and creates no membership. There is no durable pending-approval state. See docs/specs/domain-product-onboarding-contract.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id",
+    "product_id",
+    "cloud_account_id",
+    "outcome",
+    "decided_at"
+  ],
+  "properties": {
+    "request_id": { "type": "string" },
+    "product_id": { "type": "string" },
+    "cloud_account_id": { "type": "string" },
+    "outcome": { "type": "string", "enum": ["granted", "rejected"] },
+    "granted_role": {
+      "type": ["string", "null"],
+      "enum": ["Product Member", null],
+      "description": "Product Member on success; null on rejection. Auto-join never grants Policy Owner or Product Owner."
+    },
+    "membership_event_ref": {
+      "type": ["string", "null"],
+      "description": "Canonical membership event reference on success; null on rejection."
+    },
+    "receipt_id": { "type": ["string", "null"] },
+    "failure": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "invalid_signature",
+            "wrong_audience",
+            "wrong_product",
+            "wrong_account",
+            "missing_pairing",
+            "wrong_domain",
+            "policy_changed",
+            "expired_ticket",
+            "not_yet_valid",
+            "replayed_ticket"
+          ]
+        },
+        "message": { "type": "string" }
+      }
+    },
+    "decided_at": { "type": "string", "format": "date-time" }
+  },
+  "oneOf": [
+    {
+      "description": "Granted: Product Member only, canonical membership + receipt, no failure.",
+      "properties": {
+        "outcome": { "const": "granted" },
+        "granted_role": { "const": "Product Member" },
+        "membership_event_ref": { "type": "string" },
+        "receipt_id": { "type": "string" },
+        "failure": { "type": "null" }
+      },
+      "required": ["granted_role", "membership_event_ref", "receipt_id"]
+    },
+    {
+      "description": "Rejected: typed failure, no role, no membership.",
+      "properties": {
+        "outcome": { "const": "rejected" },
+        "granted_role": { "type": "null" },
+        "membership_event_ref": { "type": "null" },
+        "receipt_id": { "type": "null" },
+        "failure": { "type": "object" }
+      },
+      "required": ["failure"]
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral-ai.com/schemas/cloud/evidence-bundle-v1.json",
+  "title": "Cloud #106 reconciliation evidence bundle",
+  "description": "Machine-readable bundle produced by scripts/reconciliation_evidence.py. Each item records the exact command, a timestamp, an environment identifier, a typed collection status, and (when collected) a redaction-safe sanitized payload plus its sha256 digest. Authoritative validation is scripts/verify_evidence_schema.py / bicameral_cloud.evidence.bundle.validate_bundle; this file is the shared contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool_version", "generated_at", "environment", "summary", "items"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool_version": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "description": "Redaction-safe environment label (e.g. staging). Never a project id or secret."},
+        "description": {"type": "string"}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "items": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/item"}
+    }
+  },
+  "definitions": {
+    "status": {
+      "enum": ["collected", "absent", "environment_inconclusive", "parse_error"]
+    },
+    "category": {
+      "enum": [
+        "cloud_run_service",
+        "cloud_run_ingress",
+        "cloud_run_revision",
+        "cloud_run_service_account",
+        "cloud_run_iam_policy",
+        "load_balancer",
+        "iap",
+        "supabase_schemas",
+        "supabase_tables",
+        "supabase_grants",
+        "supabase_default_privileges",
+        "supabase_rls",
+        "supabase_policies",
+        "runtime_principal"
+      ]
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "description", "command", "environment_id", "timestamp", "status", "reason", "detail", "payload", "digest", "notes"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "category": {"$ref": "#/definitions/category"},
+        "description": {"type": "string"},
+        "command": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Exact argv in placeholder form (e.g. ${GCP_PROJECT}); never a resolved secret or confidential identifier."
+        },
+        "environment_id": {"type": "string"},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "status": {"$ref": "#/definitions/status"},
+        "reason": {"type": ["string", "null"]},
+        "detail": {"type": "string"},
+        "payload": {"type": ["object", "null"], "description": "Sanitized parsed evidence; present only when status is collected."},
+        "digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+        "notes": {"type": "array", "items": {"type": "string"}}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "collected"}}},
+          "then": {
+            "properties": {
+              "payload": {"type": "object"},
+              "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+            }
+          },
+          "else": {
+            "properties": {"payload": {"type": "null"}}
+          }
+        }
+      ]
+    }
+  }
+}

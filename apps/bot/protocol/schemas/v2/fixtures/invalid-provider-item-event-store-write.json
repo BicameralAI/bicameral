@@ -1,0 +1,19 @@
+{
+  "_comment": "INVALID: ProviderItemEnvelope must not carry event-store write intent.",
+  "_expected_behavior": "rejected — provider items cannot write to the event store or mutate governance state",
+  "_violation": "event_store_write field attempts to create a source record and bind evidence through a provider item; event-store writes require ToolRequest authority",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "item_id": "issue-42",
+  "item_type": "issue",
+  "content": "Fix the widget alignment bug",
+  "fetched_at": "2026-01-15T10:05:00Z",
+  "event_store_write": {
+    "event_type": "source_created",
+    "source_uri": "https://github.com/octocat/hello-world/issues/42",
+    "binding": {
+      "decision_id": "dec-abc-123",
+      "evidence_type": "implementation"
+    }
+  }
+}

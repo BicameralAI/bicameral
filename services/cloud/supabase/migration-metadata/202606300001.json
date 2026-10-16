@@ -1,0 +1,8 @@
+{
+  "application_rollback_safe": true,
+  "compatibility": "expand",
+  "description": "Create the service-role-only design partner allowlist.",
+  "execution_policy": "automatic",
+  "schema_version": 1,
+  "version": "202606300001"
+}

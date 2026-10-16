@@ -1,0 +1,8 @@
+{
+  "application_rollback_safe": true,
+  "compatibility": "contract",
+  "description": "Revoke ambient browser privileges and force row-level security.",
+  "execution_policy": "separate_authorization",
+  "schema_version": 1,
+  "version": "202607150001"
+}

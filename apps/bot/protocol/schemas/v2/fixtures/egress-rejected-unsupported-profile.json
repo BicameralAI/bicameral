@@ -1,0 +1,23 @@
+{
+  "_comment": "INVALID: Egress rejected because the requested profile is not supported for the target system. The bot evaluates eligibility and rejects — the integrations-owned profile metadata does not override bot policy.",
+  "_expected_behavior": "rejected — unsupported profile for target",
+  "_spec_ref": "docs/specs/governed-egress-projection-ownership.md",
+  "eligibility": {
+    "artifact_id": "DEC-300",
+    "target_system": "linear",
+    "profile_id": "jira.epic.v1",
+    "eligible": false,
+    "approval_class": "none_read_only",
+    "warnings": [],
+    "rejection_reasons": ["Profile 'jira.epic.v1' is not supported for target 'linear'"]
+  },
+  "policy": {
+    "artifact_id": "DEC-300",
+    "target_system": "linear",
+    "profile_id": "jira.epic.v1",
+    "actor_id": "user-member-03",
+    "verdict": "rejected",
+    "approval_class": "none_read_only",
+    "reasons": ["Eligibility check failed: profile not supported for target"]
+  }
+}

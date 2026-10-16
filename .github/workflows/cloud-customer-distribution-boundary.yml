@@ -1,0 +1,82 @@
+# Mirrors services/cloud/.github/workflows/customer-distribution-boundary.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in services/cloud/ so the component's commands are unchanged.
+name: 'cloud: Customer Distribution Boundary'
+permissions:
+  contents: read
+jobs:
+  customer-distribution-boundary:
+    name: customer-distribution-boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - name: Check out Cloud
+      uses: actions/checkout@v4
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install validation dependencies
+      run: python -m pip install -e '.[dev]'
+    - name: Validate source and browser boundary
+      run: |
+        set -euo pipefail
+        python scripts/validate_customer_distribution_boundary.py
+        python -m pytest -q \
+          tests/test_customer_distribution_boundary.py \
+          tests/conformance/test_customer_distribution_leaks.py
+    - name: Build exact customer container
+      run: docker build --tag bicameral-cloud-boundary:${GITHUB_SHA} .
+    - name: Validate final container filesystem
+      run: |
+        set -euo pipefail
+        artifact_dir="test-artifacts/customer-distribution-boundary"
+        mkdir -p "${artifact_dir}"
+        cid="$(docker create bicameral-cloud-boundary:${GITHUB_SHA})"
+        trap 'docker rm -f "${cid}" >/dev/null 2>&1 || true' EXIT
+        docker export "${cid}" --output "${RUNNER_TEMP}/bicameral-cloud-runtime.tar"
+        python scripts/validate_customer_distribution_boundary.py \
+          --container-tar "${RUNNER_TEMP}/bicameral-cloud-runtime.tar" \
+          --receipt "${artifact_dir}/receipt.json"
+    - name: Retain sanitized boundary receipt
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: customer-distribution-boundary-${{ github.sha }}
+        path: services/cloud/test-artifacts/customer-distribution-boundary/receipt.json
+        if-no-files-found: warn
+        retention-days: 14
+'on':
+  pull_request:
+    branches:
+    - dev
+    - main
+    paths:
+    - services/cloud/.bicameral/repo-governance.yaml
+    - services/cloud/.dockerignore
+    - services/cloud/Dockerfile
+    - services/cloud/.github/workflows/customer-distribution-boundary.yml
+    - services/cloud/pyproject.toml
+    - services/cloud/requirements.lock
+    - services/cloud/scripts/validate_customer_distribution_boundary.py
+    - services/cloud/src/**
+    - services/cloud/tests/test_customer_distribution_boundary.py
+    - services/cloud/tests/conformance/test_customer_distribution_leaks.py
+    - .github/workflows/cloud-customer-distribution-boundary.yml
+  push:
+    branches:
+    - main
+    paths:
+    - services/cloud/.bicameral/repo-governance.yaml
+    - services/cloud/.dockerignore
+    - services/cloud/Dockerfile
+    - services/cloud/.github/workflows/customer-distribution-boundary.yml
+    - services/cloud/pyproject.toml
+    - services/cloud/requirements.lock
+    - services/cloud/scripts/validate_customer_distribution_boundary.py
+    - services/cloud/src/**
+    - services/cloud/tests/test_customer_distribution_boundary.py
+    - services/cloud/tests/conformance/test_customer_distribution_leaks.py
+    - .github/workflows/cloud-customer-distribution-boundary.yml
+defaults:
+  run:
+    working-directory: services/cloud

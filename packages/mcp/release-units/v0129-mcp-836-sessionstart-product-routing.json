@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0129-mcp-836-sessionstart-product-routing",
+  "label": "MCP SessionStart Product routing from daemon workspace binding (#836)",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#836",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.29",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:Knapp-Kevin",
+  "proposed_at": "2026-08-24T21:02:00Z",
+  "proposal_digest": "sha256:9720b5586a6e62a50c94228183a82bd4f05f0bdb3390754cbc652f8cec68da48"
+}

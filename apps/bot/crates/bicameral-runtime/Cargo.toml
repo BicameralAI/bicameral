@@ -1,0 +1,41 @@
+[package]
+name = "bicameral-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Local daemon, service lifecycle, and governance engine for Bicameral"
+
+[dependencies]
+bicameral-api.workspace = true
+bicameral-config.workspace = true
+bicameral-audit.workspace = true
+bicameral-gateway.workspace = true
+bicameral-mods.workspace = true
+bicameral-smr.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+ring.workspace = true
+base64.workspace = true
+libc.workspace = true
+reqwest = { workspace = true, features = ["blocking"] }
+tempfile.workspace = true
+flate2.workspace = true
+tar.workspace = true
+tree-sitter.workspace = true
+tree-sitter-rust.workspace = true
+streaming-iterator.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+serde_json.workspace = true
+uuid = { workspace = true, features = ["v4"] }

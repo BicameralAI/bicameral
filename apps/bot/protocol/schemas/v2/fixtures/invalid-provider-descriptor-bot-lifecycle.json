@@ -1,0 +1,24 @@
+{
+  "_comment": "INVALID: ProviderResourceDescriptor must not carry bot lifecycle authority terms.",
+  "_expected_behavior": "rejected — provider-fact objects cannot set tracking state, compliance verdicts, signoff state, or governance results",
+  "_violation": "tracking_state, compliance, and signoff fields attempt to inject bot lifecycle authority through a provider descriptor; these are daemon-owned governance state",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "display_name": "Hello World",
+  "resource_type": "repository",
+  "capabilities": ["list", "read"],
+  "captured_at": "2026-01-15T10:00:00Z",
+  "tracking_state": "active",
+  "compliance": {
+    "state": "reflected",
+    "verified_at": "2026-01-15T10:00:00Z"
+  },
+  "signoff": {
+    "state": "approved",
+    "approved_by": "injected-actor"
+  },
+  "governance_result": {
+    "verdict": "accepted",
+    "policy_ref": "injected-policy"
+  }
+}

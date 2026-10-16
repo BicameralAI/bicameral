@@ -1,0 +1,55 @@
+name: Factory Attestation
+
+# Validates this repo's factory attestation for the current run against the
+# bicameral-factory validator. bicameral-factory is a PRIVATE repo, so its checkout
+# reuses the org-level BICAMERAL_CROSS_REPO_TOKEN (already exposed across private
+# Bicameral repos, e.g. Cloud dashboard vendoring) for the READ-ONLY clone. The
+# caller-repo checkout uses the default github.token — same-repo access suffices.
+# The cross-repo token is used only for the read; no write operation uses it.
+#
+# FACTORY_REF pins the exact bicameral-factory commit whose context this run loaded.
+# The run's attestation is grounded at that commit and named with a stable per-run
+# suffix, so validating that single file lets the validator verify context_evidence SHA-256s
+# deterministically against the pinned checkout.
+on:
+  pull_request: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  FACTORY_REF: 0d972754750c45d73aae4bf3606af248034e8dbf
+  FACTORY_RUN_ID: validation-terminal-hosted-v0.1.10
+
+jobs:
+  factory-attestation:
+    name: bicameral-factory-attestation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out caller repo (same-repo, github.token)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          path: target
+          token: ${{ github.token }}
+
+      - name: Check out bicameral-factory validator (cross-repo, read-only)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: BicameralAI/bicameral-factory
+          ref: ${{ env.FACTORY_REF }}
+          path: bicameral-factory
+          token: ${{ secrets.BICAMERAL_CROSS_REPO_TOKEN || secrets.BICAMERAL_BOT_READ_TOKEN }}
+          persist-credentials: false
+
+      - name: Validate factory attestation for this run
+        run: |
+          # The validator pinned at FACTORY_REF predates per-run filenames and
+          # requires <factory_commit>.json. Validate a temporary compatibility
+          # copy while preserving the collision-safe source filename in git.
+          cp \
+            "target/.bicameral/factory-attestations/${FACTORY_REF}.${FACTORY_RUN_ID}.json" \
+            "/tmp/${FACTORY_REF}.json"
+          python3 bicameral-factory/scripts/validate-factory-attestation.py \
+            "/tmp/${FACTORY_REF}.json" \
+            --context-root bicameral-factory

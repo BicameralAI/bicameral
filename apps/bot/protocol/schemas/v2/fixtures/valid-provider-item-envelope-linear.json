@@ -1,0 +1,21 @@
+{
+  "_comment": "Golden ProviderItemEnvelope for Linear (#523): one screened issue fetched from the team named by the descriptor's resource_id.",
+  "_expected_behavior": "accepted — describes a fetched Linear issue without governance, review, or binding authority",
+  "_authority_boundary": "Provisional alpha provider-fact handoff object. It is NOT Source, SourceSnapshot, SourceEvidence, DecisionCandidate, Decision, ToolRequest, ExternalIngestEnvelope, or event-store authority. content and provider_metadata are screened, non-secret provider facts only.",
+  "provider": "linear",
+  "resource_id": "team-eng",
+  "item_id": "LIN-99",
+  "item_type": "issue",
+  "title": "Implement caching layer for graph queries",
+  "content": "Repeated graph queries on the hot path are re-walking the AST. Add a content-addressed cache keyed by commit SHA.",
+  "uri": "https://linear.app/acme/issue/LIN-99",
+  "freshness": {
+    "last_modified": "2026-06-10T09:00:00Z",
+    "etag": "v3"
+  },
+  "provider_metadata": {
+    "priority": 1,
+    "status": "in_progress"
+  },
+  "fetched_at": "2026-06-15T12:05:00Z"
+}

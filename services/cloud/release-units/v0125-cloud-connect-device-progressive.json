@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0125-cloud-connect-device-progressive",
+  "label": "Cloud sole pre-pair progressive Connect this device (#256 / PR #258)",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "BicameralAI/bicameral-cloud#256",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.25",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-12T15:03:50Z",
+  "proposal_digest": "sha256:e52ef2720243cd822307939b26a53ac68a5928ffa825b8f13b0786f8891945e6"
+}

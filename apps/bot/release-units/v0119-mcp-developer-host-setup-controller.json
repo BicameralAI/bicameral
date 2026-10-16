@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0119-mcp-developer-host-setup-controller",
+  "label": "Ship bicameral setup developer-host MCP controller (#1038)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1038",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.19",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-04T12:00:00Z",
+  "proposal_digest": "sha256:a38355292f5a8c04d261b7f906fe656a50508ddd83bc286741c704a6058958bc"
+}

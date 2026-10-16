@@ -1,0 +1,14 @@
+{
+  "cloud_account_id": "acct_01HZX8EVE",
+  "decided_at": "2026-07-12T09:11:00Z",
+  "failure": {
+    "code": "policy_changed",
+    "message": "The Product auto-join policy or domain changed before daemon evaluation."
+  },
+  "granted_role": null,
+  "membership_event_ref": null,
+  "outcome": "rejected",
+  "product_id": "prd_01HZX8CHECKOUT",
+  "receipt_id": null,
+  "request_id": "jrq_01HZX8POLICYCHG"
+}

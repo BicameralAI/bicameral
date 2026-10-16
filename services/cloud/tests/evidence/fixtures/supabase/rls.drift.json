@@ -1,0 +1,4 @@
+[
+  {"table_name": "design_partner_allowlist", "rls_enabled": true, "rls_forced": true},
+  {"table_name": "product_directory", "rls_enabled": false, "rls_forced": false}
+]

@@ -1,0 +1,37 @@
+{
+  "_comment": "Semantic recall contribution read-model (issue #640): semantic-recall-no-result-in-searched-scope. Daemon-authored, evidence-only; surfaces render this verbatim. Approximate hints and graph-verified targets are kept in separate collections and never collapsed.",
+  "_expected": {
+    "approximate_hint_count": 0,
+    "caveat_codes": [
+      "no_result_in_searched_scope"
+    ],
+    "next_actions": [],
+    "no_result_in_searched_scope": true,
+    "provider_status": "ready",
+    "verified_target_count": 0
+  },
+  "semantic_recall": {
+    "caveats": [
+      {
+        "code": "no_result_in_searched_scope",
+        "message": "No semantic contribution was found within the searched scope. This is scoped to what was searched and does not describe code outside it."
+      }
+    ],
+    "currentness": "current",
+    "no_result_in_searched_scope": true,
+    "provenance": {
+      "index_version": "sem-idx-12",
+      "model_id": "fake-embed",
+      "model_version": "v0",
+      "provider_id": "fake-semantic-provider",
+      "provider_version": "0.1.0"
+    },
+    "provider_status": "ready",
+    "searched_scope": {
+      "corpus_id": "corpus-bicameral-bot",
+      "corpus_version": "sem-idx-12",
+      "scope_fingerprint": "fp-semantic-query",
+      "scope_kind": "query"
+    }
+  }
+}

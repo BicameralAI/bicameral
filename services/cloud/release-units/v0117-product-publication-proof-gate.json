@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0117-product-publication-proof-gate",
+  "label": "v0.1.17 Cloud Product publication proof gate (cloud#227)",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "BicameralAI/bicameral-cloud#227",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.17",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-02T23:38:51Z",
+  "proposal_digest": "sha256:cd10b3a38192ea9de8c69a53ec4b1e68b69f87545c112baa22cda5c3f6edc557"
+}

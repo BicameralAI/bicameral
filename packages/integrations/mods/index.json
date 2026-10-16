@@ -1,0 +1,1036 @@
+{
+  "mods": {
+    "adapter_contract": {
+      "advises_on": "Missing or unstable source_ref fields; lost provider-native ids/timestamps/URLs/excerpts/evidence pointers; output that bypasses the Observation -> AdapterEmission normalization; schema/SARIF fields that cannot be independently reviewed; connector behavior that starts owning canonical state.",
+      "channel": "beta",
+      "consumes": [
+        "source_ref fields (source_id, ref, url, kind)",
+        "evidence excerpt + title",
+        "emission shape / normalization metadata"
+      ],
+      "description": "Advisory mod that flags evidence-shape and contract-preservation risks in connector/adapter output.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "source_evidence_annotation",
+        "routing_hint",
+        "advisory_governance_result"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "evidence-contract",
+      "id": "adapter_contract",
+      "manifest_id": "adapter-contract",
+      "name": "Adapter Contract",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/adapter_contract/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Annotates contract-preservation risk; may suggest review questions, never repairs a record."
+      },
+      "version": "0.1.0"
+    },
+    "ai_authorship_review": {
+      "advises_on": "AI-authored evidence (from an AI coding tool) that carries low-confidence or unfinished-work markers in title + body + evidence excerpts.",
+      "channel": "beta",
+      "consumes": [
+        "source_id (AI-coding source gate)",
+        "title + body",
+        "evidence excerpts"
+      ],
+      "description": "Advisory mod that routes AI-authored evidence (aider/cursor/copilot/claude_code/continue_dev/devin) carrying low-confidence/unfinished markers (TODO/FIXME/untested/not sure/hallucination/...) to human/QA review.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "suggested_review_question"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "ai-safety",
+      "id": "ai_authorship_review",
+      "manifest_id": "ai-authorship-review",
+      "name": "AI Authorship Review",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/ai_authorship_review/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Routes low-confidence AI-authored changes to human review; a routing signal, never a finding-of-record."
+      },
+      "version": "0.1.0"
+    },
+    "authority_boundary": {
+      "advises_on": "Changes that may cross Bicameral's authority, trust-tier, or canonical-state boundaries.",
+      "channel": "beta",
+      "consumes": [
+        "evidence excerpt + title",
+        "source_ref (source_id, kind)",
+        "emission shape / authority signals"
+      ],
+      "description": "Advisory mod that flags changes that may cross Bicameral's authority, trust-tier, or canonical-state boundaries.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "source_evidence_annotation",
+        "suggested_review_question"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "governance-boundary",
+      "id": "authority_boundary",
+      "manifest_id": "authority-boundary",
+      "name": "Authority Boundary",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/authority_boundary/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Flags authority/trust-tier/canonical-state boundary risk; suggests review, never enforces."
+      },
+      "version": "0.1.0"
+    },
+    "code_review_risk": {
+      "advises_on": "PR-level review risk — the first mod family behind the Bicameral Review Bot (ADR-0011).",
+      "channel": "beta",
+      "consumes": [
+        "pull-request evidence (title + body)",
+        "changed file paths",
+        "source_ref"
+      ],
+      "description": "Advisory mod that flags pR-level review risk — the first mod family behind the Bicameral Review Bot (ADR-0011).",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "source_evidence_annotation",
+        "suggested_review_question"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "review-risk",
+      "id": "code_review_risk",
+      "manifest_id": "code-review-risk",
+      "name": "Code Review Risk",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/code_review_risk/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0011-bicameral-review-bot.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Surfaces PR review-risk signals; advises a reviewer, never blocks CI."
+      },
+      "version": "0.1.0"
+    },
+    "compliance_routing": {
+      "advises_on": "Named regulatory/compliance frameworks (HIPAA/GDPR/PCI/PCI DSS/SOC 2/CCPA/SOX/FERPA/GLBA/FedRAMP/ISO 27001/NIST/data subject/breach notification/...) in title + body + evidence excerpts.",
+      "channel": "beta",
+      "consumes": [
+        "title + body",
+        "evidence excerpts"
+      ],
+      "description": "Advisory mod that routes evidence naming a regulatory/compliance framework (HIPAA/GDPR/PCI DSS/SOC 2/CCPA/SOX/FedRAMP/NIST/...) to a compliance reviewer so the regulated scope is weighed before a change lands.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "suggested_review_question"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "governance",
+      "id": "compliance_routing",
+      "manifest_id": "compliance-routing",
+      "name": "Compliance Routing",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/compliance_routing/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Routes evidence naming a regulatory framework to compliance review; a routing signal, never a finding-of-record."
+      },
+      "version": "0.1.0"
+    },
+    "connector_freshness": {
+      "advises_on": "Stale provider assumptions in connector docs, fixtures, auth notes, references, and parser scope.",
+      "channel": "beta",
+      "consumes": [
+        "evidence excerpt + title",
+        "source_ref (provider / kind)"
+      ],
+      "description": "Advisory mod that flags stale provider assumptions in connector docs, fixtures, auth notes, references, and parser scope.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "source_evidence_annotation"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "freshness",
+      "id": "connector_freshness",
+      "manifest_id": "connector-freshness",
+      "name": "Connector Freshness",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/connector_freshness/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Flags possibly-stale connector assumptions; suggests a refresh, never edits."
+      },
+      "version": "0.1.0"
+    },
+    "cross_system_reference": {
+      "advises_on": "Cross-system linkage: evidence text (title + body + excerpts) that names an external system other than the emission's own source_id.",
+      "channel": "beta",
+      "consumes": [
+        "title + body",
+        "evidence excerpts"
+      ],
+      "description": "Advisory mod that surfaces when an emission's evidence text references a different external system (github/gitlab/linear/jira/notion/slack/sentry/pagerduty/zendesk/confluence) than its own source_id, so a reviewer can reconcile the two systems.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "routing_hint",
+        "source_evidence_annotation",
+        "suggested_review_question"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "integration",
+      "id": "cross_system_reference",
+      "manifest_id": "cross-system-reference",
+      "name": "Cross-System Reference",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/cross_system_reference/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Flags cross-system references for reconciliation; a routing signal, never a finding-of-record."
+      },
+      "version": "0.1.0"
+    },
+    "data_classification": {
+      "advises_on": "Classifying sensitive evidence before it is routed, reviewed, or proposed for outbound notification.",
+      "channel": "beta",
+      "consumes": [
+        "title + body",
+        "evidence excerpt"
+      ],
+      "description": "Advisory mod that flags classifying sensitive evidence before it is routed, reviewed, or proposed for outbound notification.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "source_evidence_annotation"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "data-governance",
+      "id": "data_classification",
+      "manifest_id": "data-classification",
+      "name": "Data Classification",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/data_classification/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Suggests a sensitivity classification; never gates or redacts canonical state."
+      },
+      "version": "0.1.0"
+    },
+    "decision_drift": {
+      "advises_on": "New source evidence that appears to conflict with recorded decisions, ADRs, trust tiers, or governance docs.",
+      "channel": "beta",
+      "consumes": [
+        "evidence excerpt + title",
+        "source_ref",
+        "recorded decisions/ADRs (read-only)"
+      ],
+      "description": "Advisory mod that flags new source evidence that appears to conflict with recorded decisions, ADRs, trust tiers, or governance docs.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "source_evidence_annotation",
+        "suggested_review_question"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "governance-boundary",
+      "id": "decision_drift",
+      "manifest_id": "decision-drift",
+      "name": "Decision Drift",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/decision_drift/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Surfaces possible drift from recorded decisions; suggests review, never overwrites a record."
+      },
+      "version": "0.1.0"
+    },
+    "dependency_risk": {
+      "advises_on": "Dependency-risk signals from connector evidence — known vulnerabilities and dependency-manifest changes.",
+      "channel": "beta",
+      "consumes": [
+        "evidence excerpt (dependency manifests, vuln mentions)",
+        "source_ref"
+      ],
+      "description": "Advisory mod that flags dependency-risk signals from connector evidence — known vulnerabilities and dependency-manifest changes.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "dependency_signal",
+        "routing_hint",
+        "source_evidence_annotation"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "dependency",
+      "id": "dependency_risk",
+      "manifest_id": "dependency-risk",
+      "name": "Dependency Risk",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/dependency_risk/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Annotates dependency-risk signals; routes to a reviewer, never blocks or approves."
+      },
+      "version": "0.1.0"
+    },
+    "noisy_source_gate": {
+      "advises_on": "High-volume, low-signal channels (Slack chat, Granola/Fathom meeting transcripts) flooding the candidate store; recommends a manual gate unless the source's trust tier is operator-raised. A non-noisy source yields nothing.",
+      "channel": "beta",
+      "consumes": [
+        "source_id",
+        "operator source-trust configuration (read-only)"
+      ],
+      "description": "Advisory mod that recommends manual review-gating for high-noise evidence sources unless the operator has raised the source's trust.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "routing_hint",
+        "advisory_governance_result"
+      ],
+      "enablement": {
+        "config": [
+          {
+            "description": "Source ids the operator has explicitly trusted, so the mod does NOT recommend a manual gate for them. The default high-noise set (slack/granola/fathom) is config-as-code in the mod.",
+            "key": "raised_trust_sources",
+            "label": "Sources with operator-raised trust (skip the gate)",
+            "required": false
+          }
+        ],
+        "default_enabled": true,
+        "trust_gated": true
+      },
+      "family": "trust",
+      "id": "noisy_source_gate",
+      "manifest_id": "noisy-source-gate",
+      "name": "Noisy Source Gate",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/noisy_source_gate/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network.",
+        "Optional: an operator source-trust map to suppress the gate for raised sources."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Suggests a manual gate for noisy sources; it suggests, never enforces."
+      },
+      "version": "0.1.0"
+    },
+    "notification_scope_risk": {
+      "advises_on": "Broad/unscoped broadcast-notification language (@channel, notify all, company-wide, all-hands, ...) in title + body + evidence excerpts.",
+      "channel": "beta",
+      "consumes": [
+        "title + body",
+        "evidence excerpts"
+      ],
+      "description": "Advisory mod that surfaces broad/unscoped broadcast-notification language (@channel, notify all, company-wide, all-hands, ...) in title + body + evidence excerpts so a reviewer checks the blast radius.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "suggested_review_question"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "security",
+      "id": "notification_scope_risk",
+      "manifest_id": "notification-scope-risk",
+      "name": "Notification Scope Risk",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/notification_scope_risk/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Surfaces over-broad notification scope; a routing signal, never a finding-of-record."
+      },
+      "version": "0.1.0"
+    },
+    "ownership_routing": {
+      "advises_on": "Reviewer lenses and domain ownership suggested from changed paths, source evidence, and recorded ownership hints.",
+      "channel": "beta",
+      "consumes": [
+        "changed file paths",
+        "source evidence",
+        "recorded ownership hints (read-only)"
+      ],
+      "description": "Advisory mod that flags reviewer lenses and domain ownership suggested from changed paths, source evidence, and recorded ownership hints.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "owner_lens_hint",
+        "routing_hint",
+        "source_evidence_annotation"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "routing",
+      "id": "ownership_routing",
+      "manifest_id": "ownership-routing",
+      "name": "Ownership Routing",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/ownership_routing/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Suggests reviewer lenses / domain owners; a hint, never an assignment."
+      },
+      "version": "0.1.0"
+    },
+    "policy_exemption_audit": {
+      "advises_on": "Policy-exemption/waiver/accepted-risk CLAIMS (exempt/waiver/grandfathered/wontfix/accepted risk/policy exception/suppress finding/...) in title + body + evidence excerpts.",
+      "channel": "beta",
+      "consumes": [
+        "title + body",
+        "evidence excerpts"
+      ],
+      "description": "Advisory mod that surfaces evidence claiming a policy exemption/waiver/accepted-risk (exempt/waiver/wontfix/accepted risk/policy exception/...) so a policy owner can re-approve it.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "suggested_review_question"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "governance",
+      "id": "policy_exemption_audit",
+      "manifest_id": "policy-exemption-audit",
+      "name": "Policy Exemption Audit",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/policy_exemption_audit/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Surfaces policy-exemption/waiver claims for re-approval; a routing signal, never a finding-of-record."
+      },
+      "version": "0.1.0"
+    },
+    "security_mentions": {
+      "advises_on": "Whole-word security keywords (auth/token/secret/credential/oauth/webhook/cve/...) in title + body + evidence excerpts.",
+      "channel": "beta",
+      "consumes": [
+        "title + body",
+        "evidence excerpts"
+      ],
+      "description": "Advisory mod that flags whole-word security keywords (auth/token/secret/credential/oauth/webhook/cve/...) in title + body + evidence excerpts.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "source_evidence_annotation"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "security",
+      "id": "security_mentions",
+      "manifest_id": "security-mentions",
+      "name": "Security Mentions",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/security_mentions/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Surfaces security-keyword mentions; a routing signal, never a finding-of-record."
+      },
+      "version": "0.1.0"
+    },
+    "source_trust_calibration": {
+      "advises_on": "Calibrating source trust based on provenance, source type, historical noise, data sensitivity, and operation tier.",
+      "channel": "beta",
+      "consumes": [
+        "source_id",
+        "source_ref (provenance)",
+        "source type / tier signals"
+      ],
+      "description": "Advisory mod that flags calibrating source trust based on provenance, source type, historical noise, data sensitivity, and operation tier.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "source_evidence_annotation"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "trust",
+      "id": "source_trust_calibration",
+      "manifest_id": "source-trust-calibration",
+      "name": "Source Trust Calibration",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/source_trust_calibration/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Suggests a source-trust calibration; advisory input to the operator, never an enforced tier."
+      },
+      "version": "0.1.0"
+    },
+    "test_adequacy": {
+      "advises_on": "Missing or weak tests around changed behavior, connector parsing, fixtures, governance gates, and review workflows.",
+      "channel": "beta",
+      "consumes": [
+        "changed file paths",
+        "evidence excerpt (tests/fixtures/gates)",
+        "source_ref"
+      ],
+      "description": "Advisory mod that flags missing or weak tests around changed behavior, connector parsing, fixtures, governance gates, and review workflows.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "source_evidence_annotation",
+        "suggested_review_question"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "testing",
+      "id": "test_adequacy",
+      "manifest_id": "test-adequacy",
+      "name": "Test Adequacy",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/test_adequacy/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Flags weak/missing test coverage; suggests review questions, never blocks CI."
+      },
+      "version": "0.1.0"
+    },
+    "webhook_risk": {
+      "advises_on": "Webhook safety signals across signature verification, replay protection, event schema handling, idempotency, and outbound side effects.",
+      "channel": "beta",
+      "consumes": [
+        "webhook evidence (signature/replay/schema signals)",
+        "source_ref (kind=webhook)"
+      ],
+      "description": "Advisory mod that flags webhook safety signals across signature verification, replay protection, event schema handling, idempotency, and outbound side effects.",
+      "em_safe": {
+        "forbidden_actions": [
+          "write_canonical_decision",
+          "approve_signoff",
+          "resolve_compliance",
+          "create_blocking_ci_result",
+          "bypass_governance_policy",
+          "mutate_source_evidence",
+          "collapse_confidence_score"
+        ],
+        "non_authoritative": true
+      },
+      "emits": [
+        "advisory_governance_result",
+        "routing_hint",
+        "source_evidence_annotation"
+      ],
+      "enablement": {
+        "default_enabled": true,
+        "trust_gated": false
+      },
+      "family": "security",
+      "id": "webhook_risk",
+      "manifest_id": "webhook-risk",
+      "name": "Webhook Risk",
+      "references": [
+        {
+          "kind": "scope",
+          "url": "mods/webhook_risk/README.md"
+        },
+        {
+          "kind": "mod-safety-contract",
+          "url": "mods/README.md"
+        },
+        {
+          "kind": "adr",
+          "url": "docs/adr/0008-integrations-are-evidence-adapters-not-state-authorities.md"
+        }
+      ],
+      "requirements": [
+        "The neutral evidence stream (AdapterEmission) — no credentials, no live network."
+      ],
+      "ui": {
+        "advisory_only": true,
+        "card_blurb": "Surfaces webhook-safety signals; an advisory, never a gate."
+      },
+      "version": "0.1.0"
+    }
+  }
+}

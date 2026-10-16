@@ -1,0 +1,24 @@
+{
+  "_comment": "Negative fixture: MCP cannot compute ranking/fusion locally beyond rendering daemon output",
+  "_invariant": "MCP is a thin transport layer. It cannot compute recall ranking, fuse recall signals, promote candidates, or create authority locally. All ranking, fusion, and promotion logic must execute in the daemon. MCP may only render daemon output.",
+  "_expected": "Any attempt to compute ranking or fusion at the MCP layer must be refused. RecallPacket rendering at MCP is passthrough only.",
+  "_must_fail_if": "MCP computes ranking or fusion locally",
+  "scenario": {
+    "mcp_surface": true,
+    "local_ranking_attempted": true,
+    "local_fusion_attempted": true
+  },
+  "mcp_permitted_operations": [
+    "render_recall_packet",
+    "forward_recall_action",
+    "display_recall_trace"
+  ],
+  "mcp_forbidden_operations": [
+    "compute_ranking",
+    "fuse_signals",
+    "promote_candidate",
+    "create_authority",
+    "assert_compliance",
+    "modify_recall_score"
+  ]
+}

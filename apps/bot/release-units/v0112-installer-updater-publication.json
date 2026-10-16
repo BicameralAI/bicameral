@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0112-installer-updater-publication",
+  "label": "Publish v0.1.12 installer and updater metadata",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "Bot commit a79b0cc525a149671f7affa4af5d958ad56a7fce",
+  "release_unit_type": "installer_updater",
+  "target_version": "0.1.12",
+  "topology": {
+    "required": true,
+    "topology_type": "installer_updater_v1",
+    "validation_checklist": [
+      {
+        "check_id": "build-matrix",
+        "label": "Build every supported installer target from the exact Bot commit"
+      },
+      {
+        "check_id": "checksums",
+        "label": "Verify the published checksum set covers every archive"
+      },
+      {
+        "check_id": "updater-pointer",
+        "label": "Verify latest.json selects v0.1.12 and rollback selects v0.1.11"
+      }
+    ]
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-07-22T14:00:00Z",
+  "proposal_digest": "sha256:8694a134c824c4bc5cb5c034c4ff6e7ddaedcad0847f142c2f8a01e23a6beba7"
+}

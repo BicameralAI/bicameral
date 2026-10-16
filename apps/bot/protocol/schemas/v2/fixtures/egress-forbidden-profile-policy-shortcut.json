@@ -1,0 +1,26 @@
+{
+  "_comment": "INVALID: Attempts to use a ProjectionProfile to bypass bot policy. Per the spec, ProjectionProfile is target shape/capability metadata only — it cannot grant permission, waive approval, decide artifact eligibility, mutate canonical state, interpret external state as Bicameral authority, or bypass ProjectionPolicy. Similarly, TargetAdapter cannot rewrite projection content, decide policy, grant authority, or promote target-side state.",
+  "_expected_behavior": "rejected — profile/adapter cannot grant permission or shortcut policy",
+  "_spec_ref": "docs/specs/governed-egress-projection-ownership.md § Boundary Rule",
+  "profile_ref": {
+    "profile_id": "linear.issue.work_item.v1",
+    "target_system": "linear",
+    "description": "Linear work item projection profile",
+    "capabilities": ["create_issue", "update_issue"]
+  },
+  "adapter_ref": {
+    "adapter_id": "linear-adapter-v1",
+    "target_system": "linear",
+    "supported_operations": ["create_issue", "update_issue", "add_comment"]
+  },
+  "forbidden_fields": {
+    "_comment": "These fields must never appear on ProjectionProfile or TargetAdapter. They demonstrate that integrations-owned objects cannot carry bot-owned authority.",
+    "grant_permission": true,
+    "waive_approval": true,
+    "override_policy_verdict": "allowed",
+    "promote_target_state": true,
+    "mutate_canonical_state": true,
+    "bypass_eligibility": true,
+    "rewrite_projection_content": true
+  }
+}

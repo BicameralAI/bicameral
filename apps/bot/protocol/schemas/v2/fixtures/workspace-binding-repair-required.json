@@ -1,0 +1,40 @@
+{
+  "scenario": "repair-required",
+  "description": "A previously usable binding is broken (e.g. the bound folder moved or is unreadable). Durable state is local_workspace_repair_required, so a bind request is rejected with the typed repair_required error until the binding is repaired. The hosted-safe view reports the repair-required readiness without exposing any local path.",
+  "local": {
+    "request": {
+      "proposal": {
+        "project_id": "proj_ada",
+        "display": {
+          "display_name": "Ada Service",
+          "project_slug": "ada-service",
+          "candidate_label": "ada-service"
+        },
+        "candidate_path": "/home/alex/code/ada-service",
+        "source_surface": "mcp",
+        "reason": "Re-bind after the workspace moved.",
+        "confidence": 0.6
+      },
+      "confirmed": true,
+      "expected_current_state": "local_workspace_repair_required"
+    },
+    "error": {
+      "error": "repair_required",
+      "project_id": "proj_ada",
+      "message": "Project binding is broken and must be repaired before binding.",
+      "state": "local_workspace_repair_required",
+      "retry_after_repair": true
+    }
+  },
+  "hosted_safe_view": {
+    "project_id": "proj_ada",
+    "state": "local_workspace_repair_required",
+    "display": {
+      "display_name": "Ada Service",
+      "project_slug": "ada-service",
+      "candidate_label": "ada-service"
+    },
+    "bind_available": false,
+    "status_message": "Local workspace binding needs repair before it can be used."
+  }
+}

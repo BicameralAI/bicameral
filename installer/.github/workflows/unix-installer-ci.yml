@@ -1,0 +1,26 @@
+name: Unix Installer CI
+on:
+  pull_request:
+    paths:
+      - 'site/install.sh'
+      - 'tests/test-unix-reconcile.sh'
+      - '.github/workflows/unix-installer-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - name: Validate POSIX syntax
+        run: sh -n site/install.sh
+      - name: Exercise install and service reconciliation
+        run: ./tests/test-unix-reconcile.sh
+      - name: Enforce bootstrap security invariants
+        run: |
+          grep -F 'refusing to replace symlinked executable' site/install.sh
+          grep -F 'mv -f "$staged" "$installed"' site/install.sh
+          grep -F '"$installed" service install' site/install.sh
+          grep -F '"$installed" service start' site/install.sh
+          ! grep -F 'sudo ' site/install.sh

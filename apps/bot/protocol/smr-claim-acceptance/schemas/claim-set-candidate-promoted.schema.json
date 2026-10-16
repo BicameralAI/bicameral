@@ -1,0 +1,184 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/smr-claim-acceptance/v1/claim-set-candidate-promoted.schema.json",
+  "title": "ClaimSetCandidatePromotedV1",
+  "description": "Payload of the canonical, claim-bearing claim_set_candidate_promoted event. Appending this event is the sole acceptance commit point. Additive to the existing EventType enum; it does not overload AcceptCandidate. Self-contained: replay reconstructs the accepted Claim set and proof identity from this payload alone, with zero provider or extraction calls. See docs/specs/state-machine-resolver-v1-runtime-architecture.md section 5.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_schema_version",
+    "digest_profile_version",
+    "operation_id",
+    "routing",
+    "candidate",
+    "artifact_binding",
+    "proposal_schema_version",
+    "base_event_position",
+    "normalized_claim_set",
+    "digests",
+    "evidence_refs",
+    "acceptance",
+    "resulting_decision"
+  ],
+  "properties": {
+    "event_schema_version": {
+      "const": 1,
+      "description": "Unknown values fail closed with unsupported_contract_version and render nothing as accepted."
+    },
+    "digest_profile_version": { "const": 1 },
+    "operation_id": {
+      "$ref": "#/definitions/Uuid",
+      "description": "Caller-supplied durable idempotency identity, unique per (product_id, actor_id). Canonical event history is the durable operation ledger: retrying this operation returns the prior receipt with no duplicate append."
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product_id", "event_stream_id"],
+      "properties": {
+        "product_id": { "type": "string", "minLength": 1 },
+        "event_stream_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Daemon-derived from product_id. A caller-supplied value is rejected with routing_mismatch."
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "generation", "kind"],
+      "properties": {
+        "candidate_id": { "$ref": "#/definitions/Uuid" },
+        "generation": { "type": "integer", "minimum": 0 },
+        "kind": { "const": "smr_claim_set_v1" }
+      }
+    },
+    "artifact_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_id",
+        "git_head",
+        "artifact_path",
+        "blob_id",
+        "artifact_content_digest"
+      ],
+      "properties": {
+        "repository_id": { "type": "string", "minLength": 1 },
+        "git_head": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "artifact_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\./).+$"
+        },
+        "blob_id": { "type": "string", "minLength": 1 },
+        "artifact_content_digest": { "$ref": "#/definitions/Digest" }
+      }
+    },
+    "proposal_schema_version": { "const": 1 },
+    "base_event_position": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Canonical event log position of the last event included in the base projection, strictly before this append. Required because appending this event changes the projection smr_base_snapshot_digest describes; without the position the digest is unverifiable on replay."
+    },
+    "normalized_claim_set": {
+      "type": "object",
+      "description": "NormalizedClaimSetV1 exactly as validated at proposal time. Structure and closed enums are defined by smr-claim-set-proposal.schema.json.",
+      "required": [
+        "claims",
+        "model_atoms",
+        "claim_assertions",
+        "atom_relations",
+        "scopes",
+        "source_anchors"
+      ]
+    },
+    "digests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_set_digest",
+        "artifact_binding_digest",
+        "smr_base_snapshot_digest",
+        "claim_scope_digest",
+        "evidence_bundle_digest"
+      ],
+      "properties": {
+        "claim_set_digest": { "$ref": "#/definitions/Digest" },
+        "artifact_binding_digest": { "$ref": "#/definitions/Digest" },
+        "smr_base_snapshot_digest": { "$ref": "#/definitions/Digest" },
+        "claim_scope_digest": { "$ref": "#/definitions/Digest" },
+        "evidence_bundle_digest": { "$ref": "#/definitions/Digest" }
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "description": "May be empty. The only field permitted to be empty.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidence_id", "evidence_kind", "content_digest"],
+        "properties": {
+          "evidence_id": { "type": "string", "minLength": 1 },
+          "evidence_kind": {
+            "enum": ["artifact_span", "screened_external", "codegraph_proof"]
+          },
+          "content_digest": { "$ref": "#/definitions/Digest" }
+        }
+      }
+    },
+    "codegraph_proof_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["opaque_payload_digest"],
+      "description": "Optional recall-expansion evidence only. Never required for SMR closure, Claim acceptance, implementation-compliance claims, or authority. Exact carrier remains Silong-owned through issue #936.",
+      "properties": {
+        "opaque_payload_digest": { "$ref": "#/definitions/Digest" },
+        "graph_snapshot_id": { "type": "string", "minLength": 1 },
+        "scope_sufficiency_proof_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_id",
+        "authority_context_digest",
+        "confirmation_protocol_version",
+        "confirmation_binding_digest",
+        "accepted_at"
+      ],
+      "description": "The explicit human gesture the daemon validated. MCP relayed it and never minted, normalized, ranked, approved, or persisted it.",
+      "properties": {
+        "actor_id": { "type": "string", "minLength": 1 },
+        "authority_context_digest": { "$ref": "#/definitions/Digest" },
+        "confirmation_protocol_version": { "const": 2 },
+        "confirmation_binding_digest": { "$ref": "#/definitions/Digest" },
+        "accepted_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "resulting_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "signoff_state"],
+      "description": "One promoted Claim set atomically creates exactly one Decision governance envelope. decision_id is deterministic UUIDv5 over the namespace 8f4d2c61-9a37-5b0e-8d21-4f6c7a9b3e50 and the name \"claim_set_candidate_promoted/v1|\" || product_id || \"|\" || operation_id, so a retry or concurrent submit under one operation_id resolves to one Decision.",
+      "properties": {
+        "decision_id": { "$ref": "#/definitions/Uuid" },
+        "signoff_state": {
+          "const": "approved",
+          "description": "Alpha claim-set confirm writes Decision(approved). Claims are immediately authoritative. Decision(proposed) is out of this alpha cut on this path."
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

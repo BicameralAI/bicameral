@@ -1,0 +1,16 @@
+{
+  "_comment": "INVALID: External ingest payload containing a PEM private key. The gateway sensitive-data HARD gate must reject this before materialization.",
+  "_expected_behavior": "rejected — sensitive_data: class=secret, pattern=private-key-pem",
+  "title": "TLS certificate rotation plan",
+  "description": "New server key for the production load balancer",
+  "source": "https://docs.internal.example.com/certs/rotation-2026",
+  "source_type": "document",
+  "evidence": [
+    {
+      "excerpt": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWep4PAtGoMp...",
+      "span_start": 0,
+      "span_end": 80,
+      "confidence": 0.95
+    }
+  ]
+}

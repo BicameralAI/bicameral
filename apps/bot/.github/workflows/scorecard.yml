@@ -1,0 +1,21 @@
+name: Scorecard
+
+# Adopts the org reusable OpenSSF Scorecard workflow owned by bicameral-integrations (#105).
+on:
+  branch_protection_rule: {}
+  schedule:
+    - cron: '21 3 * * 1'
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  scorecard:
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    uses: BicameralAI/bicameral-integrations/.github/workflows/_reusable-scorecard.yml@f28ab9dd21e2ffc2f79597c587dcf3c575f9d2ea

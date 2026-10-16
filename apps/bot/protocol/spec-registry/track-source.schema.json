@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/track-source.schema.json",
+  "title": "TrackSource",
+  "description": "A person places one Source in the maintenance set. Capture writes the snapshot and an empty domain. This payload records that person and the daemon that cranked the write. It is not a Signoff. Factory #946. ADR-0034.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_uri", "snapshot_addr", "person_id", "daemon_id"],
+  "properties": {
+    "source_uri": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Same string as Source.uri."
+    },
+    "snapshot_addr": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Snapshot this track captured."
+    },
+    "person_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The person who tracked the source."
+    },
+    "daemon_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Daemon that cranked the write."
+    }
+  }
+}

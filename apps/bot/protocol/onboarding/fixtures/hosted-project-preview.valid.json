@@ -1,0 +1,16 @@
+{
+  "canonical": false,
+  "event_store_hint": {
+    "provider": "github",
+    "substrate": "git"
+  },
+  "expires_at": "2026-07-13T00:00:00Z",
+  "preview_id": "hpv_01HZX8ACME",
+  "product_display_name": "Acme Checkout",
+  "product_id": "prd_01HZX8CHECKOUT",
+  "required_connection": {
+    "provider": "github"
+  },
+  "team_display_name": "Acme",
+  "verified_domain": "acme.example"
+}

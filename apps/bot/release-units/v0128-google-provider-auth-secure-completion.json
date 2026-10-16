@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "release_unit_id": "v0128-google-provider-auth-secure-completion",
+  "label": "v0.1.28 secure Google provider-auth completion without production-selectable mock exchange",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1132",
+  "release_unit_type": "provider_auth",
+  "target_version": "0.1.28",
+  "topology": {
+    "required": true,
+    "topology_type": "provider_auth_google",
+    "validation_checklist": [
+      {"check_id": "fresh-operator-config-bootstrap", "label": "Fresh operator config bootstrap"},
+      {"check_id": "pkce-loopback-authorization", "label": "PKCE loopback authorization and real Google completion"},
+      {"check_id": "daemon-only-credential-custody", "label": "Daemon-only credential custody"},
+      {"check_id": "connection-registry-provider-truth", "label": "ConnectionRegistry provider truth"},
+      {"check_id": "drive-readiness-real-operation", "label": "Real Drive readiness operation"},
+      {"check_id": "restart-refresh-envelope", "label": "Restart and refresh envelope"},
+      {"check_id": "cloud-outage-cache-policy", "label": "Cloud outage cache policy"},
+      {"check_id": "config-negative-paths", "label": "Config negative paths"},
+      {"check_id": "sanitized-teardown", "label": "Sanitized teardown"}
+    ],
+    "evidence_contract": {
+      "schema_version": 1,
+      "runtime_path": "authentic-runtime",
+      "operator_policy": "synthetic-or-human",
+      "initiation": "normal-user-flow",
+      "artifact_policy": "raw-or-reproducible",
+      "check_requirements": [
+        {"check_id": "fresh-operator-config-bootstrap", "observation_kind": "runtime-outcome", "minimum": 1, "maximum": 1},
+        {"check_id": "pkce-loopback-authorization", "observation_kind": "runtime-outcome", "minimum": 1, "maximum": 1},
+        {"check_id": "daemon-only-credential-custody", "observation_kind": "runtime-outcome", "minimum": 1, "maximum": 1},
+        {"check_id": "connection-registry-provider-truth", "observation_kind": "runtime-outcome", "minimum": 1, "maximum": 1},
+        {"check_id": "drive-readiness-real-operation", "observation_kind": "runtime-outcome", "minimum": 1, "maximum": 1},
+        {"check_id": "restart-refresh-envelope", "observation_kind": "runtime-outcome", "minimum": 1, "maximum": 1},
+        {"check_id": "cloud-outage-cache-policy", "observation_kind": "runtime-outcome", "minimum": 1, "maximum": 1},
+        {"check_id": "config-negative-paths", "observation_kind": "runtime-outcome", "minimum": 1, "maximum": 1},
+        {"check_id": "sanitized-teardown", "observation_kind": "runtime-outcome", "minimum": 1, "maximum": 1}
+      ]
+    }
+  },
+  "journey_revision": {
+    "comment_id": 5374879156,
+    "journey_id": "provider_auth_google_v1",
+    "journey_digest": "sha256:7925b188f4b2ca6d2dff16e3dd00c5424166e9f2d7e1c2d36f8c8975ee6ead65"
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-21T20:18:18Z",
+  "proposal_digest": "sha256:f219ff26dd0af4bba0462ea81a77a505e8cc5d1f17aa1e7ec681ee5617dc971c"
+}

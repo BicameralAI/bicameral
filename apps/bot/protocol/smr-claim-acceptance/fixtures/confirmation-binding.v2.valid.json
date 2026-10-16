@@ -1,0 +1,30 @@
+{
+  "protocol_version": 2,
+  "digest_profile_version": 1,
+  "challenge_id": "c4e91a07-2b58-4d36-9017-6ea3f8b25c94",
+  "operation_id": "6f1c9d2e-4a83-4b17-9c05-2d7e8f3a1b64",
+  "request_id": "1a7e3c85-9f02-4b61-8d47-5c093ea2b718",
+  "action": "promote_smr_claim_set",
+  "actor_id": "actor.product-member-01",
+  "workspace": "workspace.local.product-checkout",
+  "session_id": "session.mcp.7f31c204",
+  "packet_id": "e5093b71-4a2c-4f89-b036-1d7e64c8a95f",
+  "product_id": "product.bicameral.core",
+  "candidate_id": "b2a7f4c1-8e93-4d5a-a016-3f9c7b2e5d80",
+  "candidate_generation": 3,
+  "candidate_kind": "smr_claim_set_v1",
+  "requested_outcome": "new_constraint",
+  "proposal_identity": {
+    "claim_set_digest": "sha256:d656f2b3221e5b3bc8eb178b70c46ad37aaca5bc4b448ae658e6dbcf70a714b6",
+    "artifact_binding_digest": "sha256:857401756c34430d687ab29f87aedfc8381d7cff093d0e18dadba286eede5592",
+    "smr_base_snapshot_digest": "sha256:4356a9c9b4ff5a9d5811e2e1c1f18f7c7f8eccf014a24fa24697432acbaa9563",
+    "base_event_position": 1487,
+    "claim_scope_digest": "sha256:567ef037e01da1a08450846e92adb9701a892e05d780fcd0b05f28756ee0c09a",
+    "evidence_bundle_digest": "sha256:c7456a8f4e9734be78e417d1e79ce7046095bb8bb2f1d785adb34deb5cb229a8"
+  },
+  "issued_at": "2026-07-27T20:13:05Z",
+  "expires_at": "2026-07-27T20:18:05Z",
+  "display_summary": "Promote 1 Claim and 3 ModelAtoms from docs/specs/rendezvous-state-machine.md into a new proposed Decision. Claims stay recommendation-only until Decision signoff.",
+  "display_summary_digest": "sha256:a7a1fe75d77947220647f9b0197482f04cf30f326825f084690be62ebb85790a",
+  "confirmation_binding_digest": "sha256:551100fd2cf29e190ee3c23350a596825c30a6e722936907c68e4664458c9d48"
+}

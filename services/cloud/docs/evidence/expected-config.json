@@ -1,0 +1,13 @@
+{
+  "_comment": "Reviewed tracked expectations for the Cloud #106 reconciliation. Supabase expectations are derived from supabase/migrations/*.sql; only Cloud Run / IAM posture that the repository cannot otherwise derive lives here. Every field is either explicitly pinned or null (unpinned). A null field is reported by the comparator as an observation to reconcile against #106, never as agreement.",
+  "cloud_run": {
+    "public_invoker_expected": false,
+    "public_invoker_source": ".github/workflows/deploy-cloud-run.yml deploys with --no-allow-unauthenticated (ADR-0006 / ADR-0008)",
+    "ingress_expected": null,
+    "ingress_allowed": [
+      "internal",
+      "internal-and-cloud-load-balancing"
+    ],
+    "ingress_note": "The deploy workflow does not pin --ingress today. ingress_allowed encodes the hardened posture (internal or behind the load balancer). The owner reconciles the live value against #106; any value outside ingress_allowed is drift."
+  }
+}

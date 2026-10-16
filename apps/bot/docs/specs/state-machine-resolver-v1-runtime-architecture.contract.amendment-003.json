@@ -1,0 +1,72 @@
+{
+  "amendment_id": "state-machine-resolver-v1-runtime-architecture-amendment-003",
+  "amendment_version": 3,
+  "base_contract_id": "state-machine-resolver-v1-runtime-architecture",
+  "base_contract_version": 1,
+  "effective_contract_version": "1.0.3",
+  "issue": 937,
+  "owner_decision_comment_id": 5246206090,
+  "disposition": "AMEND",
+  "normative": true,
+  "authorizes_implementation": false,
+  "authorizes_release": false,
+  "amendments": [
+    {
+      "id": "A25",
+      "target": "NormalizedClaimSetV1.AtomRelation",
+      "operation": "require_support_lineage_and_defer_derivation_classification",
+      "required_fields": [
+        "supporting_claim_ids",
+        "supporting_source_anchor_ids"
+      ],
+      "referential_integrity": {
+        "supporting_claim_ids": "must resolve to Claims in the same NormalizedClaimSetV1",
+        "supporting_source_anchor_ids": "must resolve to SourceAnchors in the same NormalizedClaimSetV1 and be reachable through at least one supporting Claim"
+      },
+      "normalization": "deduplicated and sorted by stable semantic ID",
+      "mismatch_result": "proposal_identity_mismatch",
+      "appends_on_mismatch": false,
+      "does_not_prove": [
+        "semantic_entailment",
+        "explicitness",
+        "correctness",
+        "authority"
+      ],
+      "prohibited_v1_fields": [
+        "source_explicit",
+        "rule_derived",
+        "model_inferred"
+      ],
+      "deferred_receipt_fields": [
+        "rule_id",
+        "rule_version",
+        "input_digest"
+      ],
+      "reason": "Natural-language relation explicitness is not generally decidable, and a model or extractor self-label would recreate evidence laundering."
+    }
+  ],
+  "version_disposition": {
+    "proposal_schema_version": 1,
+    "reason": "Pre-implementation correction before any shipped consumer, Release Unit, or activation.",
+    "after_first_shipped_consumer": "A closed-member change requires proposal_schema_version increment."
+  },
+  "conformance_obligations": [
+    "CONF-SMR-RELATION-SUPPORT-01"
+  ],
+  "state_refinement": {
+    "lifecycle_changed": false,
+    "states_added": [],
+    "authority_changed": false,
+    "persistence_changed": false
+  },
+  "user_journey": {
+    "status": "not_applicable",
+    "reason": "Relation support metadata changes no user-visible step, commit point, recovery path, or topology."
+  },
+  "efficacy_validation": {
+    "issue": 1089,
+    "parent_issue": 1006,
+    "obligation": "SRC-EFFICACY-01",
+    "mechanical_conformance_is_semantic_efficacy": false
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "_comment": "Golden ProviderItemEnvelope for GitHub (#523): one screened issue fetched from the repository named by the descriptor's resource_id.",
+  "_expected_behavior": "accepted — describes a fetched GitHub issue without governance, review, or binding authority",
+  "_authority_boundary": "Provisional alpha provider-fact handoff object. It is NOT Source, SourceSnapshot, SourceEvidence, DecisionCandidate, Decision, ToolRequest, ExternalIngestEnvelope, or event-store authority. content and provider_metadata are screened, non-secret provider facts only.",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "item_id": "issue-42",
+  "item_type": "issue",
+  "title": "Sidebar widget misaligns on narrow viewports",
+  "content": "The sidebar widget overlaps the main content below 768px. Repro on Chrome and Firefox.",
+  "content_hash": "sha256:0b1f9c4f5d6e7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+  "uri": "https://github.com/octocat/hello-world/issues/42",
+  "freshness": {
+    "last_modified": "2026-06-14T09:12:00Z",
+    "etag": "W/\"42-3\""
+  },
+  "provider_metadata": {
+    "state": "open",
+    "labels": ["bug", "ui"]
+  },
+  "fetched_at": "2026-06-15T12:05:00Z"
+}

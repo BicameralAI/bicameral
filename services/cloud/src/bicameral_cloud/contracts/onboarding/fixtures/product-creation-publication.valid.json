@@ -1,0 +1,15 @@
+{
+  "canonical": false,
+  "canonical_creation_receipt_ref": "rcpt_01HZX8CREATE",
+  "creator_cloud_account_id": "acct_01HZX8PRIYA",
+  "event_store_hint": {
+    "provider": "github",
+    "substrate": "git"
+  },
+  "idempotency_key": "prd_01HZX8CHECKOUT:publish",
+  "product_id": "prd_01HZX8CHECKOUT",
+  "publication_id": "pub_01HZX8ACME",
+  "published_at": "2026-07-12T08:59:30Z",
+  "team_display_name": "Acme",
+  "verified_domain": "acme.example"
+}

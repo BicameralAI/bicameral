@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0112-desktop-hosted-key-pairing",
+  "label": "Desktop ↔ hosted dashboard key pairing",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "Bot a79b0cc525a149671f7affa4af5d958ad56a7fce + Cloud c7bc81731f782828df7a0794a1260ca7056ff5c2",
+  "release_unit_type": "desktop_hosted_key_pairing",
+  "target_version": "0.1.12",
+  "topology": {
+    "required": true,
+    "topology_type": "desktop_hosted_key_pairing_v1",
+    "validation_checklist": [
+      {
+        "check_id": "pair-exact-tuple",
+        "label": "Pair the exact desktop and hosted dashboard revisions"
+      },
+      {
+        "check_id": "restart-reconnect",
+        "label": "Reconnect after daemon restart without replacing canonical identity"
+      },
+      {
+        "check_id": "revoke-repair",
+        "label": "Revoke the pairing and complete the documented repair path"
+      }
+    ]
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-07-22T14:00:00Z",
+  "proposal_digest": "sha256:3c6e9f416a00861731eadab006e907f5a677363e005dcb390835a2c36dc21535"
+}

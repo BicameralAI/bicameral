@@ -1,0 +1,13 @@
+name: PR Hygiene
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-hygiene:
+    uses: ./.github/workflows/_reusable-pr-hygiene.yml

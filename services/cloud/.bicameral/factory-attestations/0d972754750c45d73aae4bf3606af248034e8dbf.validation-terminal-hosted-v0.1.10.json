@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "factory_repo": "BicameralAI/bicameral-factory",
+  "factory_commit": "0d972754750c45d73aae4bf3606af248034e8dbf",
+  "loaded_context": [
+    "README.md",
+    "CONTRIBUTING.md",
+    "CONTEXT.md",
+    "blueprints/factory-attestation.md",
+    "skills/bic/mattpocock/engineering/diagnose/SKILL.md"
+  ],
+  "context_evidence": {
+    "README.md": {
+      "source": "agent-declared",
+      "reason": "Baseline factory guidance for the release-gate repair.",
+      "sha256": "ac47e958350c822f795424575cd7b7a995b695668ed72b80cb6f4080ba5056f5"
+    },
+    "CONTRIBUTING.md": {
+      "source": "agent-declared",
+      "reason": "Factory contribution and demotion-loop rules.",
+      "sha256": "ef0946fbd159494809d1ddc2a240d0ae063177fccf4b0f5c608d408845402c35"
+    },
+    "CONTEXT.md": {
+      "source": "agent-declared",
+      "reason": "Canonical authority and lifecycle language for Product and hosted pairing boundaries.",
+      "sha256": "39d6cda835fff745c9836462abbdaaba8a320916bc60fd1a8ff6a1d45a7f63df"
+    },
+    "blueprints/factory-attestation.md": {
+      "source": "agent-declared",
+      "reason": "Product-PR provenance and state-refinement evidence contract.",
+      "sha256": "7529318896bb6b2d3df1e720d522bb7b792c7f4e3fff2a014013c215c83847a9"
+    },
+    "skills/bic/mattpocock/engineering/diagnose/SKILL.md": {
+      "source": "agent-declared",
+      "reason": "Reproduced and minimized the exact-head HTTP 426 release-gate failure before changing the harness.",
+      "sha256": "94dc1c09972eeccf232750a058267efd752704e0d332cff82ae5547b3f137f4d"
+    }
+  },
+  "local_setup_divergence": {
+    "checked": true,
+    "resolution": "none",
+    "notes": "The copied bic:diagnose skill matched the pinned Factory manifest. The Cloud checkout lacked its local-only factory context file, so this run created an ignored local context record pointing at the already-confirmed Factory commit. Local dependency installation was unavailable because the sandbox could not reach PyPI; the focused stdlib-only harness suite ran locally, while FastAPI-backed conformance and the full real-process journey are delegated to GitHub Actions."
+  },
+  "roadmap_reconciliation": {
+    "checked": true,
+    "issue_number": 90,
+    "issue_type": "validating",
+    "project_status": "In Progress",
+    "pr_links_checked": true,
+    "pr_body_links_issue": true,
+    "pr_links": [
+      "https://github.com/BicameralAI/bicameral-cloud/pull/180"
+    ],
+    "post_work_comment_url": null,
+    "notes": "Factory onboarding roadmap #90 remains validating. Cloud #137 is the terminal Hosted Product Create + Join acceptance lane. Its human owner clarified the single-domain alpha boundary on 2026-07-17: the terminal browser journey has only the creator and same-domain peer; cross-domain admission, ticket, and daemon denial remain blocking conformance/security evidence."
+  },
+  "state_refinement": {
+    "checked": true,
+    "release_state": "No lifecycle behavior changed. The validation harness follows the already-shipped daemon-owned pending pairing lifecycle, exercises the two-actor single-domain Hosted Product Create + Join journey, and retains the complete redacted evidence needed for human review.",
+    "states_added": [],
+    "states_deferred": [],
+    "invariants": [
+      "Canonical Product state, pairing authority, and persistence semantics did not change.",
+      "Only the local daemon confirmation surface may approve a pending hosted-bridge request; Cloud and the hosted origin cannot mint a session.",
+      "A protocol-incompatible pairing client fails closed instead of falling back to immediate-token behavior.",
+      "Alpha admits only bicameral-ai.com; the terminal journey must not add a second admitted domain or third terminal identity solely to manufacture a browser eligibility case.",
+      "Cross-domain Cloud admission, Product ticket, and daemon membership denial remain blocking conformance/security evidence."
+    ],
+    "minimization_review": {
+      "reviewed": true,
+      "rejected_or_collapsed_states": [],
+      "rationale": "This is an executable-topology and evidence-integrity repair only. Introducing a second admitted domain, third terminal actor, or new durable/display state would exceed the owner-approved single-domain alpha boundary."
+    },
+    "notes": "The harness locally simulates the operator's explicit approval solely to construct the disposable test topology; it does not alter production authority or persistence. Playwright traces are written first to the disposable root, scrubbed of known ephemeral credentials, and only then copied into retained evidence."
+  },
+  "end_of_session_capture": {
+    "run": true,
+    "factory_pr": null,
+    "notes": "Factory learning signals: the terminal topology carried a second handwritten hosted-pairing client that drifted from protocol-v3 pending confirmation, and its receipt collapsed machine-complete evidence with human product acceptance. The new regression tests lock the production handshake, two-actor alpha scope, redacted evidence retention, and pending-human-review classification; a future shared client/contract-generated harness would reduce recurrence."
+  },
+  "attested_by": "Codex (Bicameral Factory Run)",
+  "timestamp": "2026-07-17T14:17:35Z",
+  "target_repo": "BicameralAI/bicameral-cloud",
+  "target_branch": "validation/terminal-hosted-v0.1.10",
+  "agent": "codex",
+  "session": "GitHub PR #180 release-gate repair"
+}

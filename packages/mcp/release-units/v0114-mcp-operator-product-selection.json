@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0114-mcp-operator-product-selection",
+  "label": "Require daemon-validated Product selection in MCP sessions",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-bot#908",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.14",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-07-28T12:24:42Z",
+  "proposal_digest": "sha256:c54bf1fe758efa374a76bb3e9296b2aec418988ee7f6623fae9a562c37705944"
+}

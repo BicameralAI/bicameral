@@ -1,0 +1,41 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+.cache/
+.pytest_cache/
+test-results/
+*.db
+*.pkl
+.DS_Store
+
+# Local MCP config (contains absolute paths)
+.mcp.json
+
+.gstack/
+
+# Bicameral local workspace data
+.bicameral/
+
+# Local agent/process artifacts
+docs/demos/**/*.mp4
+.agent/
+.agents/
+.failsafe/
+.qor/
+.cursor/
+.windsurf/
+.claude/worktrees/
+GEMINI.md
+COPILOT.md
+CURSOR.md
+RUN_SUMMARY.md
+
+plan-*.md
+
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/

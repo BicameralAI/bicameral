@@ -1,0 +1,8 @@
+{
+  "application_rollback_safe": true,
+  "compatibility": "backfill",
+  "description": "Reassert the Bicameral internal domain as enabled for alpha/demo Cloud admission.",
+  "execution_policy": "separate_authorization",
+  "schema_version": 1,
+  "version": "202610020001"
+}

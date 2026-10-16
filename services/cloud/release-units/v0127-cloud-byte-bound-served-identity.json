@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0127-cloud-byte-bound-served-identity",
+  "label": "Cloud byte-bound served Bot identity provenance",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "BicameralAI/bicameral-cloud#274",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.27",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:Knapp-Kevin",
+  "proposed_at": "2026-08-14T17:07:00Z",
+  "proposal_digest": "sha256:e00a2191a94e1e9c60b3a85a3c9c1797b86e10773e4b561e7d7e3a065c866c6f"
+}

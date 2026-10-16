@@ -1,0 +1,19 @@
+name: Dependency Review
+
+# Adopts the org reusable dependency-review workflow owned by bicameral-integrations (#105).
+# advisory: true keeps the gate green until the Dependency Graph (Cargo) is confirmed enabled;
+# flip to false once green.
+on:
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: BicameralAI/bicameral-integrations/.github/workflows/_reusable-dependency-review.yml@f28ab9dd21e2ffc2f79597c587dcf3c575f9d2ea
+    with:
+      advisory: true

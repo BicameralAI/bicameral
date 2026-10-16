@@ -1,0 +1,59 @@
+name: Durable Evidence Acceptance
+
+# Soft-disabled as a PR gate (Phase 1 collapse).
+# Tests remain covered by rust.yml `cargo test --workspace` (required check: rust-workspace).
+# Branch protection does not require this workflow name.
+# Kept as workflow_dispatch for manual archaeology / re-run during a transition window.
+# Job steps preserved; former path filters lived under on.pull_request (see git history).
+
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  d3a-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+          components: rustfmt,clippy
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Check affected crates
+        run: |
+          set -o pipefail
+          mkdir -p test-artifacts/durable-evidence-acceptance
+          {
+            cargo check -p bicameral-api
+            cargo check -p bicameral-gateway
+            cargo check -p bicameral-runtime
+          } 2>&1 | tee test-artifacts/durable-evidence-acceptance/cargo-check.log
+      - name: Run evidence repository unit tests
+        run: |
+          set -o pipefail
+          cargo test -p bicameral-gateway evidence_repository -- --nocapture \
+            2>&1 | tee test-artifacts/durable-evidence-acceptance/repository-tests.log
+      - name: Run durable acceptance journey tests
+        run: |
+          set -o pipefail
+          cargo test -p bicameral-gateway --test durable_evidence_acceptance -- --nocapture \
+            2>&1 | tee test-artifacts/durable-evidence-acceptance/journey-tests.log
+      - name: Clippy affected production libraries
+        run: |
+          set -o pipefail
+          cargo clippy -p bicameral-api -p bicameral-gateway -p bicameral-runtime --lib -- -D warnings \
+            2>&1 | tee test-artifacts/durable-evidence-acceptance/clippy.log
+      - name: Retain D3a diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: durable-evidence-acceptance-diagnostics
+          path: test-artifacts/durable-evidence-acceptance/
+          if-no-files-found: ignore
+          retention-days: 14

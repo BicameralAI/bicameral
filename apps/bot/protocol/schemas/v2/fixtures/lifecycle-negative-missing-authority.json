@@ -1,0 +1,26 @@
+{
+  "_comment": "Negative fixture: missing authority — empty actor_id",
+  "_expected_response": "Rejected: missing_authority — actor_id is required",
+  "tool_request": {
+    "request_id": "f0000001-0000-4000-8000-000000000001",
+    "command": {
+      "name": "ingest.submit_local",
+      "params": {
+        "source_uri": "https://example.com/ticket",
+        "source_type": "manual",
+        "title": "Test",
+        "description": "Test description",
+        "evidence": []
+      }
+    },
+    "authority": {
+      "actor_id": "",
+      "auth_method": "mcp_session",
+      "session_id": null,
+      "workspace": null,
+      "policy_scope": [],
+      "audit_metadata": {}
+    },
+    "issued_at": "2026-06-10T10:20:00Z"
+  }
+}

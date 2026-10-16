@@ -1,0 +1,20 @@
+{
+  "_comment": "Negative fixture: CodeGenome fused confidence cannot prove no-conflict",
+  "_invariant": "CodeGenome-style advisory hints may boost expansion order and provide weak ranking support, but cannot satisfy deterministic verification, create authority, or prove no-conflict. They must be clearly labeled as advisory.",
+  "_expected": "Recall candidates found solely via CodeGenome signals must be ranked in tier 7 or 8 (lowest advisory tiers), carry advisory authority labels, and must not assert no-conflict or absence of governing constraints.",
+  "_must_fail_if": "CodeGenome confidence proves no-conflict or creates authority",
+  "scenario": {
+    "route": "codegenome_advisory",
+    "codegenome_confidence": 0.92,
+    "signal_freshness": "fresh",
+    "signal_scope": "module"
+  },
+  "required_ranking_tier_minimum": 7,
+  "required_authority_label": "advisory",
+  "forbidden_claims": [
+    "no_conflict",
+    "no_governing_constraint",
+    "compliance_verified",
+    "binding_valid"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0114-exclude-deferred-v021-smr",
+  "label": "Keep deferred v0.2.1 SMR kernel out of v0.1.14",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#980",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.14",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-07-30T02:15:20Z",
+  "proposal_digest": "sha256:56cb9a8da6f98fd42f8e384a8ce71b92483e5e4a1c1cef3d71145009a1117007"
+}

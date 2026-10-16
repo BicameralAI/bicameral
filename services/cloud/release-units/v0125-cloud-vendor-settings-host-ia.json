@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0125-cloud-vendor-settings-host-ia",
+  "label": "Vendor Bot Settings host IA SPA into Cloud static dashboard",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "BicameralAI/bicameral-bot#1092",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.25",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "agent:grok-build",
+  "proposed_at": "2026-08-12T21:47:01Z",
+  "proposal_digest": "sha256:7ae1f4a9f99a6c72012b5131f8bd71f4d1ef071bbfeef25dfb46bc60b25179d7"
+}

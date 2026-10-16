@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bicameral-ai.com/schemas/google-native-oauth-app-config-v1.json",
+  "title": "GoogleNativeAppConfigV1",
+  "description": "Bounded non-secret Google native OAuth application configuration published by Bicameral Cloud and consumed by the local daemon.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider",
+    "client_type",
+    "client_id",
+    "environment",
+    "config_version",
+    "scope_set_version",
+    "scopes",
+    "issued_at",
+    "expires_at",
+    "enabled"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provider": {
+      "const": "google"
+    },
+    "client_type": {
+      "const": "native"
+    },
+    "client_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "config_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope_set_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "enabled": {
+      "type": "boolean"
+    }
+  }
+}

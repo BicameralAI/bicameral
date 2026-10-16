@@ -2,6 +2,6 @@
 
 End-user applications. Each application is a declared child directory in [`governance/structure.json`](../governance/structure.json).
 
-| Directory | Status |
+| Directory | Contents |
 | --- | --- |
-| [`dashboard/`](dashboard/) | Reserved, not yet imported |
+| [`bot/`](bot/) | Local runtime (Rust daemon, gateway, protocol) and dashboard, from `bicameral-bot` |

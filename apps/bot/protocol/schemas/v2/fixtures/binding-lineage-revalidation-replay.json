@@ -1,0 +1,43 @@
+{
+  "_comment": "Conformance fixture: RevalidateBinding replay accumulates lineage without mutating prior events (ADR-0010)",
+  "_acceptance_criteria": "issue #101 criterion 8",
+  "scenario": "revalidation_replay_lineage_accumulation",
+  "description": "Multiple RevalidateBinding events for the same binding accumulate in order. Original binding and all prior revalidations are immutable. Replay reconstructs the full lineage chain.",
+  "initial_binding": {
+    "decision_id": "d6000000-0000-0000-0000-000000000001",
+    "binding_id": "b6000000-0000-0000-0000-000000000001",
+    "binding_type": "code_region",
+    "target": "src/chain.rs:1-10",
+    "graph_snapshot_id": "gs-chain-v1",
+    "validated_sha": "chain_v1_sha",
+    "evidence_state": "verified"
+  },
+  "revalidation_chain": [
+    {
+      "current_graph_snapshot_id": "gs-chain-v2",
+      "current_validated_sha": "chain_v2_sha",
+      "evidence_state": "verified",
+      "outcome": "confirmed"
+    },
+    {
+      "current_graph_snapshot_id": "gs-chain-v3",
+      "current_validated_sha": "chain_v3_sha",
+      "evidence_state": "verified",
+      "outcome": "confirmed"
+    },
+    {
+      "current_graph_snapshot_id": "gs-chain-v4",
+      "current_validated_sha": "chain_v4_sha",
+      "evidence_state": "not_found",
+      "outcome": "failed"
+    }
+  ],
+  "expected_behavior": {
+    "original_binding_immutable": true,
+    "original_binding_snapshot_id": "gs-chain-v1",
+    "total_revalidation_events": 3,
+    "revalidation_order_preserved": true,
+    "prior_events_never_mutated": true,
+    "explanation": "Durable history accumulates accepted binding and revalidation facts; it does not mutate or replace old binding evidence."
+  }
+}

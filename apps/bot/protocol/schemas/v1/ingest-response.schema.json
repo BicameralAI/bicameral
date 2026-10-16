@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IngestResponse",
+  "description": "Ingest response aligned with MCP v0.2 spec §2.2.",
+  "type": "object",
+  "required": [
+    "candidate_ids",
+    "evidence_ids",
+    "governance_results",
+    "source_id"
+  ],
+  "properties": {
+    "candidate_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_reference_ids": {
+      "description": "IDs of typed `EvidenceReference` items created from `evidence_references`.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "governance_results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/IngestGovernanceResult"
+      }
+    },
+    "snapshot_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_id": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "CandidateState": {
+      "description": "Candidate lifecycle state (spec §2.2 candidate_state).",
+      "type": "string",
+      "enum": [
+        "proposed",
+        "rejected",
+        "promoted"
+      ]
+    },
+    "IngestGovernanceResult": {
+      "type": "object",
+      "required": [
+        "action",
+        "candidate_id",
+        "candidate_state",
+        "reason",
+        "review_state"
+      ],
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "candidate_id": {
+          "type": "string"
+        },
+        "candidate_state": {
+          "$ref": "#/definitions/CandidateState"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "review_state": {
+          "$ref": "#/definitions/ReviewLifecycleState"
+        }
+      }
+    },
+    "ReviewLifecycleState": {
+      "description": "Review lifecycle state from MCP v0.2 spec §2.2.\n\nTracks where a candidate or decision is in the governance pipeline.",
+      "type": "string",
+      "enum": [
+        "advisory",
+        "proposed",
+        "needs_signoff_review",
+        "needs_grounding_review",
+        "needs_compliance_review",
+        "collision_pending",
+        "stale_source_pending",
+        "ready_to_materialize",
+        "materialized"
+      ]
+    }
+  }
+}

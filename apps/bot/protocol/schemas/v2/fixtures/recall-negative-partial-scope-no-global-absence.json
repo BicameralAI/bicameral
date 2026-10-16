@@ -1,0 +1,31 @@
+{
+  "_comment": "Negative fixture: no-match from partial scope cannot claim global absence",
+  "_invariant": "No RecallPacket may make a negative claim stronger than its searched scope supports. Partial scope search that finds no match must say 'No relevant Decision found in searched scope', not 'No relevant Decision exists' or 'No conflict found' or 'This work is clear'.",
+  "_expected": "RecallPacket from partial-scope search with no matches must include unknown_scope entries for unsearched areas and must not contain any field or text asserting global absence, no conflict, or clearance.",
+  "_must_fail_if": "no-match from partial scope claims global absence",
+  "scenario": {
+    "searched_scope_level": 2,
+    "searched_areas": ["src/api/"],
+    "unsearched_areas": ["src/core/", "src/integrations/", "src/middleware/"],
+    "match_count": 0
+  },
+  "required_unknown_scope_entries": [
+    {
+      "scope_id": "core-module",
+      "description": "src/core/ not included in search scope"
+    },
+    {
+      "scope_id": "integrations-module",
+      "description": "src/integrations/ not included in search scope"
+    }
+  ],
+  "forbidden_claims": [
+    "No relevant Decision exists",
+    "No conflict found",
+    "This work is clear",
+    "No governing constraint applies"
+  ],
+  "permitted_claims": [
+    "No relevant Decision found in searched scope"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "_comment": "Valid minimal ExternalIngestEnvelope: evidence-only, no candidate hints. The three required fields (source_system, source_uri, content) plus at least one evidence item.",
+  "_expected_behavior": "accepted — creates source, snapshot, and evidence records",
+  "source_system": "slack",
+  "source_uri": "https://slack.com/archives/C01EXAMPLE/p1718400000000100",
+  "content": "We agreed in standup that the API rate limit should be 100 req/min per user.",
+  "evidence": [
+    {
+      "excerpt": "API rate limit should be 100 req/min per user",
+      "span_start": 33,
+      "span_end": 78,
+      "confidence": 0.88
+    }
+  ]
+}

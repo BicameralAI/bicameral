@@ -1,0 +1,11 @@
+{
+  "_comment": "Valid minimal ProviderResourceDescriptor: provider-neutral resource discovery fact. Required fields only plus one capability.",
+  "_expected_behavior": "accepted — describes a discoverable provider resource without governance, review, or binding authority",
+  "_authority_boundary": "This is a provisional alpha provider-fact handoff object. It is NOT a SourceBinding, Source, evidence, candidate, review, signoff, compliance, or event-store authority object.",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "display_name": "Hello World",
+  "resource_type": "repository",
+  "capabilities": ["list", "read"],
+  "captured_at": "2026-01-15T10:00:00Z"
+}

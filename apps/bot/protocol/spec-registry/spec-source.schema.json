@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/spec-source.schema.json",
+  "title": "SpecSource",
+  "description": "A spec is a Source whose kind is file or tracker. Field names match bicameral_api::source::Source. Factory #935 E1. ADR-0033.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["uri", "source_type", "source_kind"],
+  "properties": {
+    "uri": {
+      "type": "string",
+      "minLength": 1,
+      "description": "External URI or stable key of the file or tracker issue."
+    },
+    "source_type": {
+      "type": "string",
+      "description": "Existing free-form source_type on Source. Not the version identity."
+    },
+    "label": {
+      "type": "string"
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["file", "tracker"],
+      "description": "SourceKind values. A spec is only file or tracker."
+    }
+  }
+}

@@ -1,0 +1,45 @@
+name: Bicameral factory attestation
+
+on:
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  factory-attestation:
+    name: bicameral-factory-attestation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Test factory signal-context classification
+        run: python3 scripts/test_factory_signal_context.py
+
+      - name: Validate bounded Dependabot change
+        if: github.actor == 'dependabot[bot]'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${GITHUB_BASE_REF}"
+          mapfile -t changed < <(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")
+          if [[ ${#changed[@]} -eq 0 ]]; then
+            echo "::error::Dependabot PR contains no changed files"
+            exit 1
+          fi
+          for path in "${changed[@]}"; do
+            case "${path}" in
+              Cargo.lock|Cargo.toml|dashboard/package-lock.json|dashboard/package.json)
+                ;;
+              *)
+                echo "::error file=${path}::Dependabot attestation exemption is limited to dependency manifests and lockfiles"
+                exit 1
+                ;;
+            esac
+          done
+          echo "Bounded Dependabot dependency update validated; per-run Factory attestation is not required."
+
+      - name: Validate factory attestation
+        if: github.actor != 'dependabot[bot]'
+        run: python3 scripts/validate_factory_signal_context.py

@@ -1,0 +1,130 @@
+{
+  "fixture_version": 1,
+  "status": "owner_review_required",
+  "fixture_role": "non_authoritative_throwaway_replay",
+  "issue": "https://github.com/BicameralAI/bicameral-bot/issues/1221",
+  "governed_domain": {
+    "product_id": "fixture.product.bicameral.alpha-sprint",
+    "analysis_key": "fixture.smr-feedback.product-creation-workspace-routing-v1",
+    "is_source": false,
+    "artifact": {
+      "repository_id": "BicameralAI/bicameral-bot",
+      "git_head": "8ae4077875164544c068c2e5c5a9341ee384bb66",
+      "artifact_path": "docs/specs/alpha-product-truth-v1.md",
+      "blob_id": "38ba0ca0431bd3fc8969912460e2155464443cba",
+      "artifact_content_digest": "sha256:680bd9c05e6aefa15db9bf1b773ef878d86290db66231620514374b083710ba2"
+    },
+    "artifact_role": "provenance_only_not_product_truth",
+    "artifact_binding_digest": "sha256:bd8c912111a9985b32ada68d92c5d7b99d07653c24000a5c7d339ab28593d77e",
+    "normalized_claim_set": {
+    "claims": [
+      {"claim_id":"claim.alpha.c01.creation-prerequisites","revision":0,"context_statement":"Canonical creation requires explicit supported provider/resource selection, operator-level connection, descriptor validation, and adapter resolution.","source_anchor_ids":["anchor.alpha.product-creation"],"assertion_ids":["assert.alpha.c01.creation-prerequisites"]},
+      {"claim_id":"claim.alpha.c02.connection-resumes-draft","revision":0,"context_statement":"Missing provider access uses the shared Connection service and resumes the same retained draft; failure leaves a retryable draft and creates no Product.","source_anchor_ids":["anchor.alpha.product-creation"],"assertion_ids":["assert.alpha.c02.connection-resumes-draft"]},
+      {"claim_id":"claim.alpha.c03.adapter-owns-events","revision":0,"context_statement":"The selected event-store adapter owns canonical Product events. Cloud publication is a separate non-canonical projection.","source_anchor_ids":["anchor.alpha.product-creation"],"assertion_ids":["assert.alpha.c03.adapter-owns-events"]},
+      {"claim_id":"claim.alpha.c04.proof-before-publication","revision":0,"context_statement":"Cloud publication is forbidden until the provider confirms the exact first event through a bounded commit proof; the proof is a witness, not lifecycle state.","source_anchor_ids":["anchor.alpha.product-creation"],"assertion_ids":["assert.alpha.c04.proof-before-publication"]},
+      {"claim_id":"claim.alpha.c05.independent-commit-points","revision":0,"context_statement":"Connection, canonical creation, provider confirmation, Cloud publication, local registration, and replay are independent observable commit points.","source_anchor_ids":["anchor.alpha.product-creation"],"assertion_ids":["assert.alpha.c05.independent-commit-points"]},
+      {"claim_id":"claim.alpha.c06.setup-repair-reconnect-states","revision":0,"context_statement":"Pre-registration incompleteness is `needs_setup`; post-registration access/replay failure is `repair_required`; daemon loss routes to pairing/reconnect, not an `offline` Product row.","source_anchor_ids":["anchor.alpha.product-creation"],"assertion_ids":["assert.alpha.c06.setup-repair-reconnect-states"]},
+      {"claim_id":"claim.alpha.c07.idempotent-recovery","revision":0,"context_statement":"Partial-failure recovery is idempotent and cannot duplicate Product, first event, proof, registration, or Cloud row.","source_anchor_ids":["anchor.alpha.product-creation"],"assertion_ids":["assert.alpha.c07.idempotent-recovery"]},
+      {"claim_id":"claim.alpha.c08.explicit-registration","revision":0,"context_statement":"A runnable Product requires explicit hosted-assisted or local-only registration; cwd/upward `.bicameral/` discovery is forbidden.","source_anchor_ids":["anchor.alpha.workspace-routing"],"assertion_ids":["assert.alpha.c08.explicit-registration"]},
+      {"claim_id":"claim.alpha.c09.binding-boundary","revision":0,"context_statement":"`LocalWorkspaceBinding` is Product-keyed local code access, not Product identity, source binding, BindingEvidence, canonical state, or approval.","source_anchor_ids":["anchor.alpha.workspace-routing"],"assertion_ids":["assert.alpha.c09.binding-boundary"]},
+      {"claim_id":"claim.alpha.c10.binding-only-repair","revision":0,"context_statement":"A missing or invalid local path makes only the binding `repair_required`; Product registration remains valid.","source_anchor_ids":["anchor.alpha.workspace-routing"],"assertion_ids":["assert.alpha.c10.binding-only-repair"]},
+      {"claim_id":"claim.alpha.c11.sessionstart-routing","revision":0,"context_statement":"On genuine SessionStart, the host workspace path is only a routing hint. The daemon may return `product_id` only from exactly one valid existing binding. An `unbound`, `repair_required`, `ambiguous`, or `product_context_required` outcome fails closed with a typed no-run result; the host never infers or chooses a Product.","source_anchor_ids":["anchor.alpha.workspace-routing"],"assertion_ids":["assert.alpha.c11.sessionstart-routing"]},
+      {"claim_id":"claim.alpha.c12.activation-readiness-separation","revision":0,"context_statement":"SessionStart activation and Product/workspace readiness remain separate. Lookup and hook receipts create or approve no Product, binding, Decision, or release state.","source_anchor_ids":["anchor.alpha.workspace-routing"],"assertion_ids":["assert.alpha.c12.activation-readiness-separation"]}
+    ],
+    "model_atoms": [
+      {"atom_id":"sha256:018d4056139ced92acd27c572f8b7a0bbb424adcddeb5b3442d8d6b541402800","atom_kind":"invariant","semantic_key":"selected-event-store-adapter-owns-canonical-product-events","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:1ac519de8f41a804ae6cda22550354ed0e85bff8414d14cc95a2a921771094db","atom_kind":"invariant","semantic_key":"provider-confirmed-first-event-proof-precedes-cloud-publication-and-is-not-lifecycle-state","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:1b08f35c209f791d44951ea748d9eda07b342aaf2c335e91c63e0076e5b572b0","atom_kind":"state","semantic_key":"runnable-product","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:3a3c9dfd50edf8637f70767beb2c196d48cc04fdbd8804059e01b4e066466888","atom_kind":"state","semantic_key":"retained-retryable-product-draft","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:455cb75a139401b168fffd88bcd3d379b0a7bfcc7e9dd37a4c9adbc47b117024","atom_kind":"invariant","semantic_key":"sessionstart-routes-only-through-one-valid-existing-binding-and-otherwise-fails-closed","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:501cbb9f6295bad2e6f654309381c752d56e8a427d8fc58d1ecda41e7b2c9e8c","atom_kind":"state","semantic_key":"typed-no-run","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:56f39c2bb9ae82a5e3706dd233d4e99a82ff3b77e58a9a8c0d25c1c82968e8c8","atom_kind":"invariant","semantic_key":"partial-failure-recovery-does-not-duplicate-durable-artifacts","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:60b9558f9ebb407b0bd72210e1b8ba6c8bf9905d5985be4fe8552f61d82463c0","atom_kind":"event","semantic_key":"daemon-loss","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:60e26e536fa4d91edc8b1151fc809f1df025c6bd83dbe1eb2bb27a08e032857d","atom_kind":"invariant","semantic_key":"runnable-product-requires-explicit-registration-without-cwd-discovery","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:67ad889c830f43dfd65e9f46fb958a58296e09446cdd85dff95aed950c4d2539","atom_kind":"action","semantic_key":"cloud-publication","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:6a365584aac32a375af67ec2b5e8613d7b3b3abc6b010d0a7b5e133ef74381ee","atom_kind":"term","semantic_key":"local-workspace-binding","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:718480f253fbef926cb0330b0a7bf0fdcc7ee9891a6199fd64431655a4969c4c","atom_kind":"invariant","semantic_key":"missing-provider-access-resumes-same-retryable-draft-without-product-creation","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:77015f19afc8a2067f591dbc4cd47eb3e656525c0cef918c504c681d6436530e","atom_kind":"transition","semantic_key":"canonical-product-creation","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:8bf21c3beaa0f97a88da37939bbc78bb0a2e3557d5f0abedc06c1ef445c10a52","atom_kind":"invariant","semantic_key":"sessionstart-activation-readiness-and-authority-effects-remain-separate","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:913475ed9b4046129da79fabfb8ce9b842380ea27891a7dff2e1eb3e307abe69","atom_kind":"term","semantic_key":"valid-existing-workspace-binding","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:9c3aa31f983ea18ad8e19a283eecf2253e2a0115e9e51bf3e99d1e51918fb2a7","atom_kind":"invariant","semantic_key":"setup-repair-and-daemon-reconnect-outcomes-remain-distinct","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:aa600ec7f096e3714f38fd8374711fc41eb3cf20d48848c0e602c2df37728395","atom_kind":"event","semantic_key":"canonical-product-event","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:b2993ecd8dafc6365094006899544d57913483317c8efb2a25d239832737f244","atom_kind":"term","semantic_key":"canonical-event-store-adapter","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:b7d515876ac17c50189f2f3cea1cda3c2218234fcbcd6e9ebb26593082e3bbfc","atom_kind":"action","semantic_key":"return-product-id","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:c728820bf37e0f0eb4b91bfc68ae90e426b574834dc98fc9eb494e2a888c35c6","atom_kind":"term","semantic_key":"local-code-access","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:ca70f594c44db787f3f147241b776c3614b9ed3908c7c8a4f0f9e13242ec6e39","atom_kind":"action","semantic_key":"pairing-reconnect","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:cc92248cabb2b0853aa9c69395717be47bc996556028cbb300551cc7f1cb428c","atom_kind":"transition","semantic_key":"explicit-product-registration","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:cfedd1509592095c369ecee3522e5e769272f2b3b7a0611fdc7af637c867d778","atom_kind":"invariant","semantic_key":"local-workspace-binding-is-local-code-access-only","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:d024d23926b8da6ddb607c27df9d1d3f2d84c4bcff97e2f5891c1a1058fcc3a4","atom_kind":"invariant","semantic_key":"canonical-creation-requires-explicit-provider-resource-connection-validation-and-adapter-resolution","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:d8d99375962f06211df40b0c4571a35df8f4e358f2c96311e9a127bddd88822e","atom_kind":"invariant","semantic_key":"connection-creation-confirmation-publication-registration-and-replay-are-independent-commit-points","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:e0e1dd9261c3634445ba13dd5acf31ae76b9046ae042715f440a73176a263a36","atom_kind":"term","semantic_key":"bounded-commit-proof","scope_id":"scope.alpha.product-creation-workspace-routing"},
+      {"atom_id":"sha256:f1002566d5fcad6d4541e3a4e0aee47122eee915fd4074b59f9c2e34d65df3ea","atom_kind":"invariant","semantic_key":"invalid-local-path-repairs-binding-without-invalidating-registration","scope_id":"scope.alpha.product-creation-workspace-routing"}
+    ],
+    "claim_assertions": [
+      {"assertion_id":"assert.alpha.c01.creation-prerequisites","claim_id":"claim.alpha.c01.creation-prerequisites","atom_id":"sha256:d024d23926b8da6ddb607c27df9d1d3f2d84c4bcff97e2f5891c1a1058fcc3a4","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c02.connection-resumes-draft","claim_id":"claim.alpha.c02.connection-resumes-draft","atom_id":"sha256:718480f253fbef926cb0330b0a7bf0fdcc7ee9891a6199fd64431655a4969c4c","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c03.adapter-owns-events","claim_id":"claim.alpha.c03.adapter-owns-events","atom_id":"sha256:018d4056139ced92acd27c572f8b7a0bbb424adcddeb5b3442d8d6b541402800","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c04.proof-before-publication","claim_id":"claim.alpha.c04.proof-before-publication","atom_id":"sha256:1ac519de8f41a804ae6cda22550354ed0e85bff8414d14cc95a2a921771094db","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c05.independent-commit-points","claim_id":"claim.alpha.c05.independent-commit-points","atom_id":"sha256:d8d99375962f06211df40b0c4571a35df8f4e358f2c96311e9a127bddd88822e","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c06.setup-repair-reconnect-states","claim_id":"claim.alpha.c06.setup-repair-reconnect-states","atom_id":"sha256:9c3aa31f983ea18ad8e19a283eecf2253e2a0115e9e51bf3e99d1e51918fb2a7","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c07.idempotent-recovery","claim_id":"claim.alpha.c07.idempotent-recovery","atom_id":"sha256:56f39c2bb9ae82a5e3706dd233d4e99a82ff3b77e58a9a8c0d25c1c82968e8c8","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c08.explicit-registration","claim_id":"claim.alpha.c08.explicit-registration","atom_id":"sha256:60e26e536fa4d91edc8b1151fc809f1df025c6bd83dbe1eb2bb27a08e032857d","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c09.binding-boundary","claim_id":"claim.alpha.c09.binding-boundary","atom_id":"sha256:cfedd1509592095c369ecee3522e5e769272f2b3b7a0611fdc7af637c867d778","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c10.binding-only-repair","claim_id":"claim.alpha.c10.binding-only-repair","atom_id":"sha256:f1002566d5fcad6d4541e3a4e0aee47122eee915fd4074b59f9c2e34d65df3ea","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c11.sessionstart-routing","claim_id":"claim.alpha.c11.sessionstart-routing","atom_id":"sha256:455cb75a139401b168fffd88bcd3d379b0a7bfcc7e9dd37a4c9adbc47b117024","polarity":"asserts","value":{"kind":"boolean","boolean":true}},
+      {"assertion_id":"assert.alpha.c12.activation-readiness-separation","claim_id":"claim.alpha.c12.activation-readiness-separation","atom_id":"sha256:8bf21c3beaa0f97a88da37939bbc78bb0a2e3557d5f0abedc06c1ef445c10a52","polarity":"asserts","value":{"kind":"boolean","boolean":true}}
+    ],
+    "atom_relations": [
+      {"relation_id":"rel.alpha.c02.draft-precedes-creation","relation_kind":"precedes","from_atom_id":"sha256:3a3c9dfd50edf8637f70767beb2c196d48cc04fdbd8804059e01b4e066466888","to_atom_id":"sha256:77015f19afc8a2067f591dbc4cd47eb3e656525c0cef918c504c681d6436530e","supporting_claim_ids":["claim.alpha.c02.connection-resumes-draft"],"supporting_source_anchor_ids":["anchor.alpha.product-creation"],"ordinal":0},
+      {"relation_id":"rel.alpha.c03.adapter-produces-canonical-events","relation_kind":"produces","from_atom_id":"sha256:b2993ecd8dafc6365094006899544d57913483317c8efb2a25d239832737f244","to_atom_id":"sha256:aa600ec7f096e3714f38fd8374711fc41eb3cf20d48848c0e602c2df37728395","supporting_claim_ids":["claim.alpha.c03.adapter-owns-events"],"supporting_source_anchor_ids":["anchor.alpha.product-creation"]},
+      {"relation_id":"rel.alpha.c04.proof-guards-cloud-publication","relation_kind":"guards","from_atom_id":"sha256:e0e1dd9261c3634445ba13dd5acf31ae76b9046ae042715f440a73176a263a36","to_atom_id":"sha256:67ad889c830f43dfd65e9f46fb958a58296e09446cdd85dff95aed950c4d2539","supporting_claim_ids":["claim.alpha.c04.proof-before-publication"],"supporting_source_anchor_ids":["anchor.alpha.product-creation"]},
+      {"relation_id":"rel.alpha.c06.daemon-loss-triggers-reconnect","relation_kind":"triggers","from_atom_id":"sha256:60b9558f9ebb407b0bd72210e1b8ba6c8bf9905d5985be4fe8552f61d82463c0","to_atom_id":"sha256:ca70f594c44db787f3f147241b776c3614b9ed3908c7c8a4f0f9e13242ec6e39","supporting_claim_ids":["claim.alpha.c06.setup-repair-reconnect-states"],"supporting_source_anchor_ids":["anchor.alpha.product-creation"],"ordinal":0},
+      {"relation_id":"rel.alpha.c08.registration-guards-runnable","relation_kind":"guards","from_atom_id":"sha256:cc92248cabb2b0853aa9c69395717be47bc996556028cbb300551cc7f1cb428c","to_atom_id":"sha256:1b08f35c209f791d44951ea748d9eda07b342aaf2c335e91c63e0076e5b572b0","supporting_claim_ids":["claim.alpha.c08.explicit-registration"],"supporting_source_anchor_ids":["anchor.alpha.workspace-routing"]},
+      {"relation_id":"rel.alpha.c09.binding-part-of-local-code-access","relation_kind":"part_of","from_atom_id":"sha256:6a365584aac32a375af67ec2b5e8613d7b3b3abc6b010d0a7b5e133ef74381ee","to_atom_id":"sha256:c728820bf37e0f0eb4b91bfc68ae90e426b574834dc98fc9eb494e2a888c35c6","supporting_claim_ids":["claim.alpha.c09.binding-boundary"],"supporting_source_anchor_ids":["anchor.alpha.workspace-routing"]},
+      {"relation_id":"rel.alpha.c11.valid-binding-guards-product-route","relation_kind":"guards","from_atom_id":"sha256:913475ed9b4046129da79fabfb8ce9b842380ea27891a7dff2e1eb3e307abe69","to_atom_id":"sha256:b7d515876ac17c50189f2f3cea1cda3c2218234fcbcd6e9ebb26593082e3bbfc","supporting_claim_ids":["claim.alpha.c11.sessionstart-routing"],"supporting_source_anchor_ids":["anchor.alpha.workspace-routing"]}
+    ],
+    "scopes": [
+      {"scope_id":"scope.alpha.product-creation-workspace-routing","scope_kind":"product_domain","selector":"bicameral/product-creation-workspace-routing/v1"}
+    ],
+    "closure_assertions": [
+      {"closure_id":"closure.alpha.product-creation-workspace-routing","scope_id":"scope.alpha.product-creation-workspace-routing","closure_kind":"partial"}
+    ],
+    "source_anchors": [
+      {"anchor_id":"anchor.alpha.product-creation","artifact_binding_ref":"sha256:bd8c912111a9985b32ada68d92c5d7b99d07653c24000a5c7d339ab28593d77e","byte_start":1007,"byte_end":2085,"line_start":25,"line_end":40},
+      {"anchor_id":"anchor.alpha.workspace-routing","artifact_binding_ref":"sha256:bd8c912111a9985b32ada68d92c5d7b99d07653c24000a5c7d339ab28593d77e","byte_start":2129,"byte_end":3054,"line_start":44,"line_end":57}
+    ]
+    }
+  },
+  "scope": {
+    "name": "product-creation-workspace-routing-v1",
+    "completeness": "partial",
+    "exclusions": [
+      "CodeGraph, BindingEvidence validation, and implementation compliance",
+      "Decision candidate production, confirmation, and promotion",
+      "Feasibility, delivery estimates, statement-of-work acceptance, release readiness, and external accuracy claims",
+      "Product source ingestion and source binding",
+      "Provider credentials, local paths, event bodies, or source content in Cloud or retained SMR receipts",
+      "Any Bicameral flow not named by this scope"
+    ]
+  },
+  "identity": {
+    "model_atom_profile": "digest-profile-v1/model-atom",
+    "smr_base_snapshot_digest": "sha256:34898ecac394da50dfda4b2235ef7a216edf9f8e09b6622943703e8f9cf26fb9",
+    "claim_set_digest": "sha256:350fa9f73cdf6b80e42822371973b27c1eb6611b52416cf2a92e7ac3bf7c98ae"
+  },
+  "replay": {
+    "mode": "throwaway_fixture",
+    "base_event_position": 0,
+    "writes_product_state": false,
+    "canonical_event_kind": null
+  },
+  "review_evidence": [
+    "https://github.com/BicameralAI/bicameral-bot/issues/1221#issuecomment-5548415388",
+    "https://github.com/BicameralAI/bicameral-bot/pull/1227"
+  ],
+  "unresolved_before_canonical_admission": [
+    "runtime GovernedDomain schema and validation",
+    "governed_domain_admitted event type and replay consumer",
+    "owner review of the exact domain-shaped fixture and resulting digests"
+  ]
+}

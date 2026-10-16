@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0126-cloud-vendor-settings-ui-brands",
+  "label": "Vendor Bot Settings UI shell + brands SPA into Cloud",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "BicameralAI/bicameral-bot#1116",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.26",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-13T19:57:16Z",
+  "proposal_digest": "sha256:16115d99398da1aec8a1dacb26b08c0698b850ddfdddd990683dea1ec0267a04"
+}

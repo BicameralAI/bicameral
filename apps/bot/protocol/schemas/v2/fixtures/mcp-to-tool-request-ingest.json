@@ -1,0 +1,39 @@
+{
+  "_comment": "Valid MCP-to-ToolRequest mapping: bicameral.ingest → ingest.submit_local",
+  "mcp_tool": "bicameral.ingest",
+  "tool_request": {
+    "request_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "command": {
+      "name": "ingest.submit_local",
+      "params": {
+        "source_uri": "https://linear.app/team/issue/PROJ-123",
+        "source_type": "linear",
+        "label": "PROJ-123: Add health check endpoint",
+        "title": "Health check endpoint must verify DB connection",
+        "description": "The /healthz endpoint should return 200 only when the database connection pool reports healthy status.",
+        "level": "architecture",
+        "snapshot_content": "Title: Add health check endpoint\nDescription: The service needs a /healthz endpoint...",
+        "evidence": [
+          {
+            "excerpt": "The service needs a /healthz endpoint that returns 200 when the database connection is healthy",
+            "span_start": 45,
+            "span_end": 120,
+            "confidence": 0.92
+          }
+        ]
+      }
+    },
+    "authority": {
+      "actor_id": "agent-mcp-001",
+      "auth_method": "mcp_session",
+      "session_id": "sess-abc123",
+      "workspace": "/home/user/project",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp",
+        "mcp_tool": "bicameral.ingest"
+      }
+    },
+    "issued_at": "2026-06-01T10:00:00Z"
+  }
+}

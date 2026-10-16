@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/onboarding/v1/hosted-project-preview.schema.json",
+  "title": "HostedProjectPreview",
+  "description": "Safe, non-canonical Cloud directory projection used for discovery and routing. Never canonical membership, roles, or project settings. See docs/specs/domain-product-onboarding-contract.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "preview_id",
+    "product_id",
+    "product_display_name",
+    "canonical",
+    "expires_at"
+  ],
+  "properties": {
+    "preview_id": {
+      "type": "string",
+      "description": "Opaque hosted preview identifier."
+    },
+    "product_id": {
+      "type": "string",
+      "description": "Canonical Product id published by the daemon. Cloud never invents this."
+    },
+    "product_display_name": {
+      "type": "string"
+    },
+    "team_display_name": {
+      "type": "string",
+      "description": "Non-canonical company/team label (billing-style label, not a canonical org entity)."
+    },
+    "verified_domain": {
+      "type": "string",
+      "description": "Verified domain used for same-domain discovery eligibility."
+    },
+    "event_store_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "substrate": { "type": "string", "enum": ["git", "drive_folder", "unknown"] },
+        "provider": { "type": "string", "enum": ["github", "google", "unknown"] }
+      }
+    },
+    "required_connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "type": "string", "enum": ["github", "google", "none"] }
+      }
+    },
+    "canonical": {
+      "type": "boolean",
+      "description": "Always false. A directory projection is explicitly non-canonical.",
+      "enum": [false]
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

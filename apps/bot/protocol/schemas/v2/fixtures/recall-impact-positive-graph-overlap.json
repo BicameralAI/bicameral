@@ -1,0 +1,36 @@
+{
+  "_comment": "Positive recall fixture: graph overlap returns related decisions via neighborhood expansion",
+  "_scenario": "impact_seed targets module auth with derived role; graph-verified symbol overlap returns decisions bound to auth module",
+  "_expected": "RecallPacket returns D-002 via graph overlap route, ranked in tier 2",
+  "_evaluation": {
+    "recall_at_3": "D-002 must appear in top 3",
+    "first_relevant_rank": 2,
+    "honesty_label": "canonical — human_ratified"
+  },
+  "impact_seed": {
+    "kind": "module",
+    "value": "auth",
+    "role": "derived"
+  },
+  "expected_recall_packet": {
+    "canonical_decisions": [
+      {
+        "decision_id": "d0000002-0002-4000-8000-000000000002",
+        "title": "Auth module must use token-based validation",
+        "level": "architecture",
+        "signoff_state": "approved",
+        "authority_labels": [
+          { "kind": "human_ratified", "description": "Graph overlap in auth module" }
+        ]
+      }
+    ],
+    "decision_candidates": [],
+    "unknown_scope": [
+      {
+        "scope_id": "auth-middleware",
+        "description": "Auth middleware chain not fully indexed in graph snapshot",
+        "expansion_targets": ["src/middleware/auth.rs"]
+      }
+    ]
+  }
+}

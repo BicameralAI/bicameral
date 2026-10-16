@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BicameralAI/bicameral-bot/schemas/operator-service-topology-lane-bindings.schema.json",
+  "title": "Operator Service Topology Lane Bindings",
+  "type": "array",
+  "minItems": 1,
+  "uniqueItems": true,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "lane_id",
+      "provider_session_id",
+      "recording_url",
+      "artifact_url"
+    ],
+    "properties": {
+      "lane_id": {
+        "enum": ["macos-launchd-user-v1", "linux-systemd-user-v1"]
+      },
+      "provider_session_id": {
+        "type": "string",
+        "pattern": "^devin-[a-f0-9]{32}$"
+      },
+      "recording_url": {
+        "type": "string",
+        "pattern": "^https://app\\.devin\\.ai/sessions/[a-f0-9]{32}\\?[^#\\s]*testRecording=[^#\\s&]+[^#\\s]*$"
+      },
+      "artifact_url": {
+        "type": "string",
+        "pattern": "^https://app\\.devin\\.ai/sessions/[a-f0-9]{32}\\?[^#\\s]+$"
+      }
+    }
+  }
+}

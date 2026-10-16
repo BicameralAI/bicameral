@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0126-mcp-activation-receipt-lanes",
+  "label": "MCP host activation receipts emit verify-host lanes (#824 / #786 residual)",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#824",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.26",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-12T18:46:55Z",
+  "proposal_digest": "sha256:3bffc4af655c12304b08feb3c5ac440a396dd8858e78aa9c4e6a3087b503282d"
+}

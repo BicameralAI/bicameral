@@ -1,0 +1,39 @@
+{
+  "_comment": "Negative fixture: MCP/caller LLM attempting to assert GraphEvidenceState::verified through binding.create — must be rejected",
+  "_expected_response": "Rejected or structurally blocked — only bot validation can produce verified binding evidence",
+  "_note": "BindingCreateParams has no field for evidence_state or graph_evidence_state. Verified state is computed by the bot after acceptance, not supplied by the caller. This fixture documents the structural enforcement.",
+  "tool_request": {
+    "request_id": "f0000005-0000-4000-8000-000000000005",
+    "command": {
+      "name": "binding.create",
+      "params": {
+        "decision_or_candidate_id": "DEC-200",
+        "bindings": [
+          {
+            "file": "src/main.rs",
+            "range": "1:1-10:1",
+            "symbol": "main"
+          }
+        ],
+        "commit_sha": "def456",
+        "graph_snapshot_id": "snap-002"
+      }
+    },
+    "authority": {
+      "actor_id": "agent-mcp-attacker",
+      "auth_method": "mcp_session",
+      "session_id": "sess-neg-005",
+      "workspace": "/repo",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp",
+        "_injected_evidence_state": "verified"
+      }
+    },
+    "issued_at": "2026-06-10T10:24:00Z"
+  },
+  "_injected_but_ignored": {
+    "evidence_state": "verified",
+    "graph_evidence_state": "verified"
+  }
+}

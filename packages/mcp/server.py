@@ -1,0 +1,820 @@
+"""Bicameral MCP thin client.
+
+This package is a transport surface for the local bicameral-bot daemon. It
+maps MCP tool calls into canonical ToolRequest envelopes and returns daemon
+ToolResponse payloads. It does not own ledger, graph, dashboard, integration,
+or governance behavior.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import sys
+from datetime import UTC, datetime
+from typing import Any
+from uuid import uuid4
+
+import mcp.server.stdio
+from mcp import types
+from mcp.server import Server
+from mcp.server.lowlevel.server import NotificationOptions
+from mcp.server.models import InitializationOptions
+
+from approval_gate import ApprovalGate, scope_from_params
+from authority import build_authority_context
+from brief_renderer import format_brief_narrative
+from candidate_selection_surface import (
+    COMMAND_BY_TOOL as CANDIDATE_COMMAND_BY_TOOL,
+)
+from candidate_selection_surface import (
+    COMMIT_TOOL,
+    END_TOOL,
+    HEARTBEAT_TOOL,
+    PREPARE_TOOL,
+    SurfaceContractError,
+    extract_candidate_set_surface,
+    render_commit_response,
+    render_prepare_response,
+    render_session_response,
+    shape_command_params,
+    tool_definitions,
+)
+from coverage_guard import check_coverage
+from daemon_client import (
+    CapabilityReport,
+    DaemonCapabilityError,
+    DaemonClient,
+    DaemonClientError,
+    DaemonProtocolError,
+    resolve_daemon_endpoint,
+)
+from erasure_gate import ErasureGate
+from erasure_gate import scope_from_params as erasure_scope_from_params
+from governance_surface import (
+    format_governance_inbox,
+    format_governance_inspect,
+    format_governance_resolve,
+)
+from prompts import get_prompt_result, list_prompt_definitions
+from responses import (
+    error_text,
+    format_candidate_promotion_response,
+    format_context_packet_response,
+    format_correction_findings_response,
+    format_correction_response,
+    format_lookup_response,
+    format_preflight_no_fire,
+    format_preflight_response,
+    format_recall_expand_scope,
+    format_recall_inspect_evidence,
+    format_recall_packet,
+    format_review_queue_response,
+    format_source_link_response,
+    format_tool_response,
+    format_workspace_bind_remote_conflict,
+    format_workspace_bind_response,
+    recovery_error_text,
+)
+from sync_payload_filter import filter_pending_checks
+from tool_request import (
+    LOCAL_ONLY_TOOLS,
+    MCP_TOOL_COMMANDS,
+    WORKSPACE_BIND_COMMAND,
+    build_tool_request,
+    evaluate_remote_evidence,
+)
+from tool_schemas import SUPPORTED_TOOLS
+from version import SERVER_NAME, SERVER_VERSION, TOOLREQUEST_PROTOCOL_VERSION
+from workspace_resolve_surface import (
+    WORKSPACE_RESOLVE_COMMAND,
+    WORKSPACE_RESOLVE_TOOL,
+    WorkspaceResolveSurfaceError,
+    render_response,
+    shape_params,
+    tool_definition,
+)
+
+server = Server(SERVER_NAME)
+
+_approval_gate = ApprovalGate()
+_erasure_gate = ErasureGate()
+_PRODUCT_SELECTION_VALIDATION_COMMAND = "search.query"
+_PRODUCT_SELECTION_PROBE_QUERY = "__bicameral_product_route_validation__"
+_selected_product_id: str | None = None
+
+_WORKSPACE_RESOLVE_DEFINITION = tool_definition()
+_WORKSPACE_RESOLVE_TOOL = types.Tool(
+    name=_WORKSPACE_RESOLVE_DEFINITION["name"],
+    description=_WORKSPACE_RESOLVE_DEFINITION["description"],
+    inputSchema=_WORKSPACE_RESOLVE_DEFINITION["inputSchema"],
+)
+_CANDIDATE_TOOLS: tuple[types.Tool, ...] = tuple(
+    types.Tool(
+        name=definition["name"],
+        description=definition["description"],
+        inputSchema=definition["inputSchema"],
+    )
+    for definition in tool_definitions()
+)
+_ALL_TOOLS: tuple[types.Tool, ...] = SUPPORTED_TOOLS + (_WORKSPACE_RESOLVE_TOOL,) + _CANDIDATE_TOOLS
+_CANDIDATE_TOOL_NAMES = frozenset(CANDIDATE_COMMAND_BY_TOOL)
+
+
+def _notification_options() -> NotificationOptions:
+    return NotificationOptions()
+
+
+def _client() -> DaemonClient:
+    return DaemonClient.from_env()
+
+
+async def _ensure_protocol_compatible(client: DaemonClient) -> CapabilityReport:
+    capabilities = await client.capabilities()
+    protocol_version = capabilities.get("toolrequest_protocol_version") or capabilities.get(
+        "protocol_version"
+    )
+    if protocol_version != TOOLREQUEST_PROTOCOL_VERSION:
+        raise DaemonProtocolError(
+            "unsupported ToolRequest protocol version: "
+            f"daemon={protocol_version!r}, mcp={TOOLREQUEST_PROTOCOL_VERSION!r}",
+            daemon_protocol_version=protocol_version,
+            mcp_protocol_version=TOOLREQUEST_PROTOCOL_VERSION,
+        )
+    supported_commands = tuple(capabilities.get("supported_commands", []))
+    deferred_commands = tuple(capabilities.get("deferred_commands", []))
+    endpoint = resolve_daemon_endpoint()
+    return CapabilityReport(
+        daemon_protocol_version=protocol_version,
+        mcp_protocol_version=TOOLREQUEST_PROTOCOL_VERSION,
+        supported_commands=supported_commands,
+        deferred_commands=deferred_commands,
+        daemon_endpoint=endpoint.url,
+        workspace_binding_available=bool(capabilities.get("workspace_binding_available", False)),
+    )
+
+
+def _ensure_command_advertised(command_name: str, capability_report: CapabilityReport) -> None:
+    if command_name in capability_report.deferred_commands:
+        raise DaemonCapabilityError(
+            f"daemon reports ToolRequest command as deferred: {command_name}",
+            deferred=True,
+        )
+    if command_name not in capability_report.supported_commands:
+        raise DaemonCapabilityError(
+            f"daemon does not advertise ToolRequest command: {command_name}"
+        )
+    if command_name == WORKSPACE_BIND_COMMAND and not capability_report.workspace_binding_available:
+        raise DaemonCapabilityError(
+            "daemon does not advertise workspace-binding capability "
+            "(workspace_binding_available is false); workspace binding is unavailable"
+        )
+
+
+def _command_for_tool(name: str) -> str | None:
+    if name == WORKSPACE_RESOLVE_TOOL:
+        return WORKSPACE_RESOLVE_COMMAND
+    return CANDIDATE_COMMAND_BY_TOOL.get(name) or MCP_TOOL_COMMANDS.get(name)
+
+
+def _filter_tools_by_capability(capability_report: CapabilityReport) -> list[types.Tool]:
+    """Exclude tools whose daemon command is deferred or absent."""
+    deferred = frozenset(capability_report.deferred_commands)
+    supported = frozenset(capability_report.supported_commands)
+    result: list[types.Tool] = []
+    for tool in _ALL_TOOLS:
+        if tool.name in LOCAL_ONLY_TOOLS:
+            result.append(tool)
+            continue
+        command = _command_for_tool(tool.name)
+        if command is None or command in deferred or command not in supported:
+            continue
+        if command == WORKSPACE_BIND_COMMAND and not capability_report.workspace_binding_available:
+            continue
+        result.append(tool)
+    return result
+
+
+@server.list_tools()
+async def list_tools() -> list[types.Tool]:
+    capability_report = await _ensure_protocol_compatible(_client())
+    return _filter_tools_by_capability(capability_report)
+
+
+@server.call_tool()
+async def call_tool(name: str, arguments: dict[str, Any] | None) -> list[types.TextContent]:
+    arguments = arguments or {}
+
+    if name == "bicameral.product.select":
+        return await _handle_product_select(arguments)
+    if name == WORKSPACE_RESOLVE_TOOL:
+        return await _handle_workspace_resolve(arguments)
+    if name == "bicameral.request_correction.approve":
+        return _handle_approve(arguments)
+    if name == "bicameral.privacy.erase_subject.approve":
+        return _handle_erasure_approve(arguments)
+
+    command_name = _command_for_tool(name)
+    if command_name is None:
+        return [error_text("unsupported_tool", f"Unsupported Bicameral MCP tool: {name}")]
+
+    if name == "bicameral.request_correction":
+        gate_result = _enforce_approval_gate(arguments)
+        if gate_result is not None:
+            return gate_result
+    if name == "bicameral.privacy.erase_subject":
+        gate_result = _enforce_erasure_gate(arguments)
+        if gate_result is not None:
+            return gate_result
+    if name == "bicameral.workspace.bind":
+        conflict = _workspace_bind_remote_conflict(arguments)
+        if conflict is not None:
+            return [conflict]
+
+    product_id = _selected_product_id
+    if product_id is None:
+        return [
+            error_text(
+                "product_context_required",
+                "Select a canonical Product with bicameral.product.select before "
+                "calling Product-scoped tools.",
+            )
+        ]
+
+    product_mismatch = _candidate_product_context_error(name, arguments, product_id)
+    if product_mismatch is not None:
+        return [product_mismatch]
+
+    is_candidate_tool = name in _CANDIDATE_TOOL_NAMES
+
+    try:
+        command_arguments = (
+            shape_command_params(name, arguments)
+            if is_candidate_tool
+            else _command_arguments_for_tool(name, arguments)
+        )
+
+        client = _client()
+        capability_report = await _ensure_protocol_compatible(client)
+        _ensure_command_advertised(command_name, capability_report)
+
+        if name == "bicameral.preflight":
+            files = arguments.get("files")
+            if files:
+                no_coverage = await check_coverage(
+                    client=client,
+                    files=files,
+                    supported_commands=capability_report.supported_commands,
+                    arguments=arguments,
+                    product_id=product_id,
+                )
+                if no_coverage:
+                    return [format_preflight_no_fire(files=files, request_id=str(uuid4()))]
+
+        tool_request = (
+            _build_candidate_tool_request(
+                tool_name=name,
+                command_name=command_name,
+                params=command_arguments,
+                arguments=arguments,
+                product_id=product_id,
+            )
+            if is_candidate_tool
+            else build_tool_request(
+                command_name=command_name,
+                params=command_arguments,
+                authority=build_authority_context(name, arguments),
+                product_id=product_id,
+            )
+        )
+        response = await client.send_tool_request(tool_request)
+
+        if is_candidate_tool:
+            return [_json_content(_render_candidate_tool_response(name, response))]
+
+        caller_file_paths = arguments.get("files")
+        filter_pending_checks(response, caller_file_paths)
+        if name == "bicameral.workspace.bind":
+            return [format_workspace_bind_response(response)]
+        if name == "bicameral.brief":
+            return [format_brief_narrative(response)]
+        if name == "bicameral.preflight":
+            return _format_preflight_contents(response)
+        if "recall_packet" in response:
+            return [format_recall_packet(response)]
+        if name == "bicameral.binding.inspect":
+            return [format_source_link_response(response, surface="binding.inspect")]
+        if name == "bicameral.lookup":
+            return [format_lookup_response(response)]
+        if name == "bicameral.context":
+            return [format_context_packet_response(response)]
+        if name == "bicameral.correction_findings":
+            return [format_correction_findings_response(response)]
+        if name == "bicameral.review.corpus_proposals":
+            return [format_correction_findings_response(response)]
+        if name == "bicameral.recall.inspect_evidence":
+            return [format_recall_inspect_evidence(response)]
+        if name == "bicameral.recall.expand_scope":
+            return [format_recall_expand_scope(response)]
+        if name == "bicameral.review.promote_candidate":
+            return [format_candidate_promotion_response(response)]
+        if name == "bicameral.review.request_corpus_change":
+            return [format_review_queue_response(response, item_key="review_result")]
+        if name == "bicameral.request_correction":
+            return [format_correction_response(response)]
+        if name == "bicameral.review.contradictions":
+            return [format_governance_inbox(response)]
+        if name == "bicameral.review.triage_contradiction":
+            return [format_governance_resolve(response)]
+        if name == "bicameral.governance.inbox":
+            return [format_governance_inbox(response)]
+        if name == "bicameral.governance.inspect":
+            return [format_governance_inspect(response)]
+        if name == "bicameral.governance.resolve":
+            return [format_governance_resolve(response)]
+        if name == "bicameral.history":
+            return [format_source_link_response(response, surface="history")]
+        return [format_tool_response(response)]
+    except SurfaceContractError as exc:
+        return [error_text(exc.code, exc.detail)]
+    except DaemonClientError as exc:
+        return [
+            recovery_error_text(
+                exc,
+                requested_tool=name,
+                requested_command=command_name,
+            )
+        ]
+
+
+def _build_candidate_tool_request(
+    *,
+    tool_name: str,
+    command_name: str,
+    params: dict[str, Any],
+    arguments: dict[str, Any],
+    product_id: str,
+) -> dict[str, Any]:
+    """Build the standard envelope while preserving exact candidate params."""
+    return {
+        "request_id": str(uuid4()),
+        "command": {"name": command_name, "params": params},
+        "authority": build_authority_context(tool_name, arguments),
+        "issued_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "product_id": product_id,
+    }
+
+
+def _candidate_product_context_error(
+    name: str,
+    arguments: dict[str, Any],
+    selected_product_id: str,
+) -> types.TextContent | None:
+    """Reject an explicit candidate Product that conflicts with session routing."""
+    explicit_product_id: Any = None
+    if name == PREPARE_TOOL:
+        explicit_product_id = arguments.get("product_id")
+    elif name in {HEARTBEAT_TOOL, END_TOOL}:
+        access = arguments.get("access")
+        if isinstance(access, dict):
+            explicit_product_id = access.get("product_id")
+
+    if explicit_product_id is None or explicit_product_id == selected_product_id:
+        return None
+    return error_text(
+        "product_context_mismatch",
+        "Candidate operation product_id does not match the Product selected for this MCP session.",
+    )
+
+
+def _render_candidate_tool_response(name: str, response: dict[str, Any]) -> dict[str, Any]:
+    if name == PREPARE_TOOL:
+        return render_prepare_response(response)
+    if name == COMMIT_TOOL:
+        return render_commit_response(response)
+    if name == HEARTBEAT_TOOL:
+        return render_session_response(response, operation="heartbeat")
+    if name == END_TOOL:
+        return render_session_response(response, operation="end")
+    raise SurfaceContractError(
+        "unsupported_candidate_selection_tool",
+        f"Unsupported Managed MCP candidate-selection tool: {name}",
+    )
+
+
+def _format_preflight_contents(response: dict[str, Any]) -> list[types.TextContent]:
+    """Render ordinary preflight plus an additive CandidateSet surface when present."""
+    contents = [format_preflight_response(response)]
+    candidate_surface = extract_candidate_set_surface(response)
+    if candidate_surface is not None:
+        contents.append(
+            _json_content(
+                {
+                    "managed_mcp_candidate_set": candidate_surface,
+                    "canonical_write": "none",
+                    "display_position_is_authority": False,
+                    "stable_candidate_id_is_authority": True,
+                }
+            )
+        )
+    return contents
+
+
+def _json_content(payload: dict[str, Any]) -> types.TextContent:
+    return types.TextContent(type="text", text=json.dumps(payload, indent=2, sort_keys=True))
+
+
+async def _handle_workspace_resolve(arguments: dict[str, Any]) -> list[types.TextContent]:
+    """Resolve a host path hint through daemon-owned workspace bindings.
+
+    This read never selects a Product. The returned product_id is only a routing
+    fact that a caller may pass explicitly to bicameral.product.select.
+    """
+    try:
+        params = shape_params(arguments)
+    except WorkspaceResolveSurfaceError as exc:
+        return [error_text(exc.code, exc.detail)]
+
+    try:
+        client = _client()
+        capability_report = await _ensure_protocol_compatible(client)
+        _ensure_command_advertised(WORKSPACE_RESOLVE_COMMAND, capability_report)
+        tool_request = build_tool_request(
+            command_name=WORKSPACE_RESOLVE_COMMAND,
+            params=params,
+            authority=build_authority_context(
+                WORKSPACE_RESOLVE_TOOL,
+                {"workspace": params["candidate_path"]},
+            ),
+        )
+        response = await client.send_tool_request(tool_request)
+        return [_json_content(render_response(response))]
+    except DaemonClientError as exc:
+        return [
+            recovery_error_text(
+                exc,
+                requested_tool=WORKSPACE_RESOLVE_TOOL,
+                requested_command=WORKSPACE_RESOLVE_COMMAND,
+            )
+        ]
+
+
+async def _handle_product_select(arguments: dict[str, Any]) -> list[types.TextContent]:
+    """Retain a Product only after the daemon proves its route is usable."""
+    global _selected_product_id
+    _selected_product_id = None
+
+    product_id = arguments.get("product_id")
+    if not isinstance(product_id, str) or not product_id.strip():
+        return [
+            error_text(
+                "product_id_invalid",
+                "bicameral.product.select requires a non-empty canonical product_id.",
+            )
+        ]
+
+    try:
+        client = _client()
+        capability_report = await _ensure_protocol_compatible(client)
+        _ensure_command_advertised(_PRODUCT_SELECTION_VALIDATION_COMMAND, capability_report)
+        validation_request = build_tool_request(
+            command_name=_PRODUCT_SELECTION_VALIDATION_COMMAND,
+            params={"query": _PRODUCT_SELECTION_PROBE_QUERY, "scope": "all", "limit": 1},
+            authority=build_authority_context("bicameral.product.select", arguments),
+            product_id=product_id,
+        )
+        response = await client.send_tool_request(validation_request)
+        if response.get("status") != "ok":
+            return [format_tool_response(response)]
+    except DaemonClientError as exc:
+        return [
+            recovery_error_text(
+                exc,
+                requested_tool="bicameral.product.select",
+                requested_command=_PRODUCT_SELECTION_VALIDATION_COMMAND,
+            )
+        ]
+
+    _selected_product_id = product_id
+    return [
+        types.TextContent(
+            type="text",
+            text=json.dumps(
+                {
+                    "status": "ok",
+                    "selected_product_id": product_id,
+                    "validation_request_id": response.get("request_id"),
+                },
+                indent=2,
+                sort_keys=True,
+            ),
+        )
+    ]
+
+
+def _workspace_bind_remote_conflict(
+    arguments: dict[str, Any],
+) -> types.TextContent | None:
+    """Fail closed when the candidate git remote contradicts the project (mcp#702)."""
+    source_refs: list[str] = []
+    raw_list = arguments.get("project_source_refs")
+    if isinstance(raw_list, str):
+        source_refs.append(raw_list)
+    elif isinstance(raw_list, (list, tuple)):
+        source_refs.extend(str(item) for item in raw_list if isinstance(item, str))
+    single = arguments.get("project_source_ref")
+    if isinstance(single, str):
+        source_refs.append(single)
+    if not source_refs:
+        return None
+
+    evidence = evaluate_remote_evidence(
+        candidate_path=arguments.get("candidate_path"),
+        project_source_refs=source_refs,
+    )
+    if evidence.verdict != "contradiction":
+        return None
+    return format_workspace_bind_remote_conflict(
+        project_id=arguments.get("project_id"),
+        candidate_repo_ref=evidence.candidate_repo_ref,
+        project_source_refs=evidence.project_source_refs,
+        reason=evidence.reason,
+    )
+
+
+def _command_arguments_for_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Apply MCP-tool defaults before command-param allowlisting.
+
+    Defaults are transport ergonomics only; the daemon still owns query
+    semantics, review authority, and canonical state transitions.
+    """
+    if name == "bicameral.review.corpus_proposals":
+        return {
+            "scope": "correction_capture",
+            "include_correction_findings": True,
+            **arguments,
+        }
+    if name == "bicameral.capture_context":
+        return _capture_context_arguments(arguments)
+    return arguments
+
+
+def _capture_context_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Shape local MCP context into daemon-owned ingest.submit_local params."""
+    correlation_id = arguments.get("correlation_id") or arguments.get("session_id")
+    source_uri = arguments.get("source_uri") or f"mcp://session/{correlation_id or 'capture'}"
+    source_type = arguments.get("source_type") or arguments.get("source_kind") or "mcp_session"
+
+    snapshot_payload = {
+        "kind": "SourceSnapshot",
+        "source": {
+            "kind": "Source",
+            "source_uri": source_uri,
+            "source_type": source_type,
+            "source_link": arguments.get("source_link"),
+        },
+        "session_turns": arguments.get("session_turns", []),
+        "tool_calls": arguments.get("tool_calls", []),
+        "tool_outputs": arguments.get("tool_outputs", []),
+        "command_outputs": arguments.get("command_outputs", []),
+        "code_hints": arguments.get("code_hints", []),
+        "code_region_hints": arguments.get("code_region_hints", []),
+        "evidence_references": arguments.get("evidence_references", []),
+        "correlation_id": correlation_id,
+    }
+    snapshot_content = arguments.get("snapshot_content") or json.dumps(
+        {key: value for key, value in snapshot_payload.items() if value not in (None, [], {})},
+        sort_keys=True,
+    )
+
+    metadata = {
+        **(arguments.get("metadata") or {}),
+        "bot_vocabulary": ["Source", "SourceSnapshot", "EvidenceReference", "SourceKind"],
+        "source_kind": source_type,
+        "source_link": arguments.get("source_link"),
+        "correlation_id": correlation_id,
+        "mcp_session_id": arguments.get("session_id"),
+        "mcp_capture": {
+            "tool": "bicameral.capture_context",
+            "has_session_turns": bool(arguments.get("session_turns")),
+            "has_tool_calls": bool(arguments.get("tool_calls")),
+            "has_tool_outputs": bool(arguments.get("tool_outputs")),
+            "has_command_outputs": bool(arguments.get("command_outputs")),
+            "has_code_hints": bool(arguments.get("code_hints")),
+            "has_code_region_hints": bool(arguments.get("code_region_hints")),
+        },
+        "evidence_references": arguments.get("evidence_references", []),
+        "code_region_hints": arguments.get("code_region_hints", []),
+    }
+
+    ingest_args: dict[str, Any] = {
+        "source_uri": source_uri,
+        "source_type": source_type,
+        "label": arguments.get("label"),
+        "title": arguments.get("title") or "MCP context capture",
+        "description": arguments.get("description")
+        or "MCP session/tool/code context submitted as bot-owned source evidence.",
+        "snapshot_content": snapshot_content,
+        "evidence": _capture_evidence(arguments),
+        "binding_hints": _capture_binding_hints(arguments.get("code_hints", [])),
+        "rationale": arguments.get("rationale"),
+        "metadata": {key: value for key, value in metadata.items() if value not in (None, [], {})},
+    }
+    return {key: value for key, value in ingest_args.items() if value not in (None, [], {})}
+
+
+def _capture_evidence(arguments: dict[str, Any]) -> list[dict[str, Any]]:
+    evidence: list[dict[str, Any]] = list(arguments.get("evidence") or [])
+    for output in arguments.get("command_outputs", []):
+        excerpt = output.get("excerpt") or output.get("output") or output.get("stdout")
+        if excerpt:
+            evidence.append({"excerpt": str(excerpt)})
+    for output in arguments.get("tool_outputs", []):
+        excerpt = output.get("excerpt") or output.get("output") or output.get("content")
+        if excerpt:
+            evidence.append({"excerpt": str(excerpt)})
+    for turn in arguments.get("session_turns", []):
+        excerpt = turn.get("excerpt") or turn.get("content") or turn.get("text")
+        if excerpt:
+            evidence.append({"excerpt": str(excerpt)})
+    return evidence
+
+
+def _capture_binding_hints(code_hints: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    binding_hints: list[dict[str, Any]] = []
+    for hint in code_hints:
+        file = hint.get("file") or hint.get("path")
+        if not file:
+            continue
+        binding_hint = {
+            "file": file,
+            "range": hint.get("range"),
+            "symbol": hint.get("symbol"),
+        }
+        binding_hints.append(
+            {key: value for key, value in binding_hint.items() if value not in (None, [], {})}
+        )
+    return binding_hints
+
+
+def _handle_approve(arguments: dict[str, Any]) -> list[types.TextContent]:
+    """Grant a single-use scoped approval for request_correction."""
+    try:
+        scope = scope_from_params(arguments)
+    except ValueError as exc:
+        return [error_text("approval_scope_invalid", str(exc))]
+
+    key = _approval_gate.grant(scope)
+    payload = {
+        "status": "approved",
+        "scope": scope.description(),
+        "approval_key": key,
+        "message": (
+            "Single-use approval granted. Call bicameral.request_correction "
+            "with matching scope parameters to submit."
+        ),
+    }
+    return [types.TextContent(type="text", text=json.dumps(payload))]
+
+
+def _enforce_approval_gate(
+    arguments: dict[str, Any],
+) -> list[types.TextContent] | None:
+    """Check and consume approval. Returns error content if rejected, None if approved."""
+    try:
+        scope = scope_from_params(arguments)
+    except ValueError as exc:
+        return [error_text("approval_scope_invalid", str(exc))]
+
+    if not _approval_gate.consume(scope):
+        payload = {
+            "status": "error",
+            "error_code": "approval_required",
+            "message": (
+                "Correction submission rejected: no matching single-use approval found. "
+                "Call bicameral.request_correction.approve with the same scope first."
+            ),
+            "requested_scope": scope.description(),
+        }
+        return [types.TextContent(type="text", text=json.dumps(payload))]
+    return None
+
+
+def _handle_erasure_approve(arguments: dict[str, Any]) -> list[types.TextContent]:
+    """Grant a single-use scoped approval for privacy.erase_subject."""
+    try:
+        scope = erasure_scope_from_params(arguments)
+    except ValueError as exc:
+        return [error_text("erasure_scope_invalid", str(exc))]
+
+    key = _erasure_gate.grant(scope)
+    payload = {
+        "status": "approved",
+        "scope": scope.description(),
+        "approval_key": key,
+        "message": (
+            "Single-use erasure approval granted. Call "
+            "bicameral.privacy.erase_subject with matching "
+            "subject_id to execute erasure."
+        ),
+    }
+    return [types.TextContent(type="text", text=json.dumps(payload))]
+
+
+def _enforce_erasure_gate(
+    arguments: dict[str, Any],
+) -> list[types.TextContent] | None:
+    """Check and consume erasure approval. Returns error content if rejected."""
+    try:
+        scope = erasure_scope_from_params(arguments)
+    except ValueError as exc:
+        return [error_text("erasure_scope_invalid", str(exc))]
+
+    if not _erasure_gate.consume(scope):
+        payload = {
+            "status": "error",
+            "error_code": "erasure_approval_required",
+            "message": (
+                "Erasure rejected: no matching single-use approval found. "
+                "Call bicameral.privacy.erase_subject.approve with the "
+                "same subject_id first. (GDPR Art.17 fail-closed gate)"
+            ),
+            "requested_scope": scope.description(),
+        }
+        return [types.TextContent(type="text", text=json.dumps(payload))]
+    return None
+
+
+@server.list_prompts()
+async def list_prompts() -> list[types.Prompt]:
+    await _ensure_protocol_compatible(_client())
+    return list_prompt_definitions()
+
+
+@server.get_prompt()
+async def get_prompt(name: str, arguments: dict[str, str] | None) -> types.GetPromptResult:
+    await _ensure_protocol_compatible(_client())
+    return get_prompt_result(name, arguments or {})
+
+
+async def run_stdio() -> None:
+    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+        await server.run(
+            read_stream,
+            write_stream,
+            InitializationOptions(
+                server_name=SERVER_NAME,
+                server_version=SERVER_VERSION,
+                capabilities=server.get_capabilities(
+                    notification_options=_notification_options(),
+                    experimental_capabilities={},
+                ),
+            ),
+        )
+
+
+def cli_main(argv: list[str] | None = None) -> int:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    if raw_argv and raw_argv[0] == "adapters":
+        from preflight_adapters.cli import run_adapters_cli
+
+        return run_adapters_cli(raw_argv[1:])
+    if raw_argv and raw_argv[0] == "prework-run":
+        from preflight_adapters.cli import run_prework_cli
+
+        return run_prework_cli(raw_argv[1:])
+
+    parser = argparse.ArgumentParser(
+        prog="bicameral-mcp",
+        description="Run the Bicameral MCP thin client over stdio.",
+    )
+    parser.add_argument("--version", action="store_true", help="Print the bicameral-mcp version.")
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=["serve", "tools", "adapters", "prework-run"],
+        default="serve",
+        help=(
+            "'serve' starts the MCP stdio server; 'tools' prints compiled tool "
+            "names (runtime MCP advertisement remains capability-gated); "
+            "'adapters' manages host pre-work adapters; 'prework-run' is "
+            "invoked by a host hook."
+        ),
+    )
+    args = parser.parse_args(raw_argv)
+
+    if args.version:
+        print(SERVER_VERSION)
+        return 0
+    if args.command == "tools":
+        for tool in _ALL_TOOLS:
+            print(tool.name)
+        return 0
+
+    asyncio.run(run_stdio())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli_main())

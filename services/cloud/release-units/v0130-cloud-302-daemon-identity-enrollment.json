@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0130-cloud-302-daemon-identity-enrollment",
+  "label": "Enroll pairing-bound daemon identity keys (#302)",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "BicameralAI/bicameral-cloud#302",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.30",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-09-02T23:00:00Z",
+  "proposal_digest": "sha256:e46d884be4258433ddd7335e40dd7bb73f4475b1860acbaaf0c6ee099ced7480"
+}

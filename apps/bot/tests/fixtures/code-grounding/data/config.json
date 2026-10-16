@@ -1,0 +1,4 @@
+{
+  "name": "fixture-config",
+  "purpose": "Non-Rust file for unsupported-symbol-resolution tests"
+}

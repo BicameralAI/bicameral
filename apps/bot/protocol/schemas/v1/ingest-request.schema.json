@@ -1,0 +1,245 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IngestRequest",
+  "description": "Ingest request aligned with MCP v0.2 spec §2.2 `bicameral.ingest`.\n\nAccepts source + snapshot + evidence + candidate fields. Source/snapshot/evidence are optional for backward compatibility — plain title+description ingest still works.",
+  "type": "object",
+  "required": [
+    "description",
+    "source",
+    "title"
+  ],
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "evidence": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/IngestEvidenceItem"
+      }
+    },
+    "evidence_references": {
+      "description": "Typed evidence references into the source snapshot.\n\nThese carry `source_kind`, optional `pointer` (kind-specific locator), and optional `metadata` for MCP session turns, tool call output, command output, transcript segments, etc. They complement the legacy span-based `evidence` field.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/IngestEvidenceReferenceItem"
+      }
+    },
+    "label": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "level": {
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DecisionLevel"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "snapshot_content": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source": {
+      "type": "string"
+    },
+    "source_kind": {
+      "description": "Typed source surface classification (e.g. `mcp_session`, `command_run`).\n\nWhen provided, the resulting `Source` carries a `SourceKind` so downstream consumers can distinguish MCP sessions, command runs, tracker issues, etc. without relying on the free-form `source_type`.",
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/SourceKind"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_type": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tags": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "DecisionLevel": {
+      "description": "Decision tier classification.\n\nSeparating levels prevents collapsing product intent, architectural constraint, and implementation detail into a single undifferentiated pile.",
+      "oneOf": [
+        {
+          "description": "L1: Product-level decisions (what and why)",
+          "type": "string",
+          "enum": [
+            "product"
+          ]
+        },
+        {
+          "description": "L2: Architecture-level decisions (structural how)",
+          "type": "string",
+          "enum": [
+            "architecture"
+          ]
+        },
+        {
+          "description": "L3: Implementation-level decisions (tactical how)",
+          "type": "string",
+          "enum": [
+            "implementation"
+          ]
+        }
+      ]
+    },
+    "IngestEvidenceItem": {
+      "type": "object",
+      "required": [
+        "excerpt"
+      ],
+      "properties": {
+        "confidence": {
+          "default": 0.5,
+          "type": "number",
+          "format": "double"
+        },
+        "excerpt": {
+          "type": "string"
+        },
+        "span_end": {
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "span_start": {
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0.0
+        }
+      }
+    },
+    "IngestEvidenceReferenceItem": {
+      "description": "A typed evidence reference item within an ingest submission.\n\nRepresents a citation into a `SourceSnapshot` with `SourceKind`-specific pointer and metadata (e.g. MCP tool call ID, command exit code).",
+      "type": "object",
+      "required": [
+        "excerpt",
+        "source_kind"
+      ],
+      "properties": {
+        "excerpt": {
+          "description": "Canonical excerpt of the cited content.",
+          "type": "string"
+        },
+        "metadata": {
+          "description": "Optional metadata for kind-specific details (e.g. MCP session turn index, command exit code, diff hunk header).",
+          "default": null
+        },
+        "pointer": {
+          "description": "Kind-specific locator into the snapshot (e.g. JSON path, tool-call ID, byte offset, line range).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_kind": {
+          "description": "Classification of the source surface this reference cites.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SourceKind"
+            }
+          ]
+        }
+      }
+    },
+    "SourceKind": {
+      "description": "Classification of an observed source surface.\n\nSource kinds share governance semantics but may have different capture, refresh, indexing, and grounding implementations (CONTEXT.md). `EvidenceReference` carries a `source_kind` so downstream consumers can distinguish text spans, tracker excerpts, agent session turns, command output, PR comments, file ranges, diff hunks, and code snapshot regions.",
+      "oneOf": [
+        {
+          "description": "Free-form text span (meeting notes, Slack messages, documents).",
+          "type": "string",
+          "enum": [
+            "text"
+          ]
+        },
+        {
+          "description": "Tracker issue or ticket (Jira, Linear, GitHub issue).",
+          "type": "string",
+          "enum": [
+            "tracker"
+          ]
+        },
+        {
+          "description": "MCP session turn or tool call output.",
+          "type": "string",
+          "enum": [
+            "mcp_session"
+          ]
+        },
+        {
+          "description": "CLI / daemon command execution output.",
+          "type": "string",
+          "enum": [
+            "command_run"
+          ]
+        },
+        {
+          "description": "Pull request comment, review, or description.",
+          "type": "string",
+          "enum": [
+            "pull_request"
+          ]
+        },
+        {
+          "description": "File content at a known path.",
+          "type": "string",
+          "enum": [
+            "file"
+          ]
+        },
+        {
+          "description": "Diff hunk between two revisions.",
+          "type": "string",
+          "enum": [
+            "diff"
+          ]
+        },
+        {
+          "description": "Code snapshot region backed by a `GraphSnapshot`.",
+          "type": "string",
+          "enum": [
+            "code_snapshot"
+          ]
+        }
+      ]
+    }
+  }
+}

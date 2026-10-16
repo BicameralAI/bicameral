@@ -1,0 +1,30 @@
+{
+  "_comment": "Valid evidence-only ingest: ExternalIngestEnvelope carries source evidence without any authority, review commands, signoff, compliance, egress, or policy-grant fields. This is the canonical external ingest posture per action-authorization-policy.md.",
+  "_expected_behavior": "accepted — evidence and candidate hints only, no governed mutation",
+  "_spec_ref": "docs/specs/action-authorization-policy.md § Submit source evidence",
+  "source_system": "linear",
+  "source_uri": "https://linear.app/team/issue/PROJ-100",
+  "content": "Team agreed: the new auth flow must use device-code grant for CLI users. Rate limit is 10 req/s per client.",
+  "evidence": [
+    {
+      "excerpt": "new auth flow must use device-code grant for CLI users",
+      "span_start": 13,
+      "span_end": 67,
+      "confidence": 0.91
+    },
+    {
+      "excerpt": "Rate limit is 10 req/s per client",
+      "span_start": 69,
+      "span_end": 102,
+      "confidence": 0.85
+    }
+  ],
+  "candidate_hints": [
+    {
+      "title": "CLI auth must use device-code grant",
+      "body": "The new authentication flow for CLI users must use device-code grant per team agreement.",
+      "level": "architecture",
+      "labels": ["auth", "cli"]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0114-cloud-vendor-8d93273a-dashboard",
+  "label": "Vendor exact v0.1.14 Bot dashboard into Cloud",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "Cloud PR #218 immutable Bot 8d93273a dashboard descriptor and hosted bundle metadata",
+  "release_unit_type": "desktop_hosted_key_pairing",
+  "target_version": "0.1.14",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-07-31T20:45:58Z",
+  "proposal_digest": "sha256:92f01066eb3072d997a2dfcb9807bcc4510498011539e4a056d1bb6601d05a83"
+}

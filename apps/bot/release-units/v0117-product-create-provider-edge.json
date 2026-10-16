@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0117-product-create-provider-edge",
+  "label": "v0.1.17 provider-edge Drive durability + ProductCreationCommitProof (bot#1023)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1023",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.17",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-08-02T23:38:51Z",
+  "proposal_digest": "sha256:0d74fef913c23c9c245650a478e87676f8d201eb91dd179519362a6b1c564f58"
+}

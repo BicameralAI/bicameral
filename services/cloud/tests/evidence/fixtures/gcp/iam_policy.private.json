@@ -1,0 +1,11 @@
+{
+  "bindings": [
+    {
+      "role": "roles/run.invoker",
+      "members": [
+        "serviceAccount:hosted-bridge@example-project.iam.gserviceaccount.com"
+      ]
+    }
+  ],
+  "etag": "BwYb0000000="
+}

@@ -1,0 +1,28 @@
+{
+  "_comment": "Negative fixture: malformed payload — empty required title in ingest.submit_local",
+  "_expected_response": "Rejected: malformed_payload — title must not be empty",
+  "tool_request": {
+    "request_id": "f0000002-0000-4000-8000-000000000002",
+    "command": {
+      "name": "ingest.submit_local",
+      "params": {
+        "source_uri": "https://example.com/ticket",
+        "source_type": "manual",
+        "title": "",
+        "description": "A description with an empty title",
+        "evidence": []
+      }
+    },
+    "authority": {
+      "actor_id": "agent-001",
+      "auth_method": "mcp_session",
+      "session_id": "sess-neg-001",
+      "workspace": "/repo",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp"
+      }
+    },
+    "issued_at": "2026-06-10T10:21:00Z"
+  }
+}

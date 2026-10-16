@@ -1,0 +1,36 @@
+# Mirrors packages/integrations/.github/workflows/red-team.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in packages/integrations/ so the component's commands are unchanged.
+name: 'integrations: Red Team'
+permissions:
+  contents: read
+jobs:
+  redteam:
+    name: red-team regression gates (blocking)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.13'
+    - name: Install tools
+      run: python -m pip install --upgrade pip ruff==0.15.5 pytest
+    - name: Ruff (red-team suite)
+      run: ruff check tests/redteam
+    - name: Red Team regression gates
+      run: python -m pytest tests/redteam -q
+'on':
+  pull_request:
+    branches:
+    - main
+    paths:
+    - packages/integrations/**
+    - .github/workflows/integrations-red-team.yml
+  push:
+    branches:
+    - main
+    paths:
+    - packages/integrations/**
+    - .github/workflows/integrations-red-team.yml
+defaults:
+  run:
+    working-directory: packages/integrations

@@ -1,0 +1,41 @@
+{
+  "amendment_id": "state-machine-resolver-v1-runtime-architecture-amendment-005",
+  "amendment_version": 5,
+  "base_contract_id": "state-machine-resolver-v1-runtime-architecture",
+  "base_contract_version": 1,
+  "effective_contract_version": "1.0.5",
+  "issue": 937,
+  "disposition": "AMEND",
+  "normative": true,
+  "authorizes_implementation": false,
+  "authorizes_release": false,
+  "supersedes": {
+    "amendment": "A23",
+    "clause": "member promotion creates Decision(proposed) / recommendation-only Claims"
+  },
+  "amendments": [
+    {
+      "id": "A27",
+      "target": "claim_authority_and_alpha_roles",
+      "resulting_signoff_state_on_claim_set_promote": "approved",
+      "observable_proposed_on_claim_set_path": false,
+      "claim_influence_on_promote": "authoritative",
+      "promotion_role": "product_owner",
+      "alpha_every_current_participant_is_product_owner": true,
+      "policy_owner_remains_creator_only": true,
+      "approve_signoff_on_claim_set_path": "deferred_out_of_alpha",
+      "reason": "Alpha scope cut: skip the recommendation window and the member/owner split on confirm."
+    }
+  ],
+  "conformance_obligations": [
+    "CONF-SMR-DECISION-AUTHORITY-01",
+    "CONF-SMR-APPEND-AUTHORITY-01"
+  ],
+  "state_refinement": {
+    "lifecycle_changed": true,
+    "states_added": [],
+    "states_deferred": ["Decision(proposed) on claim-set acceptance"],
+    "authority_changed": true,
+    "persistence_changed": false
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "proposal_schema_version": 1,
+  "digest_profile_version": 1,
+  "operation_id": "6f1c9d2e-4a83-4b17-9c05-2d7e8f3a1b64",
+  "routing": {
+    "product_id": "product.bicameral.core"
+  },
+  "candidate": {
+    "candidate_id": "b2a7f4c1-8e93-4d5a-a016-3f9c7b2e5d80",
+    "generation": 3,
+    "kind": "smr_claim_set_v1"
+  },
+  "artifact_binding": {
+    "repository_id": "bicameral/bicameral-bot",
+    "git_head": "d4f768368e5b917fe54a4d5b0e4dc68a60cce8af",
+    "artifact_path": "docs/specs/rendezvous-state-machine.md",
+    "blob_id": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+    "artifact_content_digest": "sha256:19328a35309f33f2eaef31aef92f8b4fc1cdc95a13b1ee324213fdd2be0f2f56"
+  },
+  "base_event_position": 1487,
+  "normalized_claim_set": {
+    "claims": [
+      {
+        "claim_id": "claim.rendezvous.draft-requires-submit",
+        "revision": 0,
+        "context_statement": "A rendezvous in Draft may only leave Draft through an explicit submit transition.",
+        "source_anchor_ids": [
+          "anchor.rendezvous.l42"
+        ],
+        "assertion_ids": [
+          "assert.draft-precedes-review"
+        ]
+      }
+    ],
+    "model_atoms": [
+      {
+        "atom_id": "atom.state.draft",
+        "atom_kind": "state",
+        "semantic_key": "Draft",
+        "scope_id": "scope.rendezvous"
+      },
+      {
+        "atom_id": "atom.state.review",
+        "atom_kind": "state",
+        "semantic_key": "Review",
+        "scope_id": "scope.rendezvous"
+      },
+      {
+        "atom_id": "atom.transition.submit",
+        "atom_kind": "transition",
+        "semantic_key": "submit",
+        "scope_id": "scope.rendezvous"
+      }
+    ],
+    "claim_assertions": [
+      {
+        "assertion_id": "assert.draft-precedes-review",
+        "claim_id": "claim.rendezvous.draft-requires-submit",
+        "atom_id": "atom.transition.submit",
+        "polarity": "asserts",
+        "value": {
+          "kind": "boolean",
+          "boolean": true
+        }
+      }
+    ],
+    "atom_relations": [
+      {
+        "relation_id": "rel.draft-to-review",
+        "relation_kind": "precedes",
+        "from_atom_id": "atom.state.draft",
+        "to_atom_id": "atom.state.review",
+        "supporting_claim_ids": [
+          "claim.rendezvous.draft-requires-submit"
+        ],
+        "supporting_source_anchor_ids": [
+          "anchor.rendezvous.l42"
+        ],
+        "ordinal": 0
+      }
+    ],
+    "scopes": [
+      {
+        "scope_id": "scope.rendezvous",
+        "scope_kind": "artifact",
+        "selector": "docs/specs/rendezvous-state-machine.md"
+      }
+    ],
+    "closure_assertions": [
+      {
+        "closure_id": "closure.rendezvous",
+        "scope_id": "scope.rendezvous",
+        "closure_kind": "partial"
+      }
+    ],
+    "source_anchors": [
+      {
+        "anchor_id": "anchor.rendezvous.l42",
+        "artifact_binding_ref": "sha256:857401756c34430d687ab29f87aedfc8381d7cff093d0e18dadba286eede5592",
+        "byte_start": 1840,
+        "byte_end": 1952,
+        "line_start": 42,
+        "line_end": 44
+      }
+    ]
+  },
+  "digests": {
+    "claim_set_digest": "sha256:d656f2b3221e5b3bc8eb178b70c46ad37aaca5bc4b448ae658e6dbcf70a714b6",
+    "artifact_binding_digest": "sha256:857401756c34430d687ab29f87aedfc8381d7cff093d0e18dadba286eede5592",
+    "smr_base_snapshot_digest": "sha256:4356a9c9b4ff5a9d5811e2e1c1f18f7c7f8eccf014a24fa24697432acbaa9563",
+    "claim_scope_digest": "sha256:567ef037e01da1a08450846e92adb9701a892e05d780fcd0b05f28756ee0c09a",
+    "evidence_bundle_digest": "sha256:c7456a8f4e9734be78e417d1e79ce7046095bb8bb2f1d785adb34deb5cb229a8"
+  },
+  "evidence_refs": [],
+  "provider_provenance": {
+    "provider_kind": "caller_supplied"
+  }
+}

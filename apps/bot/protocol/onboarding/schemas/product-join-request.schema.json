@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/onboarding/v1/product-join-request.schema.json",
+  "title": "ProductJoinRequest",
+  "description": "Daemon-inbound request to join a Product, carrying a ProductJoinTicket plus locally confirmed actor context. The daemon validates the ticket and decides membership; the Cloud account alone is never a local actor. See docs/specs/domain-product-onboarding-contract.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id",
+    "ticket",
+    "local_actor_ref",
+    "requested_at"
+  ],
+  "properties": {
+    "request_id": {
+      "type": "string"
+    },
+    "ticket": {
+      "$ref": "product-join-ticket.schema.json"
+    },
+    "local_actor_ref": {
+      "type": "string",
+      "description": "Locally confirmed actor context the Cloud account is bound to before any daemon mutation."
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

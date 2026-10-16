@@ -1,0 +1,8 @@
+[
+  {"principal": "anon", "table_name": "design_partner_allowlist", "select_granted": false, "insert_granted": false},
+  {"principal": "anon", "table_name": "product_directory", "select_granted": false, "insert_granted": false},
+  {"principal": "authenticated", "table_name": "design_partner_allowlist", "select_granted": false, "insert_granted": false},
+  {"principal": "authenticated", "table_name": "product_directory", "select_granted": false, "insert_granted": false},
+  {"principal": "service_role", "table_name": "design_partner_allowlist", "select_granted": true, "insert_granted": true},
+  {"principal": "service_role", "table_name": "product_directory", "select_granted": true, "insert_granted": true}
+]

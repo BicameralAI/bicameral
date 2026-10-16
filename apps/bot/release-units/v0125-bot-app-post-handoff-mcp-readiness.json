@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0125-bot-app-post-handoff-mcp-readiness",
+  "label": "Bot post-handoff /app Products shell and non-gating MCP readiness (#1092 / PR #1103)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1092",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.25",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-12T15:03:50Z",
+  "proposal_digest": "sha256:8ba8b168233d8307087d98ecdab297f489731a06c33a43265f8ed31213f8b4fb"
+}

@@ -1,0 +1,14 @@
+{
+  "cloud_account_id": "acct_01HZX8DANA",
+  "decided_at": "2026-07-12T09:13:00Z",
+  "failure": {
+    "code": "wrong_product",
+    "message": "Ticket product_id does not match the daemon's Product audience."
+  },
+  "granted_role": null,
+  "membership_event_ref": null,
+  "outcome": "rejected",
+  "product_id": "prd_01HZX8OTHER",
+  "receipt_id": null,
+  "request_id": "jrq_01HZX8WRONGPROD"
+}

@@ -1,0 +1,4 @@
+{
+  "trace_id": "TRACE-invalid-empty",
+  "note": "Intentionally incomplete fixture for SRC-VALIDATE / SRC-FAILURE negative tests; kernel must not repair into success."
+}

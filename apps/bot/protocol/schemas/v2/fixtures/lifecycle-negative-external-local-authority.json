@@ -1,0 +1,34 @@
+{
+  "_comment": "Negative fixture: ExternalIngestEnvelope carrying forbidden local authority fields — daemon must strip or reject",
+  "_expected_response": "Ok (envelope accepted) but forbidden fields are structurally absent from ExternalIngestEnvelope",
+  "external_ingest_envelope": {
+    "source_system": "github",
+    "source_uri": "https://github.com/org/repo/issues/1",
+    "content": "Issue body content about architectural decision",
+    "evidence": [
+      {
+        "excerpt": "We should use connection pooling for all DB access",
+        "span_start": 0,
+        "span_end": 49,
+        "confidence": 0.85
+      }
+    ],
+    "candidate_hints": [
+      {
+        "title": "Connection pooling requirement",
+        "body": "All database access must use the shared connection pool",
+        "level": "architecture",
+        "labels": ["db", "infrastructure"]
+      }
+    ]
+  },
+  "_forbidden_fields_injected": {
+    "authority": { "actor_id": "attacker", "auth_method": "local_daemon" },
+    "tool_command": { "name": "review.approve_signoff", "params": { "target_id": "DEC-1" } },
+    "review_command": "approve_signoff",
+    "canonical_decision": { "id": "DEC-FAKE" },
+    "signoff_approval": true,
+    "compliance_resolution": "reflected"
+  },
+  "_note": "ExternalIngestEnvelope has no typed fields for authority, tool_command, review_command, canonical_decision, signoff, or compliance. Any such fields in raw JSON are silently ignored during deserialization."
+}

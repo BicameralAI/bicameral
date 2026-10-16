@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/source-snapshot.schema.json",
+  "title": "SourceSnapshot",
+  "description": "Content-addressed capture of one spec Source. Field names match bicameral_api::source::SourceSnapshot, plus required source_uri. source_uri is the Source uri, not the address of these bytes. Factory #935 E1. ADR-0033.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["snapshot_addr", "snapshot_ref", "captured_at", "source_uri"],
+  "properties": {
+    "snapshot_addr": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Content address of this capture."
+    },
+    "snapshot_ref": {
+      "type": "string",
+      "description": "Existing snapshot_ref on SourceSnapshot. Not a branch identity."
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "content": { "type": "string" },
+    "content_hash": {
+      "type": "string",
+      "description": "Identity of the captured bytes. SHA-256 of the canonical snapshot representation."
+    },
+    "capture_method": {
+      "type": "string",
+      "enum": ["api_poll", "webhook", "manual", "agent_extract"]
+    },
+    "source_uri": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Same string as Source.uri. Back-pointer only."
+    }
+  }
+}

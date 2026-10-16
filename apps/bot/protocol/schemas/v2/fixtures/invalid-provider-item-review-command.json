@@ -1,0 +1,16 @@
+{
+  "_comment": "INVALID: ProviderItemEnvelope must not carry review commands.",
+  "_expected_behavior": "rejected — provider items cannot emit review, signoff, or compliance commands",
+  "_violation": "review_command field attempts to approve signoff through a provider item; review authority belongs to ToolRequest only",
+  "provider": "github",
+  "resource_id": "octocat/hello-world",
+  "item_id": "issue-42",
+  "item_type": "issue",
+  "content": "Fix the widget alignment bug",
+  "fetched_at": "2026-01-15T10:05:00Z",
+  "review_command": {
+    "kind": "approve_signoff",
+    "decision_id": "dec-xyz-789",
+    "rationale": "Auto-signoff via provider item fetch"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/untrack-source.schema.json",
+  "title": "UntrackSource",
+  "description": "The person who tracked a source removes it from the maintenance set while its snapshot is still tracked. Writes no authorization state. Records that person and the daemon that cranked the write. Factory #946. ADR-0034.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_uri", "snapshot_addr", "person_id", "daemon_id"],
+  "properties": {
+    "source_uri": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Same string as Source.uri."
+    },
+    "snapshot_addr": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The still-tracked snapshot. Accepted only while that snapshot is tracked."
+    },
+    "person_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The person who tracked the source."
+    },
+    "daemon_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Daemon that cranked the write."
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0130-bot-google-config-negative-test-isolation",
+  "label": "Isolate gateway missing-Google-config negative test from live Cloud",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1207",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.30",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "collaborator:jinhongkuan",
+  "proposed_at": "2026-09-03T18:30:00Z",
+  "proposal_digest": "sha256:0765d13638438b8c74bb661743e3ef37bbc4dcb24c407d3b0e589c73125b8114"
+}

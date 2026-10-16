@@ -1,0 +1,25 @@
+{
+  "_comment": "Golden ProviderResourceDescriptor for Linear (#523): a team resource exposed by the integrations provider. Demonstrates a nested parent reference and screened namespaced extension metadata.",
+  "_expected_behavior": "accepted — describes a discoverable Linear team without governance, review, or binding authority",
+  "_authority_boundary": "Provisional alpha provider-fact handoff object. It is NOT a SourceBinding, Source, SourceSnapshot, SourceEvidence, DecisionCandidate, review command, signoff, compliance, or event-store authority object. provider_metadata holds only screened, non-authoritative provider facts.",
+  "provider": "linear",
+  "resource_id": "team-eng",
+  "display_name": "Engineering",
+  "resource_type": "team",
+  "uri": "https://linear.app/acme/team/ENG",
+  "capabilities": ["list", "read", "search", "watch"],
+  "permission": "granted",
+  "parent": {
+    "resource_id": "workspace-acme",
+    "display_name": "Acme"
+  },
+  "freshness": {
+    "last_modified": "2026-06-12T08:05:00Z",
+    "item_count": 87
+  },
+  "provider_metadata": {
+    "key": "ENG",
+    "cycles_enabled": true
+  },
+  "captured_at": "2026-06-15T12:00:00Z"
+}

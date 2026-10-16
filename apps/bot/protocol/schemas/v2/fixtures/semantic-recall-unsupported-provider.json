@@ -1,0 +1,54 @@
+{
+  "_comment": "Semantic recall contribution read-model (issue #640): semantic-recall-unsupported-provider. Daemon-authored, evidence-only; surfaces render this verbatim. Approximate hints and graph-verified targets are kept in separate collections and never collapsed.",
+  "_expected": {
+    "approximate_hint_count": 0,
+    "caveat_codes": [
+      "provider_unsupported",
+      "unknown_scope"
+    ],
+    "next_actions": [
+      "narrow_scope"
+    ],
+    "no_result_in_searched_scope": true,
+    "provider_status": "unsupported",
+    "verified_target_count": 0
+  },
+  "semantic_recall": {
+    "caveats": [
+      {
+        "code": "provider_unsupported",
+        "message": "The semantic provider does not support this language or repository; no semantic contribution is available for the searched scope."
+      },
+      {
+        "code": "unknown_scope",
+        "message": "Part of the requested scope was not covered by the semantic provider; coverage is partial for the searched scope."
+      }
+    ],
+    "currentness": "graph_unavailable",
+    "next_actions": [
+      "narrow_scope"
+    ],
+    "no_result_in_searched_scope": true,
+    "provenance": {
+      "index_version": "sem-idx-12",
+      "model_id": "fake-embed",
+      "model_version": "v0",
+      "provider_id": "fake-semantic-provider",
+      "provider_version": "0.1.0"
+    },
+    "provider_status": "unsupported",
+    "searched_scope": {
+      "corpus_id": "corpus-bicameral-bot",
+      "corpus_version": "sem-idx-12",
+      "scope_fingerprint": "fp-semantic-query",
+      "scope_kind": "query"
+    },
+    "unknown_scope": [
+      {
+        "detail": "Semantic provider does not support this repository.",
+        "reason": "unsupported_repository",
+        "scope": "repository"
+      }
+    ]
+  }
+}

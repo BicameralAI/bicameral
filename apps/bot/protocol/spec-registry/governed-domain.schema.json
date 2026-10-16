@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/governed-domain.schema.json",
+  "title": "GovernedDomain",
+  "description": "One claim set for one SourceSnapshot. Empty at capture. Completion writes source_digest, route, model_id, prompt_id, and prompt_digest together, including when the claim set is empty. A finished failure writes extract_error and no source_digest. Those two are mutually exclusive. Absence of both means no attempt has finished. No atom_ids. A CheckRecord is not a field here. Factory #935 E3. ADR-0033.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["product_id", "snapshot_addr", "claims", "atoms", "claim_assertions", "relations"],
+  "properties": {
+    "product_id": { "type": "string", "minLength": 1 },
+    "snapshot_addr": { "type": "string", "minLength": 1 },
+    "source_digest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SHA-256 hex of the compact UTF-8 JSON of claims, atoms, claim_assertions, and relations only. Object keys are sorted. Array order is the stored order. Provenance fields and extract_error are outside the hash. Four empty arrays have a digest. Absent until a completed extract."
+    },
+    "route": { "type": "string", "enum": ["system_one", "openai_compatible"] },
+    "model_id": { "type": "string", "minLength": 1 },
+    "prompt_id": { "type": "string", "minLength": 1 },
+    "prompt_digest": { "type": "string", "minLength": 1 },
+    "extract_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Finished failed extract. Operational receipt. Not an authorization state and not a source_digest.",
+      "required": ["reason", "failed_at"],
+      "properties": {
+        "reason": { "type": "string", "minLength": 1 },
+        "failed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim_id", "revision", "context_statement"],
+        "properties": {
+          "claim_id": { "type": "string", "minLength": 1 },
+          "revision": { "type": "integer", "minimum": 0 },
+          "context_statement": { "type": "string" }
+        }
+      }
+    },
+    "atoms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["atom_id", "atom_kind", "semantic_key"],
+        "properties": {
+          "atom_id": { "type": "string", "minLength": 1 },
+          "atom_kind": { "type": "string", "minLength": 1 },
+          "semantic_key": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "claim_assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["assertion_id", "claim_id", "atom_id", "polarity"],
+        "properties": {
+          "assertion_id": { "type": "string", "minLength": 1 },
+          "claim_id": { "type": "string", "minLength": 1 },
+          "atom_id": { "type": "string", "minLength": 1 },
+          "polarity": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["relation_id", "relation_kind", "from_atom_id", "to_atom_id"],
+        "properties": {
+          "relation_id": { "type": "string", "minLength": 1 },
+          "relation_kind": { "type": "string", "minLength": 1 },
+          "from_atom_id": { "type": "string", "minLength": 1 },
+          "to_atom_id": { "type": "string", "minLength": 1 },
+          "supporting_claim_ids": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "anyOf": [
+          { "required": ["source_digest"] },
+          { "required": ["route"] },
+          { "required": ["model_id"] },
+          { "required": ["prompt_id"] },
+          { "required": ["prompt_digest"] },
+          { "properties": { "claims": { "minItems": 1 } }, "required": ["claims"] },
+          { "properties": { "atoms": { "minItems": 1 } }, "required": ["atoms"] },
+          { "properties": { "claim_assertions": { "minItems": 1 } }, "required": ["claim_assertions"] },
+          { "properties": { "relations": { "minItems": 1 } }, "required": ["relations"] }
+        ]
+      },
+      "then": {
+        "required": ["source_digest", "route", "model_id", "prompt_id", "prompt_digest"],
+        "not": { "required": ["extract_error"] }
+      }
+    },
+    {
+      "if": { "required": ["extract_error"] },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["source_digest"] },
+            { "required": ["route"] },
+            { "required": ["model_id"] },
+            { "required": ["prompt_id"] },
+            { "required": ["prompt_digest"] }
+          ]
+        },
+        "properties": {
+          "claims": { "maxItems": 0 },
+          "atoms": { "maxItems": 0 },
+          "claim_assertions": { "maxItems": 0 },
+          "relations": { "maxItems": 0 }
+        }
+      }
+    }
+  ]
+}

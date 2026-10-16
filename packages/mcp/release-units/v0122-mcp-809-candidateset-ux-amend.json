@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0122-mcp-809-candidateset-ux-amend",
+  "label": "CandidateSet confirmation UX amend (#809)",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#809",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.22",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "agent:grok-build",
+  "proposed_at": "2026-08-07T03:00:51Z",
+  "proposal_digest": "sha256:325e9a377d6865e6b41b371b315cb3136e698ed0009ff85f1bc45d2e9fcf4434"
+}

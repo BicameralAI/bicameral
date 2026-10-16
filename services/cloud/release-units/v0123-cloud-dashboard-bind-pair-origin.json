@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0123-cloud-dashboard-bind-pair-origin",
+  "label": "Dashboard bind-step wiring and local pair origin handoff",
+  "repository": "BicameralAI/bicameral-cloud",
+  "scope_ref": "BicameralAI/bicameral-cloud#244",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.23",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "agent:grok-build",
+  "proposed_at": "2026-08-10T11:54:40Z",
+  "proposal_digest": "sha256:a400415e327e5499aa783d6dfe2b3e32d7df5f7fba301f29391e4a81c4e8fabd"
+}

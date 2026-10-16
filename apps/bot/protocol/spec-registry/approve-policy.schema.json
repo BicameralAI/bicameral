@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/spec-registry/v1/approve-policy.schema.json",
+  "title": "ApprovePolicy",
+  "description": "Configuration payload for the signoff entity. Not a fourth entity. A change applies only to later signoffs. Conflict is an invariant gate: no role may be configured to approve while in_conflict is true. Factory #935. ADR-0034.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["auto_approve", "approve_permission"],
+  "properties": {
+    "auto_approve": {
+      "type": "boolean"
+    },
+    "approve_permission": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["role", "in_conflict"],
+            "properties": {
+              "role": { "const": "owner" },
+              "in_conflict": { "const": false }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["role", "in_conflict", "allow"],
+            "properties": {
+              "role": { "const": "owner" },
+              "in_conflict": { "const": true },
+              "allow": { "const": false }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["role", "in_conflict"],
+            "properties": {
+              "role": { "const": "member" },
+              "in_conflict": { "const": false }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["role", "in_conflict", "allow"],
+            "properties": {
+              "role": { "const": "member" },
+              "in_conflict": { "const": true },
+              "allow": { "const": false }
+            }
+          }
+        }
+      ],
+      "description": "Exactly one cell for each (role, in_conflict) pair, in any order. in_conflict is true when the source is in a conflict set. Non-conflict allow values are product policy for approve. Conflict cells are invariant false. resolve_conflict is a separate owner action and is not this allow bit.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "in_conflict", "allow"],
+        "properties": {
+          "role": { "type": "string", "enum": ["owner", "member"] },
+          "in_conflict": { "type": "boolean" },
+          "allow": { "type": "boolean" }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "in_conflict": { "const": true } },
+              "required": ["in_conflict"]
+            },
+            "then": {
+              "properties": { "allow": { "const": false } }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

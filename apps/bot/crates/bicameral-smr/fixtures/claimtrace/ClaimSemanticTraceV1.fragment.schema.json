@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "occurrences",
+    "assertions",
+    "edges",
+    "semantic_relations",
+    "coverage"
+  ],
+  "properties": {
+    "occurrences": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "occurrence_id",
+          "kind",
+          "source_unit_refs",
+          "normalized_identity",
+          "unknown_dimensions"
+        ],
+        "properties": {
+          "occurrence_id": {"type": "string", "minLength": 1},
+          "kind": {
+            "type": "string",
+            "enum": ["actor", "role", "action", "target", "state", "condition", "value"]
+          },
+          "source_unit_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "normalized_identity": {"type": "string", "minLength": 1},
+          "unknown_dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "actor",
+                "target",
+                "pre_state",
+                "post_state",
+                "modality",
+                "polarity",
+                "quantifier",
+                "atom_binding",
+                "focus_settling",
+                "confirmation_order",
+                "race_resolution",
+                "observation_seam",
+                "host_contract",
+                "coverage"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "assertions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assertion_id",
+          "source_unit_refs",
+          "actor_occurrence_id",
+          "action_occurrence_id",
+          "target_occurrence_id",
+          "binding_mode",
+          "modality",
+          "polarity",
+          "quantifier",
+          "pre_state_occurrence_id",
+          "post_state_occurrence_id",
+          "guard_occurrence_ids",
+          "effect_occurrence_ids",
+          "exception_assertion_ids",
+          "unknown_dimensions"
+        ],
+        "properties": {
+          "assertion_id": {"type": "string", "minLength": 1},
+          "source_unit_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "actor_occurrence_id": {"type": ["string", "null"]},
+          "action_occurrence_id": {"type": "string", "minLength": 1},
+          "target_occurrence_id": {"type": ["string", "null"]},
+          "binding_mode": {
+            "type": "string",
+            "enum": ["exact_tuple", "compatible_selector"]
+          },
+          "modality": {
+            "type": "string",
+            "enum": ["asserted", "permitted", "required", "prohibited", "conditional", "unknown"]
+          },
+          "polarity": {
+            "type": "string",
+            "enum": ["positive", "negative", "unknown"]
+          },
+          "quantifier": {
+            "type": "string",
+            "enum": ["all", "some", "one", "lone", "none", "unspecified"]
+          },
+          "pre_state_occurrence_id": {"type": ["string", "null"]},
+          "post_state_occurrence_id": {"type": ["string", "null"]},
+          "guard_occurrence_ids": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "effect_occurrence_ids": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "exception_assertion_ids": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "unknown_dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "actor",
+                "target",
+                "pre_state",
+                "post_state",
+                "modality",
+                "polarity",
+                "quantifier",
+                "atom_binding",
+                "focus_settling",
+                "confirmation_order",
+                "race_resolution",
+                "observation_seam",
+                "host_contract",
+                "coverage"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "edge_id",
+          "from_assertion_id",
+          "to_assertion_id",
+          "relation",
+          "source_unit_refs"
+        ],
+        "properties": {
+          "edge_id": {"type": "string", "minLength": 1},
+          "from_assertion_id": {"type": "string", "minLength": 1},
+          "to_assertion_id": {"type": "string", "minLength": 1},
+          "relation": {
+            "type": "string",
+            "enum": [
+              "precedes",
+              "requires",
+              "enables",
+              "causes_transition",
+              "conditional_on",
+              "alternative_to",
+              "excludes"
+            ]
+          },
+          "source_unit_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "semantic_relations": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "relation_id",
+          "left_occurrence_id",
+          "right_occurrence_id",
+          "relation",
+          "source_unit_refs"
+        ],
+        "properties": {
+          "relation_id": {"type": "string", "minLength": 1},
+          "left_occurrence_id": {"type": "string", "minLength": 1},
+          "right_occurrence_id": {"type": "string", "minLength": 1},
+          "relation": {
+            "type": "string",
+            "enum": ["equivalent_to", "distinct_from"]
+          },
+          "source_unit_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source_unit_refs", "unknown_dimensions"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["complete", "partial", "unknown"]
+        },
+        "source_unit_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "unknown_dimensions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "actor",
+              "target",
+              "pre_state",
+              "post_state",
+              "modality",
+              "polarity",
+              "quantifier",
+              "atom_binding",
+              "focus_settling",
+              "confirmation_order",
+              "race_resolution",
+              "observation_seam",
+              "host_contract",
+              "coverage"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

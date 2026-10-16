@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0123-setup-mcp-default-apply",
+  "label": "setup mcp applies by default; --dry-run for plan-only",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1067",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.23",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "agent:grok-build",
+  "proposed_at": "2026-08-10T11:54:30Z",
+  "proposal_digest": "sha256:707718e4d498f6f780a15ce40a1cfe752d9b4d03afcd25fb822455cbc10ea266"
+}

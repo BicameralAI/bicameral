@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0112-live-desktop-hosted-key-pairing",
+  "label": "v0.1.12 desktop ↔ hosted key pairing",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "Live v0.1.12 assignment and desktop-hosted key-pairing topology proof",
+  "release_unit_type": "desktop_hosted_key_pairing",
+  "target_version": "0.1.12",
+  "topology": {
+    "required": true,
+    "topology_type": "desktop_hosted_key_pairing_v1",
+    "validation_checklist": [
+      {
+        "check_id": "pair-exact-tuple",
+        "label": "Pair the exact assigned Bot candidate with the hosted dashboard"
+      },
+      {
+        "check_id": "restart-reconnect",
+        "label": "Reconnect after daemon restart without replacing canonical identity"
+      },
+      {
+        "check_id": "revoke-repair",
+        "label": "Revoke the pairing and complete the documented repair path"
+      }
+    ]
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-07-22T21:15:00Z",
+  "proposal_digest": "sha256:c32f2947f334837cc9049c777ef1c61d2272c4e54f320c9f39731f1cbec98951"
+}

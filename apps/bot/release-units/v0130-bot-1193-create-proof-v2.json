@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0130-bot-1193-create-proof-v2",
+  "label": "Lock ProductCreationCommitProof v2 + CreateProduct ledger schema (#1193)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1193",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.30",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-09-02T23:00:00Z",
+  "proposal_digest": "sha256:3dd8236079eb0d460961fa520bc0755f16197d132c526ac09563ea084d02bd3c"
+}

@@ -1,0 +1,46 @@
+# Deploys the Cloud Run service named by _SERVICE_NAME (default: prod).
+# Staging overrides it via --substitutions _SERVICE_NAME=bicameral-cloud-staging
+# (see .github/workflows/deploy-cloud-run.yml). Image is tagged per service so
+# prod and staging never share an image tag (SOC2 #43 / ADR-0008).
+substitutions:
+  _SERVICE_NAME: bicameral-cloud
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/${_SERVICE_NAME}:$COMMIT_SHA
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/${_SERVICE_NAME}:$COMMIT_SHA
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image
+      - us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/${_SERVICE_NAME}:$COMMIT_SHA
+      - --region
+      - us-central1
+      - --platform
+      - managed
+      - --no-allow-unauthenticated
+      - --port
+      - "8080"
+      - --min-instances
+      - "0"
+      - --max-instances
+      - "3"
+      - --quiet
+
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/${_SERVICE_NAME}:$COMMIT_SHA
+
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET

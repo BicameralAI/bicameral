@@ -1,0 +1,40 @@
+{
+  "_comment": "Bot-MCP lifecycle: accepted ingest.submit_local with source evidence and candidate draft",
+  "_expected_response": "Ok — source, snapshot, evidence, and candidate ids created",
+  "mcp_tool": "bicameral.ingest",
+  "tool_request": {
+    "request_id": "a0000001-0000-4000-8000-000000000001",
+    "command": {
+      "name": "ingest.submit_local",
+      "params": {
+        "source_uri": "https://linear.app/team/issue/PROJ-42",
+        "source_type": "linear",
+        "label": "PROJ-42: Add health check endpoint",
+        "title": "Health check endpoint must verify DB connection",
+        "description": "The /healthz endpoint returns 200 only when the database connection pool is healthy.",
+        "level": "architecture",
+        "snapshot_content": "Title: Add health check endpoint\nDescription: The service needs a /healthz endpoint...",
+        "evidence": [
+          {
+            "excerpt": "The service needs a /healthz endpoint that returns 200 when the database connection is healthy",
+            "span_start": 45,
+            "span_end": 120,
+            "confidence": 0.92
+          }
+        ]
+      }
+    },
+    "authority": {
+      "actor_id": "agent-mcp-001",
+      "auth_method": "mcp_session",
+      "session_id": "sess-lifecycle-001",
+      "workspace": "/home/user/project",
+      "policy_scope": ["default"],
+      "audit_metadata": {
+        "surface": "mcp",
+        "mcp_tool": "bicameral.ingest"
+      }
+    },
+    "issued_at": "2026-06-10T10:00:00Z"
+  }
+}

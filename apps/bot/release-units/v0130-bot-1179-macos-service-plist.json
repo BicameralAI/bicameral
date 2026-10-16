@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0130-bot-1179-macos-service-plist",
+  "label": "macOS service install truthfulness repair (#1179)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1179",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.30",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:Knapp-Kevin",
+  "proposed_at": "2026-09-01T02:20:00Z",
+  "proposal_digest": "sha256:d9b00b06c01f94de240e250b4974b3e5bd91542ef216f91c385e343a4f6ded99"
+}

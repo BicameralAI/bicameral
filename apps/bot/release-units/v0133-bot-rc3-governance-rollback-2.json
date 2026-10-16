@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0133-bot-rc3-governance-rollback-2",
+  "label": "RC3 governance rollback after superseding frozen plan",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1087",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.33",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:Knapp-Kevin",
+  "proposed_at": "2026-09-15T15:45:00Z",
+  "proposal_digest": "sha256:32079620a9a76399dd7ad13af1b2b7dc64da096c38047a1f528fdf9e4b74517a"
+}

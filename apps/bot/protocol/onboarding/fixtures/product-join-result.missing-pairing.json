@@ -1,0 +1,14 @@
+{
+  "cloud_account_id": "acct_01HZX8EVE",
+  "decided_at": "2026-07-12T09:11:00Z",
+  "failure": {
+    "code": "missing_pairing",
+    "message": "No confirmed pairing session binds this Cloud account to a local actor."
+  },
+  "granted_role": null,
+  "membership_event_ref": null,
+  "outcome": "rejected",
+  "product_id": "prd_01HZX8CHECKOUT",
+  "receipt_id": null,
+  "request_id": "jrq_01HZX8MISSINGPAIR"
+}

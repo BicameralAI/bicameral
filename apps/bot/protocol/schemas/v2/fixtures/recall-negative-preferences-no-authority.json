@@ -1,0 +1,22 @@
+{
+  "_comment": "Negative fixture: preferences cannot create authority, waive gates, or hide accepted evidence",
+  "_invariant": "RecallPreferenceProfile may weight attention, group or sort results, affect notification priority, and personalize within policy bounds. Preferences must not weaken governance constraints, create BindingEvidence, approve signoff, assert compliance, assert no-conflict, hide accepted deterministic evidence, or directly mutate hidden ranking behavior without audit.",
+  "_expected": "A RecallPacket generated with preference overrides must still surface all accepted binding overlap evidence. Policy caps beat preferences. Accepted deterministic evidence must not be hidden by preference filters.",
+  "_must_fail_if": "preferences hide accepted deterministic evidence or create authority",
+  "scenario": {
+    "preference_profile": {
+      "boost_product_area": "frontend",
+      "suppress_area": "backend",
+      "max_results": 3
+    },
+    "accepted_binding_overlap_in_backend": true,
+    "backend_decision_id": "d0000007-0007-4000-8000-000000000007"
+  },
+  "invariants": [
+    "backend decision with accepted binding overlap must still appear despite suppress_area preference",
+    "preference cannot create new BindingEvidence",
+    "preference cannot approve signoff",
+    "preference cannot assert compliance or no-conflict",
+    "policy caps beat preference max_results for accepted binding overlap"
+  ]
+}

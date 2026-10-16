@@ -1,0 +1,44 @@
+{
+  "_comment": "Commit-driven preflight freshness read-model (issue #625): freshness-no-result-stale-graph. Daemon-authored, evidence-only; surfaces render this verbatim.",
+  "_expected": {
+    "commit_freshness": "snapshot_scoped",
+    "currentness": "graph_unavailable",
+    "evidence_state": "unknown_stale",
+    "graph_readiness": "stale"
+  },
+  "freshness": {
+    "caveats": [
+      {
+        "code": "snapshot_scoped_evidence",
+        "current_head_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+        "message": "Graph is stale, but the cited evidence was not touched by newer commits; it remains usable only against its older snapshot identity.",
+        "snapshot_id": "snap-2026-06-12-aaaa1111"
+      },
+      {
+        "code": "empty_result_stale_graph",
+        "current_head_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+        "message": "Lookup returned no relevant decisions while the graph was not fresh; do not treat this empty result as a confirmed all-clear.",
+        "snapshot_id": "snap-2026-06-12-aaaa1111"
+      }
+    ],
+    "commit_freshness": "snapshot_scoped",
+    "currentness": "graph_unavailable",
+    "evidence_state": "unknown_stale",
+    "graph_readiness": "stale",
+    "graph_snapshot": {
+      "commit_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+      "graph_snapshot_id": "snap-2026-06-12-aaaa1111",
+      "index_version": "idx-7",
+      "ref_name": "refs/heads/dev",
+      "repo_id": "repo-bicameral-bot"
+    },
+    "next_actions": [
+      "proceed_snapshot_scoped",
+      "inspect_evidence"
+    ],
+    "refresh_outcome": "stale",
+    "touched_scope": {
+      "detection": "confirmed_untouched"
+    }
+  }
+}

@@ -1,0 +1,296 @@
+{
+  "$id": "https://bicameral.ai/cloud/schemas/database-migration-execution-receipt.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "digest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "versions": {
+      "items": {
+        "pattern": "^(?:[0-9]{12}|[0-9]{14})$",
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "verified"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "deployment_prerequisite_satisfied": {
+            "const": true
+          }
+        },
+        "required": [
+          "apply",
+          "verification"
+        ],
+        "not": {
+          "required": [
+            "failure"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "preflight_failed",
+              "apply_failed",
+              "verification_failed"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "deployment_prerequisite_satisfied": {
+            "const": false
+          }
+        },
+        "required": [
+          "failure"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "apply": {
+      "additionalProperties": false,
+      "properties": {
+        "applied_versions": {
+          "$ref": "#/$defs/versions"
+        },
+        "status": {
+          "enum": [
+            "applied",
+            "failed"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "applied_versions"
+      ],
+      "type": "object"
+    },
+    "authorizes_publish": {
+      "const": false
+    },
+    "cloud_commit": {
+      "pattern": "^[a-f0-9]{40}$",
+      "type": "string"
+    },
+    "completed_at": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "deployment_prerequisite_satisfied": {
+      "type": "boolean"
+    },
+    "environment": {
+      "enum": [
+        "staging",
+        "production"
+      ]
+    },
+    "failure": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "phase": {
+          "enum": [
+            "preflight",
+            "apply",
+            "verification"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "phase"
+      ],
+      "type": "object"
+    },
+    "migration_set_id": {
+      "$ref": "#/$defs/digest"
+    },
+    "preflight": {
+      "additionalProperties": false,
+      "properties": {
+        "pending_versions": {
+          "$ref": "#/$defs/versions"
+        },
+        "remote_versions_before": {
+          "$ref": "#/$defs/versions"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "remote_versions_before",
+        "pending_versions"
+      ],
+      "type": "object"
+    },
+    "receipt_id": {
+      "$ref": "#/$defs/digest"
+    },
+    "release_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "started_at": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "state": {
+      "enum": [
+        "preflight_failed",
+        "apply_failed",
+        "verification_failed",
+        "verified"
+      ]
+    },
+    "state_history": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "state": {
+            "enum": [
+              "planned",
+              "preflight_passed",
+              "applied",
+              "preflight_failed",
+              "apply_failed",
+              "verification_failed",
+              "verified"
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "at"
+        ],
+        "type": "object"
+      },
+      "minItems": 2,
+      "type": "array"
+    },
+    "tool": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "supabase"
+        },
+        "version": {
+          "const": "2.39.2"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "verification": {
+      "additionalProperties": false,
+      "properties": {
+        "remote_versions_after": {
+          "$ref": "#/$defs/versions"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "remote_versions_after"
+      ],
+      "type": "object"
+    },
+    "workflow": {
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "pattern": "^[^/]+/[^/]+$",
+          "type": "string"
+        },
+        "run_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha": {
+          "pattern": "^[a-f0-9]{40}$",
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "run_id",
+        "sha",
+        "url"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "migration_set_id",
+    "release_id",
+    "cloud_commit",
+    "environment",
+    "state",
+    "state_history",
+    "preflight",
+    "tool",
+    "workflow",
+    "started_at",
+    "completed_at",
+    "deployment_prerequisite_satisfied",
+    "authorizes_publish"
+  ],
+  "title": "Cloud Database Migration Execution Receipt",
+  "type": "object"
+}

@@ -1,0 +1,45 @@
+{
+  "_comment": "VALID: Egress external write requiring Product Owner approval. EgressMode is 'external_write', ApprovalClass is 'product_owner_required'. The projection is generated but execution is gated on approval.",
+  "_spec_ref": "docs/specs/governed-egress-projection-ownership.md",
+  "eligibility": {
+    "artifact_id": "DEC-200",
+    "target_system": "linear",
+    "profile_id": "linear.issue.work_item.v1",
+    "eligible": true,
+    "approval_class": "product_owner_required",
+    "warnings": [],
+    "rejection_reasons": []
+  },
+  "policy": {
+    "artifact_id": "DEC-200",
+    "target_system": "linear",
+    "profile_id": "linear.issue.work_item.v1",
+    "actor_id": "user-member-02",
+    "verdict": "approval_required",
+    "approval_class": "product_owner_required",
+    "reasons": ["External write to linear requires Product Owner approval"]
+  },
+  "projection": {
+    "artifact_id": "DEC-200",
+    "artifact_revision": "rev-002",
+    "target_system": "linear",
+    "profile_id": "linear.issue.work_item.v1",
+    "mode": "external_write",
+    "authority_label": "bicameral.daemon.alpha",
+    "evidence_refs": ["evidence-ref-200", "evidence-ref-201"],
+    "payload": {
+      "title": "Implementation work item",
+      "description": "Create Linear issue from accepted Bicameral artifact"
+    }
+  },
+  "receipt": {
+    "mode": "external_write",
+    "target_operation": "create_issue",
+    "target_system": "linear",
+    "target_object_ref": "https://linear.app/team/issue/PROJ-42",
+    "payload_hash": "sha256:def456",
+    "artifact_revision": "rev-002",
+    "actor_id": "user-owner-01",
+    "reconciliation_state": "pending"
+  }
+}

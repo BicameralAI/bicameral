@@ -1,0 +1,32 @@
+{
+  "_comment": "Staged preflight response — alpha shape (issues #323, #393)",
+  "_expected": "All stages explicit with typed availability. Capture/projection/enforcement are not_configured. Lookup completed. Session directive is continue. Never claims compliance, correctness, safety, or blocking authority. Surfaces render daemon-authored availability directly.",
+  "capture": {
+    "status": "not_configured",
+    "availability": "unsupported"
+  },
+  "projection": {
+    "status": "not_configured",
+    "availability": "deferred"
+  },
+  "lookup": {
+    "status": "completed",
+    "availability": "available",
+    "decision_refs": [
+      "a0000001-0000-4000-8000-000000000001",
+      "a0000001-0000-4000-8000-000000000002"
+    ],
+    "limitations": [
+      "graph: Graph data unavailable. Using source-only preflight.",
+      "team_active_prs: Local preflight cannot see team-wide active PR branches."
+    ]
+  },
+  "enforcement": {
+    "status": "not_configured",
+    "availability": "unsupported"
+  },
+  "session_directive": {
+    "mode": "continue",
+    "availability": "available"
+  }
+}

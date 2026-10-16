@@ -1,0 +1,9 @@
+{
+  "bindings": [
+    {
+      "role": "roles/run.invoker",
+      "members": ["allUsers"]
+    }
+  ],
+  "etag": "BwYb0000001="
+}

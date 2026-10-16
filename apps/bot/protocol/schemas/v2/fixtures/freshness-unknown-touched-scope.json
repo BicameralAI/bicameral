@@ -1,0 +1,38 @@
+{
+  "_comment": "Commit-driven preflight freshness read-model (issue #625): freshness-unknown-touched-scope. Daemon-authored, evidence-only; surfaces render this verbatim.",
+  "_expected": {
+    "commit_freshness": "unknown_stale",
+    "currentness": "graph_unavailable",
+    "evidence_state": "unknown_not_indexed",
+    "graph_readiness": "stale"
+  },
+  "freshness": {
+    "caveats": [
+      {
+        "code": "touched_scope_unknown",
+        "current_head_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+        "message": "The touched code scope could not be determined, so freshness cannot be confirmed; treat the evidence as stale until checked.",
+        "snapshot_id": "snap-2026-06-12-aaaa1111"
+      }
+    ],
+    "commit_freshness": "unknown_stale",
+    "currentness": "graph_unavailable",
+    "evidence_state": "unknown_not_indexed",
+    "graph_readiness": "stale",
+    "graph_snapshot": {
+      "commit_sha": "9f1c2d3e4b5a60718293a4b5c6d7e8f901234567",
+      "graph_snapshot_id": "snap-2026-06-12-aaaa1111",
+      "index_version": "idx-7",
+      "ref_name": "refs/heads/dev",
+      "repo_id": "repo-bicameral-bot"
+    },
+    "next_actions": [
+      "provide_touched_scope",
+      "inspect_evidence"
+    ],
+    "refresh_outcome": "stale",
+    "touched_scope": {
+      "detection": "unavailable"
+    }
+  }
+}

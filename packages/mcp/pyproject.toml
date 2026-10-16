@@ -1,0 +1,124 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bicameral-mcp"
+version = "0.17.5"
+description = "Bicameral MCP thin client for the local bicameral-bot ToolRequest daemon"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "Bicameral AI"}]
+keywords = ["mcp", "toolrequest", "bicameral-bot"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  "mcp[cli]>=1.28.1,<2.0.0",
+]
+
+[project.optional-dependencies]
+cocoindex = [
+  "cocoindex>=1.0.16,<2.0.0",
+  "sentence-transformers>=5.6.0",
+  "cocoindex-code>=0.2.37",
+]
+test = [
+  "pytest>=9.1.1",
+  "pytest-asyncio>=1.4.0",
+  "ruff>=0.15.20",
+  "mypy>=2.3.0",
+  "build>=1.5.0",
+  "pre-commit>=4.6.0",
+  "coverage[toml]>=7.15.1",
+]
+release = [
+  "cyclonedx-bom>=7.3.0",
+]
+
+[project.scripts]
+bicameral-mcp = "server:cli_main"
+
+[tool.hatch.build.targets.wheel]
+only-include = [
+  "server.py",
+  "preflight_adapters",
+  "approval_gate.py",
+  "authority.py",
+  "brief_renderer.py",
+  "candidate_selection_surface.py",
+  "coverage_guard.py",
+  "daemon_client.py",
+  "erasure_gate.py",
+  "governance_surface.py",
+  "prompts.py",
+  "responses.py",
+  "sync_payload_filter.py",
+  "tool_request.py",
+  "tool_schemas.py",
+  "version.py",
+  "workspace_resolve_surface.py",
+]
+
+[tool.hatch.build.targets.sdist]
+# Customer source archives intentionally exclude contributor-only history,
+# plans, tests, Factory evidence, agent configuration, and governance material.
+only-include = [
+  "README.md",
+  "SECURITY.md",
+  "LICENSE",
+  "pyproject.toml",
+  "server.py",
+  "preflight_adapters",
+  "approval_gate.py",
+  "authority.py",
+  "brief_renderer.py",
+  "candidate_selection_surface.py",
+  "coverage_guard.py",
+  "daemon_client.py",
+  "erasure_gate.py",
+  "governance_surface.py",
+  "prompts.py",
+  "responses.py",
+  "sync_payload_filter.py",
+  "tool_request.py",
+  "tool_schemas.py",
+  "version.py",
+  "workspace_resolve_surface.py",
+  "docs/specs/host-prework-adapters.md",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+  "test-results",
+  ".agent",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["F401", "F811", "F821", "F841", "E712", "B017", "B904", "E402", "E731"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_return_any = false
+strict_optional = true
+disable_error_code = ["import-untyped"]
+exclude = [
+  "test-results/",
+  ".agent/",
+  "build/",
+  "dist/",
+]

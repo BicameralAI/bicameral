@@ -1,0 +1,27 @@
+{
+  "_comment": "Conformance fixture: binding verified at snapshot A viewed at snapshot B without automatic verification (ADR-0010 §Binding Lineage)",
+  "_acceptance_criteria": "issue #101 criterion 1",
+  "scenario": "cross_snapshot_no_auto_verification",
+  "description": "A BindingEvidence accepted at GraphSnapshot A must not be treated as verified at GraphSnapshot B without an explicit RevalidateBinding event.",
+  "initial_binding": {
+    "decision_id": "d1000000-0000-0000-0000-000000000001",
+    "binding_id": "b1000000-0000-0000-0000-000000000001",
+    "binding_type": "code_region",
+    "target": "src/lib.rs:10-20",
+    "graph_snapshot_id": "gs-snapshot-a",
+    "validated_sha": "aaa111aaa111aaa111aaa111aaa111aaa111aaaa",
+    "evidence_state": "verified",
+    "content_hash": "sha256:content-at-a"
+  },
+  "later_snapshot": {
+    "graph_snapshot_id": "gs-snapshot-b",
+    "commit_sha": "bbb222bbb222bbb222bbb222bbb222bbb222bbbb",
+    "ref_name": "main"
+  },
+  "expected_behavior": {
+    "binding_graph_snapshot_id": "gs-snapshot-a",
+    "auto_verified_at_b": false,
+    "revalidation_history_empty": true,
+    "explanation": "Without an explicit RevalidateBinding event, the binding remains evidence only for snapshot A. Viewing it at B does not create new verification."
+  }
+}

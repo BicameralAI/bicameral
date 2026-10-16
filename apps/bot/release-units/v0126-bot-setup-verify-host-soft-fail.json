@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0126-bot-setup-verify-host-soft-fail",
+  "label": "Bot setup mcp soft-fail non-authentic verify-host (#1106 / #786 residual)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1106",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.26",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-08-12T18:46:55Z",
+  "proposal_digest": "sha256:74dcbb02e8a6623c4ef1ec1e8cc10bdf4b228458d4e057fa1f5ded60b4f5ea83"
+}

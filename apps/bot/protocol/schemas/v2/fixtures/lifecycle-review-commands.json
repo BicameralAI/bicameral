@@ -1,0 +1,128 @@
+{
+  "_comment": "Bot-MCP lifecycle: accepted review commands — accept, reject, signoff approve/reject, resolve compliance",
+  "_expected_response": "Ok — accepted/rejected transition and touched ids (resolve_compliance returns typed unsupported in V1)",
+  "fixtures": [
+    {
+      "label": "review.accept_candidate",
+      "tool_request": {
+        "request_id": "a0000005-0000-4000-8000-000000000005",
+        "command": {
+          "name": "review.accept_candidate",
+          "params": {
+            "target_id": "CAND-042",
+            "reason": "Source evidence sufficient, no conflicts found"
+          }
+        },
+        "authority": {
+          "actor_id": "user-reviewer-01",
+          "auth_method": "cli",
+          "session_id": null,
+          "workspace": "/home/user/project",
+          "policy_scope": ["default", "review"],
+          "audit_metadata": {
+            "surface": "cli",
+            "cli_command": "bicameral review accept-candidate CAND-042"
+          }
+        },
+        "issued_at": "2026-06-10T10:04:00Z"
+      }
+    },
+    {
+      "label": "review.reject_candidate",
+      "tool_request": {
+        "request_id": "a0000006-0000-4000-8000-000000000006",
+        "command": {
+          "name": "review.reject_candidate",
+          "params": {
+            "target_id": "CAND-043",
+            "reason": "Evidence does not support this claim"
+          }
+        },
+        "authority": {
+          "actor_id": "user-reviewer-02",
+          "auth_method": "cli",
+          "session_id": null,
+          "workspace": "/home/user/project",
+          "policy_scope": ["default", "review"],
+          "audit_metadata": {
+            "surface": "cli"
+          }
+        },
+        "issued_at": "2026-06-10T10:05:00Z"
+      }
+    },
+    {
+      "label": "review.approve_signoff",
+      "tool_request": {
+        "request_id": "a0000007-0000-4000-8000-000000000007",
+        "command": {
+          "name": "review.approve_signoff",
+          "params": {
+            "target_id": "DEC-201",
+            "reason": "Ownership approved after team discussion"
+          }
+        },
+        "authority": {
+          "actor_id": "user-owner-01",
+          "auth_method": "dashboard",
+          "session_id": null,
+          "workspace": "/home/user/project",
+          "policy_scope": ["default", "review"],
+          "audit_metadata": {
+            "surface": "dashboard"
+          }
+        },
+        "issued_at": "2026-06-10T10:06:00Z"
+      }
+    },
+    {
+      "label": "review.reject_signoff",
+      "tool_request": {
+        "request_id": "a0000008-0000-4000-8000-000000000008",
+        "command": {
+          "name": "review.reject_signoff",
+          "params": {
+            "target_id": "DEC-202",
+            "reason": "Meaning unclear, needs revision"
+          }
+        },
+        "authority": {
+          "actor_id": "user-owner-02",
+          "auth_method": "dashboard",
+          "session_id": null,
+          "workspace": "/home/user/project",
+          "policy_scope": ["default", "review"],
+          "audit_metadata": {
+            "surface": "dashboard"
+          }
+        },
+        "issued_at": "2026-06-10T10:07:00Z"
+      }
+    },
+    {
+      "label": "review.resolve_compliance (V1 typed unsupported)",
+      "tool_request": {
+        "request_id": "a0000009-0000-4000-8000-000000000009",
+        "command": {
+          "name": "review.resolve_compliance",
+          "params": {
+            "target_id": "DEC-301",
+            "compliance_verdict": "reflected",
+            "reason": "Code matches decision"
+          }
+        },
+        "authority": {
+          "actor_id": "user-auditor-01",
+          "auth_method": "cli",
+          "session_id": null,
+          "workspace": "/home/user/project",
+          "policy_scope": ["default"],
+          "audit_metadata": {
+            "surface": "cli"
+          }
+        },
+        "issued_at": "2026-06-10T10:08:00Z"
+      }
+    }
+  ]
+}

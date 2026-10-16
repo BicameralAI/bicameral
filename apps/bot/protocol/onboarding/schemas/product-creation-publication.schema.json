@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bicameral.dev/protocol/onboarding/v1/product-creation-publication.schema.json",
+  "title": "ProductCreationPublication",
+  "description": "Cloud publication of a Product to hosted discovery, performed only after canonical daemon creation succeeds. Non-canonical directory metadata. Idempotent by canonical product_id + idempotency_key; retrying a failed publication never creates a second Product. See docs/specs/domain-product-onboarding-contract.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "publication_id",
+    "product_id",
+    "creator_cloud_account_id",
+    "canonical",
+    "idempotency_key",
+    "canonical_creation_receipt_ref",
+    "published_at"
+  ],
+  "properties": {
+    "publication_id": {
+      "type": "string"
+    },
+    "product_id": {
+      "type": "string",
+      "description": "Canonical Product id from the daemon's ProductCreationResult. Cloud never invents this."
+    },
+    "creator_cloud_account_id": {
+      "type": "string",
+      "description": "Signed equality claim binding this publication to the authenticated creator Cloud account from the daemon's ProductCreationResult. Never the full hosted (Supabase) session token, a refresh token, or any provider secret."
+    },
+    "team_display_name": {
+      "type": "string"
+    },
+    "verified_domain": {
+      "type": "string"
+    },
+    "event_store_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "substrate": { "type": "string", "enum": ["git", "drive_folder", "unknown"] },
+        "provider": { "type": "string", "enum": ["github", "google", "unknown"] }
+      }
+    },
+    "canonical": {
+      "type": "boolean",
+      "description": "Always false. A published directory row is explicitly non-canonical.",
+      "enum": [false]
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "Idempotency key; publish retries with the same key + product_id update the existing row rather than creating a second Product."
+    },
+    "canonical_creation_receipt_ref": {
+      "type": "string",
+      "description": "Reference to the daemon's canonical creation receipt this publication is derived from."
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "first_event_commit_proof": {
+      "type": "object",
+      "description": "Daemon-signed ProductCreationCommitProof (schema_version 2) for the canonical CreateProduct event, minted only after exact provider readback. See protocol/onboarding/vectors/product-creation-commit-proof-v2.golden.json.",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "attempt_id",
+        "product_id",
+        "event_id",
+        "substrate",
+        "resource_fingerprint",
+        "provider_revision",
+        "event_digest",
+        "durability",
+        "confirmed_at",
+        "proof_digest",
+        "signer_key_id",
+        "signature_algorithm",
+        "signature"
+      ],
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [2] },
+        "attempt_id": { "type": "string" },
+        "product_id": { "type": "string" },
+        "event_id": { "type": "string" },
+        "substrate": { "type": "string", "enum": ["drive_folder"] },
+        "resource_fingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "provider_revision": { "type": "string" },
+        "event_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "durability": { "type": "string", "enum": ["provider_confirmed_remote"] },
+        "confirmed_at": { "type": "string", "format": "date-time" },
+        "proof_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "signer_key_id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "signature_algorithm": { "type": "string", "enum": ["ed25519"] },
+        "signature": { "type": "string" }
+      }
+    }
+  }
+}

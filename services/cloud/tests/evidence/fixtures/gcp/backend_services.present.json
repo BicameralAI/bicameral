@@ -1,0 +1,8 @@
+[
+  {
+    "name": "bicameral-cloud-lb-backend",
+    "loadBalancingScheme": "EXTERNAL_MANAGED",
+    "protocol": "HTTPS",
+    "iap": {"enabled": true}
+  }
+]

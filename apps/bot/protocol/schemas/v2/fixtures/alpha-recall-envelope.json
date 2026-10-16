@@ -1,0 +1,141 @@
+{
+  "_comment": "Canonical daemon-owned alpha recall envelope (issues #817/#818, parent #789). The daemon nests this at `ToolResponse.result.alpha_recall` on `preflight.run`. The `bicameral-mcp` thin client renders `product.staged`, `product.caveats`, `witness.topology_receipt`, and `witness.runtime_trace` verbatim; it must not compute recall, own freshness, derive caveats, or widen authority. The daemon preserves the sibling result keys `staged` and `live_recall` for back-compat, but `alpha_recall` is the canonical envelope.",
+  "_expected": {
+    "appended_canonical_events": false,
+    "authority_mode": "read_only",
+    "caveat_count": 2,
+    "envelope_version": 2,
+    "mutated_lifecycle_state": false,
+    "protocol_version": "v2",
+    "runtime_trace_command": "preflight.run",
+    "topology_receipt_consumed": false
+  },
+  "_result_envelope_path": "ToolResponse.result.alpha_recall",
+  "_sibling_result_keys": [
+    "staged",
+    "live_recall",
+    "alpha_recall"
+  ],
+  "alpha_recall": {
+    "authority": {
+      "appended_canonical_events": false,
+      "mode": "read_only",
+      "mutated_lifecycle_state": false
+    },
+    "envelope_version": 2,
+    "product": {
+      "caveats": [
+        {
+          "detail": "Graph data unavailable. Using source-only recall.",
+          "scope": "graph",
+          "status": "unavailable"
+        },
+        {
+          "detail": "Decision index is partially compiled for the requested scope.",
+          "scope": "index",
+          "status": "partial"
+        }
+      ],
+      "packet": {
+        "allowed_next_actions": [
+          {
+            "description": "Read-only drill-in to cited evidence refs, source spans, code evidence, freshness/readiness, and authority labels.",
+            "kind": "inspect_evidence",
+            "requires_authority": false
+          },
+          {
+            "description": "Explicit user-selected read-only search over a named unknown/additional source scope. Returns a new or refreshed RecallPacket.",
+            "kind": "expand_scope",
+            "requires_authority": false
+          },
+          {
+            "description": "Explicit governed request to promote, supersede, or route a DecisionCandidate for signoff. Requires a bot-known candidate or packet item ref.",
+            "kind": "promote_decision_candidate",
+            "requires_authority": true
+          },
+          {
+            "description": "Explicit user-approved request to start a governed correction/corpus-update path. References a prior RecallPacket or selected packet items. Requires approval proof and bot authorization.",
+            "kind": "request_correction",
+            "requires_authority": true
+          }
+        ],
+        "decision_attention": {
+          "detail": "1 reviewable decision candidate(s) surfaced for explicit review.",
+          "reason": "reviewable_candidates_present",
+          "state": "warranted"
+        },
+        "decision_candidates": [
+          {
+            "allowed_outcomes": [
+              "new_constraint",
+              "needs_signoff_review",
+              "dismissed_as_noise"
+            ],
+            "candidate_id": "c0000001-0000-4000-8000-000000000012",
+            "candidate_relationship": "needs_signoff_review",
+            "candidate_state": "proposed",
+            "evidence_freshness": "current",
+            "extraction_confidence": "medium",
+            "origin_surface": "linear",
+            "relevance_reasons": [
+              "source_text_match"
+            ],
+            "review_state": "proposed",
+            "source_refs": [
+              {
+                "cited_span": "Rate limiting is required before public launch",
+                "kind": "linear",
+                "uri": "https://linear.app/team/issue/PROJ-101"
+              }
+            ],
+            "summary": "Public API endpoints should enforce a per-client rate limit before launch.",
+            "title": "Rate limit public API before launch"
+          }
+        ],
+        "packet_id": "a0000001-0000-4000-8000-000000000011"
+      },
+      "staged": {
+        "capture": {
+          "availability": "unsupported",
+          "status": "not_configured"
+        },
+        "enforcement": {
+          "availability": "unsupported",
+          "status": "not_configured"
+        },
+        "lookup": {
+          "availability": "available",
+          "decision_refs": [
+            "a0000001-0000-4000-8000-000000000001",
+            "a0000001-0000-4000-8000-000000000002"
+          ],
+          "limitations": [
+            "graph: Graph data unavailable. Using source-only preflight.",
+            "team_active_prs: Local preflight cannot see team-wide active PR branches."
+          ],
+          "status": "completed"
+        },
+        "projection": {
+          "availability": "deferred",
+          "status": "not_configured"
+        },
+        "session_directive": {
+          "availability": "available",
+          "mode": "continue"
+        }
+      }
+    },
+    "protocol_version": "v2",
+    "witness": {
+      "runtime_trace": {
+        "caller_surface": "mcp",
+        "command": "preflight.run",
+        "request_id": "a0000001-0000-4000-8000-000000000010",
+        "status": "ok"
+      },
+      "topology_receipt": {
+        "consumed": false
+      }
+    }
+  }
+}

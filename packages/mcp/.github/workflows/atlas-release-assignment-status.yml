@@ -1,0 +1,50 @@
+name: Atlas Release Unit gate
+
+on:
+  status:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+  id-token: write
+  statuses: write
+
+concurrency:
+  group: atlas-release-unit-${{ github.event.sha }}-${{ github.event.context }}
+  cancel-in-progress: false
+
+jobs:
+  validate-factory-pin:
+    if: github.event_name == 'pull_request'
+    name: factory-pin-resolves
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Pinned Factory reusable workflow resolved successfully.'
+
+  resolve-release-unit:
+    if: >-
+      github.event_name == 'status' &&
+      github.event.state == 'pending' &&
+      (github.event.context == 'release-unit / assigned' ||
+       github.event.context == 'release-unit / merge-eligible')
+    uses: BicameralAI/bicameral-factory/.github/workflows/atlas-release-unit-status.yml@main
+    with:
+      workload_identity_provider: projects/694608247534/locations/global/workloadIdentityPools/github-actions/providers/bicameral-mcp-atlas-receipts
+      service_account: atlas-receipts-mcp@bicameral-cloud-500911.iam.gserviceaccount.com
+      release_status_app_id: ${{ vars.RELEASE_UNIT_STATUS_APP_ID }}
+    secrets:
+      cross_repo_token: ${{ secrets.BICAMERAL_CROSS_REPO_TOKEN }}
+      release_status_app_private_key: ${{ secrets.RELEASE_UNIT_STATUS_APP_PRIVATE_KEY }}
+
+  vacuous-release-unit:
+    if: github.event_name == 'pull_request'
+    uses: BicameralAI/bicameral-factory/.github/workflows/atlas-release-unit-status.yml@main
+    with:
+      workload_identity_provider: projects/694608247534/locations/global/workloadIdentityPools/github-actions/providers/bicameral-mcp-atlas-receipts
+      service_account: atlas-receipts-mcp@bicameral-cloud-500911.iam.gserviceaccount.com
+      release_status_app_id: ${{ vars.RELEASE_UNIT_STATUS_APP_ID }}
+      mode: pull_request
+    secrets:
+      cross_repo_token: ${{ secrets.BICAMERAL_CROSS_REPO_TOKEN }}
+      release_status_app_private_key: ${{ secrets.RELEASE_UNIT_STATUS_APP_PRIVATE_KEY }}

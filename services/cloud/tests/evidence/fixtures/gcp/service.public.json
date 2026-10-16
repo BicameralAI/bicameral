@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "bicameral-cloud-staging",
+    "annotations": {
+      "run.googleapis.com/ingress": "all"
+    }
+  },
+  "spec": {
+    "template": {
+      "spec": {
+        "serviceAccountName": "bicameral-cloud-runtime@example-project.iam.gserviceaccount.com"
+      }
+    }
+  },
+  "status": {
+    "latestReadyRevisionName": "bicameral-cloud-staging-00007-abc",
+    "latestCreatedRevisionName": "bicameral-cloud-staging-00007-abc",
+    "traffic": [
+      {"revisionName": "bicameral-cloud-staging-00007-abc", "percent": 100, "latestRevision": true}
+    ]
+  }
+}

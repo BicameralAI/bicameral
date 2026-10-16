@@ -1,0 +1,1454 @@
+{
+  "$schema": "https://github.com/BicameralAI/bicameral-factory/schemas/runtime-architecture-contract.schema.json",
+  "schema_version": 1,
+  "spec_id": "RUNTIME-SPEC-MCP-DISTRIBUTION-DEVELOPER-HOST-SETUP",
+  "title": "MCP Distribution and Developer-Host Setup",
+  "components": [
+    {
+      "id": "ELM-OPERATOR",
+      "c4_kind": "person",
+      "name": "Local operator",
+      "responsibility": "Review declared setup mutations and complete host-owned consent and trust actions.",
+      "process_boundary": "Human interaction with the local setup and developer-host surfaces.",
+      "repository_runtime": "External person.",
+      "deployment_location": "Operator workstation.",
+      "authority_role": "Authority for setup consent and host-owned approvals.",
+      "inputs": [
+        "setup plan",
+        "host trust prompt",
+        "typed remediation"
+      ],
+      "outputs": [
+        "setup consent",
+        "host trust decision"
+      ],
+      "state_ids": [
+        "STATE-HOST-TRUST"
+      ],
+      "multiplicity": "One local operator per setup run.",
+      "prohibited_authority": [
+        "Fabricate activation evidence",
+        "Convert setup consent into host trust",
+        "Bypass host approval policy"
+      ]
+    },
+    {
+      "id": "ELM-RELEASE-ORIGIN",
+      "c4_kind": "software_system",
+      "name": "Bicameral public release origin",
+      "responsibility": "Publish immutable macOS and Linux Bot artifacts and exact compatible MCP package coordinates.",
+      "process_boundary": "Public R2 artifact origin, PyPI artifact identity, and GitHub release provenance.",
+      "repository_runtime": "BicameralAI/bicameral-bot and BicameralAI/bicameral-mcp release pipelines.",
+      "deployment_location": "Public release infrastructure.",
+      "authority_role": "Authoritative writer of immutable release-binding evidence.",
+      "inputs": [
+        "release-built Bot archives",
+        "published MCP wheel",
+        "MCP release descriptor"
+      ],
+      "outputs": [
+        "versioned Bot artifacts",
+        "signed release manifest",
+        "exact MCP wheel URL and digest"
+      ],
+      "state_ids": [
+        "STATE-RELEASE-BINDING"
+      ],
+      "multiplicity": "One immutable record per released Bot and MCP compatibility tuple.",
+      "prohibited_authority": [
+        "Choose local install readiness",
+        "Approve host trust",
+        "Publish floating MCP package coordinates"
+      ]
+    },
+    {
+      "id": "ELM-BOOTSTRAP",
+      "c4_kind": "component",
+      "name": "Public per-user Bot bootstrap",
+      "responsibility": "Resolve, verify, and install one supported Bot artifact into a user-writable path.",
+      "process_boundary": "Downloaded POSIX shell installer.",
+      "repository_runtime": "BicameralAI/bicameral-bot installer.",
+      "deployment_location": "Operator process on macOS or Linux.",
+      "authority_role": "Bounded writer of the per-user Bot binary and dashboard assets.",
+      "inputs": [
+        "release manifest",
+        "versioned archive",
+        "artifact integrity proof"
+      ],
+      "outputs": [
+        "verified per-user Bot installation"
+      ],
+      "state_ids": [
+        "STATE-RELEASE-BINDING"
+      ],
+      "multiplicity": "One process per bootstrap attempt.",
+      "prohibited_authority": [
+        "Use sudo or machine-wide paths",
+        "Install the MCP package",
+        "Mutate host configuration",
+        "Modify a verified binary after verification"
+      ]
+    },
+    {
+      "id": "ELM-SETUP-CONTROLLER",
+      "c4_kind": "component",
+      "name": "Local Bot CLI developer-host setup controller",
+      "responsibility": "Plan and orchestrate declared terminal package and host steps, reconcile the consented Bicameral-server-scoped host permission grant, and submit verified local evidence to the daemon.",
+      "process_boundary": "Foreground local Bot CLI only.",
+      "repository_runtime": "BicameralAI/bicameral-bot.",
+      "deployment_location": "Operator workstation.",
+      "authority_role": "Bounded orchestrator of explicitly consented local setup mutations.",
+      "inputs": [
+        "verified release binding",
+        "operator consent",
+        "package status",
+        "host status",
+        "adapter status",
+        "verified activation receipt",
+        "host permission consent",
+        "declared Bicameral tool registry"
+      ],
+      "outputs": [
+        "setup plan",
+        "typed remediation",
+        "verified local setup evidence",
+        "Bicameral-owned host permission grant record"
+      ],
+      "state_ids": [
+        "STATE-HOST-PERMISSION"
+      ],
+      "multiplicity": "One active setup transaction per operator and host.",
+      "prohibited_authority": [
+        "Write host configuration beyond the consented Bicameral-server-scoped permission entry",
+        "Broaden shell, sandbox, network, unrelated MCP server, or host-wide approval settings",
+        "Approve workspace or hook trust",
+        "Store provider credentials",
+        "Infer activation from prompt text, process presence, or a configured permission grant",
+        "Accept setup intent or authority-bearing arguments from a dashboard",
+        "Reduce or persist daemon readiness"
+      ]
+    },
+    {
+      "id": "ELM-UV",
+      "c4_kind": "software_system",
+      "name": "Per-user uv tool installer",
+      "responsibility": "Materialize the exact digest-bound MCP wheel and its Python runtime in dedicated user roots.",
+      "process_boundary": "External uv subprocess invoked with list-form arguments.",
+      "repository_runtime": "External Astral uv distribution.",
+      "deployment_location": "Operator workstation.",
+      "authority_role": "Writer of the bounded MCP package environment.",
+      "inputs": [
+        "direct wheel URL",
+        "wheel SHA-256",
+        "dedicated tool and executable roots"
+      ],
+      "outputs": [
+        "installed MCP package environment",
+        "managed MCP executable"
+      ],
+      "state_ids": [
+        "STATE-PACKAGE-INSTALL"
+      ],
+      "multiplicity": "One managed environment per manifest-bound MCP version.",
+      "prohibited_authority": [
+        "Resolve an unqualified latest package",
+        "Mutate global or system Python",
+        "Install from an undeclared index",
+        "Use an editable source checkout"
+      ]
+    },
+    {
+      "id": "ELM-MCP-ADAPTER",
+      "c4_kind": "component",
+      "name": "Released Bicameral MCP package and host adapter",
+      "responsibility": "Serve the thin MCP surface, manage the package-owned hook, and emit and verify durable activation receipts.",
+      "process_boundary": "The manifest-bound bicameral-mcp executable.",
+      "repository_runtime": "BicameralAI/bicameral-mcp.",
+      "deployment_location": "Dedicated per-user uv tool environment.",
+      "authority_role": "Authoritative writer of managed hook entries and activation receipts.",
+      "inputs": [
+        "adapter lifecycle command",
+        "host SessionStart event",
+        "daemon capability response"
+      ],
+      "outputs": [
+        "structured adapter status",
+        "managed hook configuration",
+        "sanitized activation receipt"
+      ],
+      "state_ids": [
+        "STATE-MANAGED-HOOK",
+        "STATE-ACTIVATION-RECEIPT"
+      ],
+      "multiplicity": "One package installation with independent adapter state per host.",
+      "prohibited_authority": [
+        "Install or migrate the daemon",
+        "Copy repository-local skills",
+        "Grant host trust or broad tool permissions",
+        "Write canonical Product state"
+      ]
+    },
+    {
+      "id": "ELM-DEVELOPER-HOST",
+      "c4_kind": "software_system",
+      "name": "Claude Code or Codex developer host",
+      "responsibility": "Persist MCP registration, own workspace and hook trust, apply tool approvals, and emit genuine SessionStart events.",
+      "process_boundary": "Released host process and user configuration.",
+      "repository_runtime": "External Claude Code or Codex distribution.",
+      "deployment_location": "Operator workstation.",
+      "authority_role": "Authoritative writer of host registration and trust state.",
+      "inputs": [
+        "official MCP registration command",
+        "operator trust decision",
+        "managed hook definition"
+      ],
+      "outputs": [
+        "host MCP status",
+        "host trust state",
+        "SessionStart event"
+      ],
+      "state_ids": [
+        "STATE-HOST-REGISTRATION",
+        "STATE-HOST-TRUST"
+      ],
+      "multiplicity": "Zero or one installation per supported host id; hosts remain independent.",
+      "prohibited_authority": [
+        "Claim Bicameral activation without a verified receipt",
+        "Write Bicameral canonical Product state",
+        "Reuse one host's trust for another host"
+      ]
+    },
+    {
+      "id": "ELM-LOCAL-DAEMON",
+      "c4_kind": "software_system",
+      "name": "Local Bicameral daemon",
+      "responsibility": "Serve ToolRequest responses and exclusively reduce, persist, invalidate, and project operator-local capability readiness.",
+      "process_boundary": "Local daemon bound to loopback.",
+      "repository_runtime": "BicameralAI/bicameral-bot.",
+      "deployment_location": "Operator workstation.",
+      "authority_role": "Authoritative writer of operator-local capability readiness and Product authority for ToolRequest responses.",
+      "inputs": [
+        "MCP capability handshake",
+        "preflight request",
+        "verified local setup evidence"
+      ],
+      "outputs": [
+        "capability response",
+        "preflight response",
+        "readiness API response"
+      ],
+      "state_ids": [
+        "STATE-SETUP-READINESS"
+      ],
+      "multiplicity": "One active daemon per operator product home.",
+      "prohibited_authority": [
+        "Mutate host MCP or hook configuration",
+        "Grant host trust",
+        "Treat setup receipts as canonical Decision state",
+        "Bind readiness to a bridge session, pairing request, or Product",
+        "Accept dashboard setup, validation, repair, uninstall, receipt, executable, or provider control"
+      ]
+    },
+    {
+      "id": "ELM-DASHBOARD",
+      "c4_kind": "container",
+      "name": "Hosted or loopback dashboard readiness surface",
+      "responsibility": "Render an authorized daemon readiness projection, copy safe terminal guidance, and navigate explicitly to Product discovery.",
+      "process_boundary": "Browser surface using the loopback API or an already-authorized hosted bridge read.",
+      "repository_runtime": "BicameralAI/bicameral-bot dashboard.",
+      "deployment_location": "Operator browser.",
+      "authority_role": "Read-only renderer of daemon readiness.",
+      "inputs": [
+        "DaemonCapabilityReadinessV1",
+        "bridge read authorization",
+        "release capability metadata"
+      ],
+      "outputs": [
+        "readiness display",
+        "browser-local copied command",
+        "explicit navigation to Operator Home"
+      ],
+      "state_ids": [
+        "STATE-SETUP-READINESS"
+      ],
+      "multiplicity": "Zero or more browser sessions; none is required for readiness to exist.",
+      "prohibited_authority": [
+        "Invoke setup, validation, repair, or uninstall",
+        "Write readiness or submit setup receipts",
+        "Select an executable, developer host, or reasoning provider",
+        "Supply pairing tokens, Product identifiers, local paths, or shell fragments to setup",
+        "Create, join, select, register, bind, or open a Product as a side effect"
+      ]
+    },
+    {
+      "id": "ELM-OPERATOR-HOME",
+      "c4_kind": "datastore",
+      "name": "Operator per-user filesystem",
+      "responsibility": "Persist bounded product binaries, package environment, host configuration, sanitized receipts, and readiness records.",
+      "process_boundary": "User-writable home paths.",
+      "repository_runtime": "Local filesystem.",
+      "deployment_location": "Operator workstation.",
+      "authority_role": "Persistence owner only; authority remains with each declared writer.",
+      "inputs": [
+        "verified Bot binary",
+        "MCP environment",
+        "host configuration",
+        "activation receipt",
+        "readiness projection"
+      ],
+      "outputs": [
+        "persisted per-user installation evidence"
+      ],
+      "state_ids": [
+        "STATE-PACKAGE-INSTALL",
+        "STATE-HOST-REGISTRATION",
+        "STATE-MANAGED-HOOK",
+        "STATE-HOST-TRUST",
+        "STATE-ACTIVATION-RECEIPT",
+        "STATE-SETUP-READINESS"
+      ],
+      "multiplicity": "One filesystem boundary per operating-system user.",
+      "prohibited_authority": [
+        "Turn file presence into activation proof",
+        "Persist provider credentials for setup",
+        "Become canonical Product ledger authority"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL-ORIGIN-BOOTSTRAP",
+      "source_id": "ELM-RELEASE-ORIGIN",
+      "destination_id": "ELM-BOOTSTRAP",
+      "interaction": "Provides the exact Bot artifact, manifest, and integrity evidence.",
+      "medium": "HTTPS from the public versioned artifact origin.",
+      "handoff": "Immutable digest-bound release artifact.",
+      "state_ids": [
+        "STATE-RELEASE-BINDING"
+      ],
+      "payloads": [
+        "target triple",
+        "archive URL",
+        "archive SHA-256",
+        "release provenance"
+      ],
+      "authority_boundaries": [
+        "A floating latest pointer resolves to an immutable version before installation.",
+        "Release evidence does not authorize host mutation."
+      ]
+    },
+    {
+      "id": "REL-ORIGIN-CONTROLLER",
+      "source_id": "ELM-RELEASE-ORIGIN",
+      "destination_id": "ELM-SETUP-CONTROLLER",
+      "interaction": "Provides exact compatible MCP wheel and descriptor coordinates.",
+      "medium": "Verified Bot release manifest.",
+      "handoff": "Persisted immutable compatibility binding.",
+      "state_ids": [
+        "STATE-RELEASE-BINDING"
+      ],
+      "payloads": [
+        "MCP version",
+        "wheel URL",
+        "wheel SHA-256",
+        "release descriptor digest",
+        "ToolRequest protocol"
+      ],
+      "authority_boundaries": [
+        "A manifest without an MCP binding cannot start package setup.",
+        "Hand-entered package coordinates are invalid."
+      ]
+    },
+    {
+      "id": "REL-OPERATOR-CONTROLLER",
+      "source_id": "ELM-OPERATOR",
+      "destination_id": "ELM-SETUP-CONTROLLER",
+      "interaction": "Reviews and confirms the exact setup plan.",
+      "medium": "Foreground local CLI interaction.",
+      "handoff": "Foreground consent scoped to the displayed mutation set.",
+      "state_ids": [
+        "STATE-SETUP-READINESS"
+      ],
+      "payloads": [
+        "selected hosts",
+        "consent decision"
+      ],
+      "authority_boundaries": [
+        "Setup consent is not workspace, hook, or tool trust.",
+        "Declining consent causes no mutation."
+      ]
+    },
+    {
+      "id": "REL-CONTROLLER-UV",
+      "source_id": "ELM-SETUP-CONTROLLER",
+      "destination_id": "ELM-UV",
+      "interaction": "Installs or removes the exact MCP wheel in dedicated per-user roots.",
+      "medium": "Direct list-form subprocess invocation without a shell.",
+      "handoff": "Exit status plus independently verified package metadata.",
+      "state_ids": [
+        "STATE-PACKAGE-INSTALL"
+      ],
+      "payloads": [
+        "direct wheel URL with SHA-256 fragment",
+        "tool root",
+        "executable root"
+      ],
+      "authority_boundaries": [
+        "No ambient PATH executable satisfies provenance.",
+        "No global Python environment may be mutated."
+      ]
+    },
+    {
+      "id": "REL-CONTROLLER-HOST",
+      "source_id": "ELM-SETUP-CONTROLLER",
+      "destination_id": "ELM-DEVELOPER-HOST",
+      "interaction": "Registers, inspects, or removes the user-scoped Bicameral MCP server through the official host CLI.",
+      "medium": "Direct host CLI subprocess.",
+      "handoff": "Host-owned persisted registration plus structured or sanitized status.",
+      "state_ids": [
+        "STATE-HOST-REGISTRATION",
+        "STATE-HOST-TRUST"
+      ],
+      "payloads": [
+        "server id bicameral",
+        "absolute managed executable",
+        "operator trust action"
+      ],
+      "authority_boundaries": [
+        "The controller never writes the host MCP config directly.",
+        "The host and operator alone own trust."
+      ]
+    },
+    {
+      "id": "REL-CONTROLLER-ADAPTER",
+      "source_id": "ELM-SETUP-CONTROLLER",
+      "destination_id": "ELM-MCP-ADAPTER",
+      "interaction": "Runs the packaged managed-hook lifecycle and receipt verifier.",
+      "medium": "Exact managed executable with fixed list-form arguments and JSON output.",
+      "handoff": "Schema-validated adapter status or receipt-verification result.",
+      "state_ids": [
+        "STATE-MANAGED-HOOK",
+        "STATE-ACTIVATION-RECEIPT"
+      ],
+      "payloads": [
+        "host id",
+        "consent flag",
+        "receipt path"
+      ],
+      "authority_boundaries": [
+        "The adapter owns host-document mutation.",
+        "The controller does not duplicate the managed command or hook identity."
+      ]
+    },
+    {
+      "id": "REL-HOST-ADAPTER",
+      "source_id": "ELM-DEVELOPER-HOST",
+      "destination_id": "ELM-MCP-ADAPTER",
+      "interaction": "Emits a genuine host-owned SessionStart lifecycle event to the managed adapter.",
+      "medium": "Host lifecycle hook subprocess.",
+      "handoff": "Bounded structured lifecycle input and process-scoped context.",
+      "state_ids": [
+        "STATE-HOST-TRUST",
+        "STATE-ACTIVATION-RECEIPT"
+      ],
+      "payloads": [
+        "host id and version",
+        "SessionStart source",
+        "workspace and bounded hints",
+        "correlation id"
+      ],
+      "authority_boundaries": [
+        "Non-managed hooks run only after host-owned trust.",
+        "Prompt text, transcripts, credentials, and raw environment are excluded."
+      ]
+    },
+    {
+      "id": "REL-ADAPTER-DAEMON",
+      "source_id": "ELM-MCP-ADAPTER",
+      "destination_id": "ELM-LOCAL-DAEMON",
+      "interaction": "Performs the ToolRequest capability handshake and bounded preflight.",
+      "medium": "Loopback HTTP ToolRequest protocol.",
+      "handoff": "Typed daemon-authored capability and preflight result.",
+      "state_ids": [
+        "STATE-ACTIVATION-RECEIPT"
+      ],
+      "payloads": [
+        "protocol version",
+        "capability request",
+        "bounded preflight context"
+      ],
+      "authority_boundaries": [
+        "MCP does not infer missing daemon capabilities.",
+        "Daemon response is Product behavior but the setup receipt is audit evidence."
+      ]
+    },
+    {
+      "id": "REL-ADAPTER-CONTROLLER",
+      "source_id": "ELM-MCP-ADAPTER",
+      "destination_id": "ELM-SETUP-CONTROLLER",
+      "interaction": "Returns a verified, sanitized, fresh-session activation result.",
+      "medium": "Packaged receipt verifier JSON.",
+      "handoff": "Digest-bound receipt facts without prompt or PTY content.",
+      "state_ids": [
+        "STATE-ACTIVATION-RECEIPT",
+        "STATE-SETUP-READINESS"
+      ],
+      "payloads": [
+        "host and package identity",
+        "configuration digests",
+        "session-boundary source",
+        "daemon result",
+        "freshness and correlation"
+      ],
+      "authority_boundaries": [
+        "Process sampling and prompt matching cannot replace this handoff.",
+        "A receipt for one host cannot activate another."
+      ]
+    },
+    {
+      "id": "REL-CONTROLLER-DAEMON",
+      "source_id": "ELM-SETUP-CONTROLLER",
+      "destination_id": "ELM-LOCAL-DAEMON",
+      "interaction": "Submits schema-validated local setup evidence for authoritative readiness reduction.",
+      "medium": "Authenticated operator-local loopback command.",
+      "handoff": "Exact package, host, hook, receipt, freshness, and artifact-generation facts.",
+      "state_ids": [
+        "STATE-ACTIVATION-RECEIPT",
+        "STATE-SETUP-READINESS"
+      ],
+      "payloads": [
+        "capability_kind mcp",
+        "host subject id",
+        "MCP release descriptor digest",
+        "verified receipt result",
+        "typed local observations"
+      ],
+      "authority_boundaries": [
+        "The local CLI proposes verified evidence; only the daemon reduces readiness.",
+        "The payload contains no bridge session, pairing request, Product identifier, credential, or caller-supplied shell fragment."
+      ]
+    },
+    {
+      "id": "REL-DAEMON-DASHBOARD-READINESS",
+      "source_id": "ELM-LOCAL-DAEMON",
+      "destination_id": "ELM-DASHBOARD",
+      "interaction": "Projects daemon-owned capability readiness to an authorized read-only dashboard surface.",
+      "medium": "Loopback GET or existing paired hosted-bridge projection GET.",
+      "handoff": "DaemonCapabilityReadinessV1 with typed reasons and allowlisted safe terminal guidance.",
+      "state_ids": [
+        "STATE-SETUP-READINESS"
+      ],
+      "payloads": [
+        "schema version",
+        "capability kind",
+        "subject id",
+        "artifact generation",
+        "readiness state and reasons",
+        "timestamps",
+        "next action code",
+        "safe display argv"
+      ],
+      "authority_boundaries": [
+        "Pairing authorizes only the remote read and is not an input to the readiness reducer.",
+        "No setup POST, receipt submission, executable/provider choice, Product identity, token, secret, local path, or shell fragment crosses this relationship.",
+        "Copying guidance or navigating to Products changes no daemon state."
+      ]
+    }
+  ],
+  "states": [
+    {
+      "id": "STATE-RELEASE-BINDING",
+      "artifact": "Immutable Bot target plus compatible MCP wheel version, URL, SHA-256, release descriptor digest, protocol, and Python requirement.",
+      "classification": "evidence",
+      "authoritative_writer_ids": [
+        "ELM-RELEASE-ORIGIN"
+      ],
+      "persistence_owner_ids": [
+        "ELM-RELEASE-ORIGIN"
+      ],
+      "persistence_location": "Versioned public release manifest and provenance store.",
+      "reader_ids": [
+        "ELM-BOOTSTRAP",
+        "ELM-SETUP-CONTROLLER"
+      ],
+      "routing_key": "Bot release version and target triple.",
+      "mutation_path": "Release CI derives fields from built and published artifacts; records are immutable.",
+      "lifecycle": "Created at release publication and never edited; superseded by a later release.",
+      "prohibited_fallbacks": [
+        "unqualified PyPI latest",
+        "branch head",
+        "hand-entered package coordinates",
+        "same-origin checksum without release provenance as final authenticity proof"
+      ]
+    },
+    {
+      "id": "STATE-PACKAGE-INSTALL",
+      "artifact": "Verified per-user MCP environment with exact package, wheel digest, descriptor, Python runtime, and executable.",
+      "classification": "derived_projection_or_read_model",
+      "authoritative_writer_ids": [
+        "ELM-UV"
+      ],
+      "persistence_owner_ids": [
+        "ELM-OPERATOR-HOME"
+      ],
+      "persistence_location": "$HOME/.local/share/bicameral/mcp-tools and $HOME/.local/share/bicameral/bin.",
+      "reader_ids": [
+        "ELM-SETUP-CONTROLLER",
+        "ELM-MCP-ADAPTER"
+      ],
+      "routing_key": "MCP release descriptor digest.",
+      "mutation_path": "Direct digest-bound uv tool install, update, or uninstall in dedicated roots.",
+      "lifecycle": "Absent, installed and verified, drifted, or removed.",
+      "prohibited_fallbacks": [
+        "ambient PATH executable",
+        "global pip",
+        "pip install --user",
+        "editable or source-checkout install",
+        "undeclared package index"
+      ]
+    },
+    {
+      "id": "STATE-HOST-REGISTRATION",
+      "artifact": "User-scoped host-native MCP registration for server id bicameral and the absolute managed executable.",
+      "classification": "derived_projection_or_read_model",
+      "authoritative_writer_ids": [
+        "ELM-DEVELOPER-HOST"
+      ],
+      "persistence_owner_ids": [
+        "ELM-DEVELOPER-HOST",
+        "ELM-OPERATOR-HOME"
+      ],
+      "persistence_location": "Claude or Codex user configuration owned by the host.",
+      "reader_ids": [
+        "ELM-SETUP-CONTROLLER",
+        "ELM-DEVELOPER-HOST"
+      ],
+      "routing_key": "host id and MCP server id bicameral.",
+      "mutation_path": "Official claude mcp or codex mcp CLI only.",
+      "lifecycle": "Absent, registered, drifted, or removed.",
+      "prohibited_fallbacks": [
+        "direct config-file write by the daemon",
+        "project registration without separate consent",
+        "registration inferred from process presence"
+      ]
+    },
+    {
+      "id": "STATE-MANAGED-HOOK",
+      "artifact": "Exactly one package-owned managed SessionStart hook entry with package, executable, command, document, and entry digests.",
+      "classification": "derived_projection_or_read_model",
+      "authoritative_writer_ids": [
+        "ELM-MCP-ADAPTER"
+      ],
+      "persistence_owner_ids": [
+        "ELM-DEVELOPER-HOST",
+        "ELM-OPERATOR-HOME"
+      ],
+      "persistence_location": "~/.claude/settings.json or $CODEX_HOME/hooks.json.",
+      "reader_ids": [
+        "ELM-SETUP-CONTROLLER",
+        "ELM-MCP-ADAPTER",
+        "ELM-DEVELOPER-HOST"
+      ],
+      "routing_key": "host id and stable managed entry identity.",
+      "mutation_path": "Packaged adapter install, update, disable, or uninstall with lock, backup, validation, atomic replace, and re-read.",
+      "lifecycle": "Absent, installed_enabled, installed_disabled, drifted, or removed.",
+      "prohibited_fallbacks": [
+        "daemon-authored hook JSON",
+        "duplicate managed entries",
+        "overwriting malformed configuration",
+        "direct hook execution as activation proof"
+      ]
+    },
+    {
+      "id": "STATE-HOST-TRUST",
+      "artifact": "Host-owned workspace, hook-definition, and per-tool approval facts.",
+      "classification": "derived_projection_or_read_model",
+      "authoritative_writer_ids": [
+        "ELM-DEVELOPER-HOST",
+        "ELM-OPERATOR"
+      ],
+      "persistence_owner_ids": [
+        "ELM-DEVELOPER-HOST",
+        "ELM-OPERATOR-HOME"
+      ],
+      "persistence_location": "Opaque host-owned trust and permission state.",
+      "reader_ids": [
+        "ELM-DEVELOPER-HOST",
+        "ELM-SETUP-CONTROLLER"
+      ],
+      "routing_key": "host id, workspace identity, and exact hook definition hash.",
+      "mutation_path": "Normal interactive host trust and approval surface only.",
+      "lifecycle": "Unreviewed, accepted or denied by operator, invalidated when the trusted definition changes.",
+      "prohibited_fallbacks": [
+        "setup consent",
+        "seeded home",
+        "trust-bypass flag",
+        "managed enterprise policy created by the product",
+        "broad MCP or shell allowlist"
+      ]
+    },
+    {
+      "id": "STATE-HOST-PERMISSION",
+      "artifact": "The single Bicameral-server-scoped host permission grant Bicameral added after explicit consent (Claude Code user permission rule mcp__bicameral, or Codex mcp_servers.bicameral.default_tools_approval_mode = \"approve\"), plus the Bicameral-owned record of exactly which rules it added and any prior value.",
+      "classification": "derived_projection_or_read_model",
+      "authoritative_writer_ids": [
+        "ELM-SETUP-CONTROLLER"
+      ],
+      "persistence_owner_ids": [
+        "ELM-DEVELOPER-HOST",
+        "ELM-OPERATOR-HOME"
+      ],
+      "persistence_location": "Host user permission file (Claude Code user settings.json or $CODEX_HOME/config.toml [mcp_servers.bicameral] only) and $HOME/.local/share/bicameral/mcp-host-permissions-v1.json.",
+      "reader_ids": [
+        "ELM-SETUP-CONTROLLER",
+        "ELM-DEVELOPER-HOST",
+        "ELM-LOCAL-DAEMON"
+      ],
+      "routing_key": "host id and the exact Bicameral-owned rule set.",
+      "mutation_path": "Consented setup or repair applies the minimum scoped change with backup and atomic replace; repair on correct state is a no-op; uninstall removes only rules Bicameral recorded as its own and never clobbers operator changes.",
+      "lifecycle": "Absent, configured, missing, drifted, or unsupported (registry fallback unavailable).",
+      "prohibited_fallbacks": [
+        "bypassPermissions, defaultMode, or host-wide approval bypass",
+        "generic Bash, shell, sandbox, writable-root, or network rules",
+        "rules for unrelated MCP servers",
+        "managed or organization-wide policy as the normal install mechanism",
+        "a handwritten tool allowlist that is not derived from the declared registry",
+        "weakening an existing stricter deny, ask, or prompt policy",
+        "treating a configured grant as activation or readiness"
+      ]
+    },
+    {
+      "id": "STATE-ACTIVATION-RECEIPT",
+      "artifact": "Sanitized durable product receipt binding a genuine fresh SessionStart to the exact host, package, managed hook, daemon protocol, and preflight result.",
+      "classification": "audit_receipt_or_log",
+      "authoritative_writer_ids": [
+        "ELM-MCP-ADAPTER"
+      ],
+      "persistence_owner_ids": [
+        "ELM-OPERATOR-HOME"
+      ],
+      "persistence_location": "Per-host MCP state directory under the operator home.",
+      "reader_ids": [
+        "ELM-MCP-ADAPTER",
+        "ELM-SETUP-CONTROLLER"
+      ],
+      "routing_key": "host id, session correlation id, and MCP release descriptor digest.",
+      "mutation_path": "Written once by the managed hook at a genuine fresh-session boundary and verified by the packaged verifier.",
+      "lifecycle": "Created, verified and consumed, expired, or invalidated by binding drift.",
+      "prohibited_fallbacks": [
+        "raw PTY bytes",
+        "prompt text",
+        "transcript content",
+        "credentials or environment dump",
+        "process sampling",
+        "config presence"
+      ]
+    },
+    {
+      "id": "STATE-SETUP-READINESS",
+      "artifact": "Daemon-owned capability readiness enum not_installed, prerequisite_missing, installed_pending_host_action, active_verified, or repair_required with typed reason metadata; v0.1.14 supports only capability_kind mcp.",
+      "classification": "derived_projection_or_read_model",
+      "authoritative_writer_ids": [
+        "ELM-LOCAL-DAEMON"
+      ],
+      "persistence_owner_ids": [
+        "ELM-OPERATOR-HOME"
+      ],
+      "persistence_location": "Operator-local daemon setup store.",
+      "reader_ids": [
+        "ELM-SETUP-CONTROLLER",
+        "ELM-LOCAL-DAEMON",
+        "ELM-DASHBOARD",
+        "ELM-OPERATOR"
+      ],
+      "routing_key": "operator, capability_kind, subject id, and artifact generation; no bridge, pairing, dashboard-session, or Product key.",
+      "mutation_path": "Daemon-only deterministic reducer over exact release, package, registration, hook, host, and verified receipt facts submitted by local product processes.",
+      "lifecycle": "not_installed -> prerequisite_missing or installed_pending_host_action -> active_verified -> repair_required; repair or uninstall re-enters an earlier state.",
+      "prohibited_fallbacks": [
+        "installed_enabled as activation proof",
+        "another host's readiness",
+        "transient process or prompt observation",
+        "topology result as runtime state",
+        "dashboard pairing or copied-command state",
+        "Product creation, join, selection, registration, binding, or open",
+        "reasoning-provider readiness in v0.1.14",
+        "dashboard setup, validation, repair, uninstall, or receipt submission"
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "TRANS-RESOLVE-RELEASE",
+      "trigger": "Operator starts the supported public Bot bootstrap.",
+      "actor_ids": [
+        "ELM-BOOTSTRAP"
+      ],
+      "source_state_id": null,
+      "destination_state_id": "STATE-RELEASE-BINDING",
+      "relationship_ids": [
+        "REL-ORIGIN-BOOTSTRAP"
+      ],
+      "persistence_effect": "A versioned supported target is resolved and verified before the per-user Bot artifact is copied."
+    },
+    {
+      "id": "TRANS-INSTALL-PACKAGE",
+      "trigger": "A verified manifest contains an exact compatible MCP binding and the operator consents.",
+      "actor_ids": [
+        "ELM-SETUP-CONTROLLER",
+        "ELM-UV"
+      ],
+      "source_state_id": "STATE-RELEASE-BINDING",
+      "destination_state_id": "STATE-PACKAGE-INSTALL",
+      "relationship_ids": [
+        "REL-ORIGIN-CONTROLLER",
+        "REL-OPERATOR-CONTROLLER",
+        "REL-CONTROLLER-UV"
+      ],
+      "persistence_effect": "The exact digest-bound MCP wheel is installed in dedicated per-user roots and independently verified."
+    },
+    {
+      "id": "TRANS-REGISTER-HOST",
+      "trigger": "The exact MCP package verifies and the operator selected a supported installed host.",
+      "actor_ids": [
+        "ELM-SETUP-CONTROLLER",
+        "ELM-DEVELOPER-HOST"
+      ],
+      "source_state_id": "STATE-PACKAGE-INSTALL",
+      "destination_state_id": "STATE-HOST-REGISTRATION",
+      "relationship_ids": [
+        "REL-CONTROLLER-HOST"
+      ],
+      "persistence_effect": "The host persists one user-scoped bicameral MCP registration through its official CLI."
+    },
+    {
+      "id": "TRANS-INSTALL-HOOK",
+      "trigger": "Host registration verifies and the operator consents to the disclosed managed-hook mutation.",
+      "actor_ids": [
+        "ELM-SETUP-CONTROLLER",
+        "ELM-MCP-ADAPTER"
+      ],
+      "source_state_id": "STATE-HOST-REGISTRATION",
+      "destination_state_id": "STATE-MANAGED-HOOK",
+      "relationship_ids": [
+        "REL-CONTROLLER-ADAPTER"
+      ],
+      "persistence_effect": "The package adapter atomically persists exactly one managed hook while preserving unrelated configuration."
+    },
+    {
+      "id": "TRANS-GRANT-HOST-TRUST",
+      "trigger": "The host detects workspace or changed hook definitions requiring review.",
+      "actor_ids": [
+        "ELM-OPERATOR",
+        "ELM-DEVELOPER-HOST"
+      ],
+      "source_state_id": "STATE-MANAGED-HOOK",
+      "destination_state_id": "STATE-HOST-TRUST",
+      "relationship_ids": [
+        "REL-CONTROLLER-HOST"
+      ],
+      "persistence_effect": "Only the host records the operator's trust decision for the exact workspace or hook definition."
+    },
+    {
+      "id": "TRANS-GRANT-HOST-PERMISSION",
+      "trigger": "The operator answers the single explicit consent step authorizing Bicameral to configure permissions for the Bicameral MCP server only.",
+      "actor_ids": [
+        "ELM-OPERATOR",
+        "ELM-SETUP-CONTROLLER",
+        "ELM-DEVELOPER-HOST"
+      ],
+      "source_state_id": "STATE-HOST-REGISTRATION",
+      "destination_state_id": "STATE-HOST-PERMISSION",
+      "relationship_ids": [
+        "REL-OPERATOR-CONTROLLER",
+        "REL-CONTROLLER-HOST"
+      ],
+      "persistence_effect": "The controller adds the broadest host-native Bicameral-server-scoped grant (or, where unavailable, the deterministic read-only allowlist derived from the declared tool registry), records exactly what it added, and leaves every unrelated or stricter host setting untouched. Without consent nothing is written and readiness reports the grant as missing."
+    },
+    {
+      "id": "TRANS-WRITE-ACTIVATION-RECEIPT",
+      "trigger": "A trusted normal host starts a fresh session and emits SessionStart.",
+      "actor_ids": [
+        "ELM-DEVELOPER-HOST",
+        "ELM-MCP-ADAPTER",
+        "ELM-LOCAL-DAEMON"
+      ],
+      "source_state_id": "STATE-HOST-TRUST",
+      "destination_state_id": "STATE-ACTIVATION-RECEIPT",
+      "relationship_ids": [
+        "REL-HOST-ADAPTER",
+        "REL-ADAPTER-DAEMON"
+      ],
+      "persistence_effect": "The managed adapter writes one sanitized receipt bound to the exact session, package, configuration, and daemon result."
+    },
+    {
+      "id": "TRANS-REDUCE-READINESS",
+      "trigger": "The packaged verifier accepts a fresh activation receipt and all current exact bindings.",
+      "actor_ids": [
+        "ELM-MCP-ADAPTER",
+        "ELM-SETUP-CONTROLLER",
+        "ELM-LOCAL-DAEMON"
+      ],
+      "source_state_id": "STATE-ACTIVATION-RECEIPT",
+      "destination_state_id": "STATE-SETUP-READINESS",
+      "relationship_ids": [
+        "REL-ADAPTER-CONTROLLER",
+        "REL-CONTROLLER-DAEMON"
+      ],
+      "persistence_effect": "The local CLI submits verified evidence and the daemon alone records active_verified for only the matching operator, mcp capability, host, and descriptor."
+    },
+    {
+      "id": "TRANS-INVALIDATE-READINESS",
+      "trigger": "Package, registration, managed hook, host trust, daemon protocol, receipt freshness, or release binding no longer matches.",
+      "actor_ids": [
+        "ELM-LOCAL-DAEMON"
+      ],
+      "source_state_id": "STATE-SETUP-READINESS",
+      "destination_state_id": "STATE-SETUP-READINESS",
+      "relationship_ids": [
+        "REL-ORIGIN-CONTROLLER",
+        "REL-CONTROLLER-UV",
+        "REL-CONTROLLER-HOST",
+        "REL-CONTROLLER-ADAPTER",
+        "REL-ADAPTER-CONTROLLER",
+        "REL-CONTROLLER-DAEMON"
+      ],
+      "persistence_effect": "Readiness changes to repair_required with a typed reason; stale activation is not reused."
+    },
+    {
+      "id": "TRANS-UNINSTALL",
+      "trigger": "The operator confirms the exact reverse-order removal plan.",
+      "actor_ids": [
+        "ELM-OPERATOR",
+        "ELM-SETUP-CONTROLLER",
+        "ELM-LOCAL-DAEMON",
+        "ELM-MCP-ADAPTER",
+        "ELM-DEVELOPER-HOST",
+        "ELM-UV"
+      ],
+      "source_state_id": "STATE-SETUP-READINESS",
+      "destination_state_id": null,
+      "relationship_ids": [
+        "REL-OPERATOR-CONTROLLER",
+        "REL-CONTROLLER-ADAPTER",
+        "REL-CONTROLLER-HOST",
+        "REL-CONTROLLER-UV",
+        "REL-CONTROLLER-DAEMON"
+      ],
+      "persistence_effect": "Bicameral-owned host permission grant, managed hook, host registration, MCP environment, receipts, and readiness are removed in order; operator-modified permission entries, unrelated host state, and authentication remain."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "SCN-CLEAN-INSTALL",
+      "name": "Clean per-user macOS or Linux setup",
+      "trigger": "An operator with a supported host starts setup from a clean user product home.",
+      "participant_ids": [
+        "ELM-OPERATOR",
+        "ELM-RELEASE-ORIGIN",
+        "ELM-BOOTSTRAP",
+        "ELM-SETUP-CONTROLLER",
+        "ELM-UV",
+        "ELM-MCP-ADAPTER",
+        "ELM-DEVELOPER-HOST"
+      ],
+      "relationship_ids": [
+        "REL-ORIGIN-BOOTSTRAP",
+        "REL-ORIGIN-CONTROLLER",
+        "REL-OPERATOR-CONTROLLER",
+        "REL-CONTROLLER-UV",
+        "REL-CONTROLLER-HOST",
+        "REL-CONTROLLER-ADAPTER"
+      ],
+      "state_read_ids": [
+        "STATE-RELEASE-BINDING",
+        "STATE-HOST-PERMISSION"
+      ],
+      "state_write_ids": [
+        "STATE-PACKAGE-INSTALL",
+        "STATE-HOST-REGISTRATION",
+        "STATE-MANAGED-HOOK",
+        "STATE-SETUP-READINESS",
+        "STATE-HOST-PERMISSION"
+      ],
+      "transition_ids": [
+        "TRANS-RESOLVE-RELEASE",
+        "TRANS-INSTALL-PACKAGE",
+        "TRANS-REGISTER-HOST",
+        "TRANS-INSTALL-HOOK",
+        "TRANS-GRANT-HOST-PERMISSION"
+      ],
+      "authority_boundaries": [
+        "All product mutations are per-user and disclosed before consent.",
+        "Host registration uses the host CLI; hook mutation uses the package adapter.",
+        "Installation stops pending host action and does not claim activation.",
+        "After one explicit consent step the controller configures only the Bicameral-server-scoped host permission; shell, sandbox, network, unrelated MCP, and host-wide approval settings are unchanged."
+      ],
+      "expected_result": "Exact package, host registration, and managed hook verify while readiness remains installed_pending_host_action.",
+      "failure_behavior": "The reducer retains independently verified partial facts, emits typed remediation, and never elevates or falls back to a stale package."
+    },
+    {
+      "id": "SCN-HOST-ACTIVATION",
+      "name": "Host-owned trust and durable fresh-session activation",
+      "trigger": "Installation verifies and the operator opens the selected host normally.",
+      "participant_ids": [
+        "ELM-OPERATOR",
+        "ELM-DEVELOPER-HOST",
+        "ELM-MCP-ADAPTER",
+        "ELM-LOCAL-DAEMON",
+        "ELM-SETUP-CONTROLLER"
+      ],
+      "relationship_ids": [
+        "REL-CONTROLLER-HOST",
+        "REL-HOST-ADAPTER",
+        "REL-ADAPTER-DAEMON",
+        "REL-ADAPTER-CONTROLLER"
+      ],
+      "state_read_ids": [
+        "STATE-MANAGED-HOOK",
+        "STATE-HOST-TRUST",
+        "STATE-ACTIVATION-RECEIPT"
+      ],
+      "state_write_ids": [
+        "STATE-HOST-TRUST",
+        "STATE-ACTIVATION-RECEIPT",
+        "STATE-SETUP-READINESS"
+      ],
+      "transition_ids": [
+        "TRANS-GRANT-HOST-TRUST",
+        "TRANS-WRITE-ACTIVATION-RECEIPT",
+        "TRANS-REDUCE-READINESS"
+      ],
+      "authority_boundaries": [
+        "Only the host records trust.",
+        "Only a genuine SessionStart invokes the managed adapter.",
+        "Only the packaged verifier can satisfy the activation evidence input."
+      ],
+      "expected_result": "The matching host reaches active_verified with a fresh sanitized receipt and exact package/configuration provenance.",
+      "failure_behavior": "Absent, stale, mismatched, or unsanitized evidence leaves readiness pending or repair_required; process and prompt observations do not count."
+    },
+    {
+      "id": "SCN-DRIFT-REPAIR",
+      "name": "Detect and repair exact-binding drift",
+      "trigger": "A package, executable, registration, hook document, host trust hash, protocol, or release binding changes.",
+      "participant_ids": [
+        "ELM-OPERATOR",
+        "ELM-SETUP-CONTROLLER",
+        "ELM-UV",
+        "ELM-MCP-ADAPTER",
+        "ELM-DEVELOPER-HOST"
+      ],
+      "relationship_ids": [
+        "REL-ORIGIN-CONTROLLER",
+        "REL-OPERATOR-CONTROLLER",
+        "REL-CONTROLLER-UV",
+        "REL-CONTROLLER-HOST",
+        "REL-CONTROLLER-ADAPTER",
+        "REL-ADAPTER-CONTROLLER"
+      ],
+      "state_read_ids": [
+        "STATE-RELEASE-BINDING",
+        "STATE-PACKAGE-INSTALL",
+        "STATE-HOST-REGISTRATION",
+        "STATE-MANAGED-HOOK",
+        "STATE-HOST-TRUST",
+        "STATE-ACTIVATION-RECEIPT",
+        "STATE-SETUP-READINESS",
+        "STATE-HOST-PERMISSION"
+      ],
+      "state_write_ids": [
+        "STATE-PACKAGE-INSTALL",
+        "STATE-HOST-REGISTRATION",
+        "STATE-MANAGED-HOOK",
+        "STATE-HOST-TRUST",
+        "STATE-ACTIVATION-RECEIPT",
+        "STATE-SETUP-READINESS",
+        "STATE-HOST-PERMISSION"
+      ],
+      "transition_ids": [
+        "TRANS-INVALIDATE-READINESS",
+        "TRANS-INSTALL-PACKAGE",
+        "TRANS-REGISTER-HOST",
+        "TRANS-INSTALL-HOOK",
+        "TRANS-GRANT-HOST-TRUST",
+        "TRANS-WRITE-ACTIVATION-RECEIPT",
+        "TRANS-REDUCE-READINESS",
+        "TRANS-GRANT-HOST-PERMISSION"
+      ],
+      "authority_boundaries": [
+        "Repair repeats only mismatched declared steps.",
+        "Changed hook definitions always return to host-owned review.",
+        "A stale activation receipt is never rebound."
+      ],
+      "expected_result": "Repair_required is replaced by active_verified only after exact state and a new fresh-session receipt verify.",
+      "failure_behavior": "Ambiguous or malformed host state fails closed and preserves backups; setup never rewrites it to an empty document."
+    },
+    {
+      "id": "SCN-UNINSTALL",
+      "name": "Preserving reverse-order uninstall",
+      "trigger": "The operator requests removal and confirms the exact removal plan.",
+      "participant_ids": [
+        "ELM-OPERATOR",
+        "ELM-SETUP-CONTROLLER",
+        "ELM-MCP-ADAPTER",
+        "ELM-DEVELOPER-HOST",
+        "ELM-UV"
+      ],
+      "relationship_ids": [
+        "REL-OPERATOR-CONTROLLER",
+        "REL-CONTROLLER-ADAPTER",
+        "REL-CONTROLLER-HOST",
+        "REL-CONTROLLER-UV"
+      ],
+      "state_read_ids": [
+        "STATE-PACKAGE-INSTALL",
+        "STATE-HOST-REGISTRATION",
+        "STATE-MANAGED-HOOK",
+        "STATE-ACTIVATION-RECEIPT",
+        "STATE-SETUP-READINESS",
+        "STATE-HOST-PERMISSION"
+      ],
+      "state_write_ids": [
+        "STATE-PACKAGE-INSTALL",
+        "STATE-HOST-REGISTRATION",
+        "STATE-MANAGED-HOOK",
+        "STATE-ACTIVATION-RECEIPT",
+        "STATE-SETUP-READINESS",
+        "STATE-HOST-PERMISSION"
+      ],
+      "transition_ids": [
+        "TRANS-UNINSTALL"
+      ],
+      "authority_boundaries": [
+        "Only Bicameral-owned entries and per-user package roots are removed.",
+        "Host authentication, session history, unrelated hooks, and unrelated MCP servers remain.",
+        "Only the host permission grant Bicameral recorded as its own is removed; a grant the operator changed since setup is preserved and reported."
+      ],
+      "expected_result": "The selected host returns to not_installed with preservation evidence and no administrator privilege.",
+      "failure_behavior": "If preservation cannot be proved, removal stops at repair_required and points to the bounded backup."
+    },
+    {
+      "id": "SCN-DASHBOARD-READINESS",
+      "name": "Read-only dashboard readiness projection",
+      "trigger": "An authorized loopback or paired dashboard opens Local runtime readiness.",
+      "participant_ids": [
+        "ELM-LOCAL-DAEMON",
+        "ELM-DASHBOARD",
+        "ELM-OPERATOR"
+      ],
+      "relationship_ids": [
+        "REL-DAEMON-DASHBOARD-READINESS"
+      ],
+      "state_read_ids": [
+        "STATE-SETUP-READINESS"
+      ],
+      "state_write_ids": [],
+      "transition_ids": [],
+      "authority_boundaries": [
+        "Pairing authorizes only the remote read.",
+        "The dashboard cannot cause setup, validation, repair, uninstall, or readiness reduction.",
+        "Readiness contains no Product identity and Continue to Products is navigation only."
+      ],
+      "expected_result": "The dashboard renders the daemon-owned MCP state and may copy bicameral setup mcp without changing daemon or Product state.",
+      "failure_behavior": "Unpaired, revoked, incompatible, or unavailable reads fail visibly while the daemon readiness record remains unchanged."
+    },
+    {
+      "id": "SCN-FORBIDDEN-DASHBOARD-SETUP",
+      "name": "Reject dashboard-controlled setup",
+      "trigger": "A dashboard attempts to submit setup intent, a receipt, executable/provider selection, Product identity, or an authority-bearing command argument.",
+      "participant_ids": [
+        "ELM-DASHBOARD",
+        "ELM-LOCAL-DAEMON"
+      ],
+      "relationship_ids": [
+        "REL-DAEMON-DASHBOARD-READINESS"
+      ],
+      "state_read_ids": [
+        "STATE-SETUP-READINESS"
+      ],
+      "state_write_ids": [],
+      "transition_ids": [],
+      "authority_boundaries": [
+        "The dashboard relationship is projection-only.",
+        "The daemon never translates a browser request into a local setup process."
+      ],
+      "expected_result": "The request is rejected as an unsupported authority path and no readiness, host, pairing, or Product state changes.",
+      "failure_behavior": "There is no compatibility fallback, queued setup request, hidden shell invocation, or manufactured readiness."
+    }
+  ],
+  "conformance": [
+    {
+      "id": "CONF-MCP-SETUP-01",
+      "status": "proven",
+      "source_ids": [
+        "ELM-RELEASE-ORIGIN",
+        "ELM-BOOTSTRAP",
+        "REL-ORIGIN-BOOTSTRAP",
+        "TRANS-RESOLVE-RELEASE"
+      ],
+      "owner_module_or_seam": "Bot release workflow, public R2 origin, and install.bicameral-ai.com shell bootstrap.",
+      "required_behavior": "Publish and install versioned macOS ARM64/x86_64 and Linux ARM64/x86_64 Bot archives with pre-extraction SHA-256 verification into a per-user path.",
+      "prohibited_fallback": "Build from source, unsupported target, or root-owned install path in the normal journey.",
+      "validation_obligation": {
+        "kind": "topology",
+        "description": "Install each supported release target from the public manifest into an empty user home and verify version, digest, path, and no elevation."
+      },
+      "implementation_evidence": [
+        ".github/workflows/release.yml",
+        "docs/adr/0013-release-artifact-backed-install-flow.md",
+        "live v0.1.12 public release manifest"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-02",
+      "status": "partial",
+      "source_ids": [
+        "STATE-RELEASE-BINDING",
+        "REL-ORIGIN-BOOTSTRAP",
+        "SCN-CLEAN-INSTALL"
+      ],
+      "owner_module_or_seam": "Bot release provenance and public bootstrap verification.",
+      "required_behavior": "Verify artifact authenticity as well as integrity and never modify the verified macOS binary after verification.",
+      "prohibited_fallback": "Treat a checksum fetched from the same mutable origin or installer-side ad-hoc signing as complete release authenticity.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Verify signed/notarized macOS artifacts and a release attestation bound to every target before copying the binary."
+      },
+      "implementation_evidence": [
+        "Current bootstrap verifies SHA256SUMS but ad-hoc signs after extraction",
+        "GitHub Release exposes immutable asset digests"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-03",
+      "status": "missing",
+      "source_ids": [
+        "STATE-RELEASE-BINDING",
+        "ELM-SETUP-CONTROLLER",
+        "REL-ORIGIN-CONTROLLER",
+        "TRANS-INSTALL-PACKAGE"
+      ],
+      "owner_module_or_seam": "Bot release manifest v2 and local developer-host setup controller.",
+      "required_behavior": "Bind one exact published thin MCP wheel, digest, release descriptor, protocol, and Python requirement to each compatible Bot release.",
+      "prohibited_fallback": "Install PyPI stable 0.16.4, resolve latest, or accept hand-entered package coordinates.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Reject missing, stale, mutable, digest-mismatched, descriptor-mismatched, and protocol-incompatible MCP bindings."
+      },
+      "implementation_evidence": [
+        "MCP reviewed head declares version 0.17.0",
+        "Live PyPI stable remains 0.16.4",
+        "Live Bot v0.1.12 manifest has no mcp object"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-04",
+      "status": "missing",
+      "source_ids": [
+        "ELM-UV",
+        "STATE-PACKAGE-INSTALL",
+        "REL-CONTROLLER-UV",
+        "SCN-CLEAN-INSTALL"
+      ],
+      "owner_module_or_seam": "Bot setup package-installer seam.",
+      "required_behavior": "Install the direct digest-bound wheel in dedicated per-user uv roots and verify the resulting executable and descriptor.",
+      "prohibited_fallback": "sudo, global pip, pip --user, system Python mutation, ambient PATH, source checkout, or undeclared index.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Run clean-home install, retry, upgrade, drift, and uninstall tests without administrator privileges or writes outside declared roots."
+      },
+      "implementation_evidence": [
+        "Historical user documentation recommends uv tool install",
+        "No current Bot setup controller implements the bound install"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-05",
+      "status": "partial",
+      "source_ids": [
+        "ELM-DEVELOPER-HOST",
+        "STATE-HOST-REGISTRATION",
+        "REL-CONTROLLER-HOST",
+        "TRANS-REGISTER-HOST"
+      ],
+      "owner_module_or_seam": "Claude Code and Codex official MCP CLIs plus Bot orchestration.",
+      "required_behavior": "Register and inspect the absolute managed executable through the host's user-scoped MCP CLI.",
+      "prohibited_fallback": "Daemon-written host config, project scope without separate consent, or broad tool preapproval.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Use disposable user roots to prove official CLI registration, status, duplicate prevention, preservation, and removal independently for Claude and Codex."
+      },
+      "implementation_evidence": [
+        "Claude Code documents claude mcp add/get/list/remove",
+        "Codex documents codex mcp add/list",
+        "Bot orchestration is not implemented"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-06",
+      "status": "partial",
+      "source_ids": [
+        "ELM-MCP-ADAPTER",
+        "STATE-MANAGED-HOOK",
+        "REL-CONTROLLER-ADAPTER",
+        "TRANS-INSTALL-HOOK",
+        "SCN-UNINSTALL"
+      ],
+      "owner_module_or_seam": "bicameral-mcp preflight_adapters package.",
+      "required_behavior": "Install, update, disable, status-check, and uninstall exactly one package-owned hook while preserving unrelated host configuration and exact package provenance.",
+      "prohibited_fallback": "Hand-written hook files, shell wrapper, duplicate entry, malformed-config replacement, direct hook execution, or trust bypass.",
+      "validation_obligation": {
+        "kind": "topology",
+        "description": "Exercise the released package adapter lifecycle through the normal setup controller against real supported hosts."
+      },
+      "implementation_evidence": [
+        "MCP PR #769 exact reviewed head 203872d6e2016bda73d74e004505b6118464d789",
+        "bicameral-mcp adapters lifecycle commands and deterministic tests",
+        "Normal Bot setup orchestration is not implemented"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-07",
+      "status": "missing",
+      "source_ids": [
+        "ELM-LOCAL-DAEMON",
+        "REL-CONTROLLER-DAEMON",
+        "STATE-HOST-TRUST",
+        "STATE-ACTIVATION-RECEIPT",
+        "STATE-SETUP-READINESS",
+        "SCN-HOST-ACTIVATION"
+      ],
+      "owner_module_or_seam": "MCP activation receipt, packaged verifier, and daemon-owned readiness reducer.",
+      "required_behavior": "Require host-owned trust and a fresh durable sanitized activation receipt before active_verified.",
+      "prohibited_fallback": "Prompt matching, header-only readiness, PTY bytes, config presence, process sampling, seeded home, or another host's receipt.",
+      "validation_obligation": {
+        "kind": "topology",
+        "description": "Prove normal host trust, genuine SessionStart, daemon handshake, receipt persistence and verification, stale/drift rejection, and independent Claude/Codex activation."
+      },
+      "implementation_evidence": [
+        "MCP adapters provide managed-hook and host-receipt seams",
+        "Current Bot setup endpoint reports workspace presence only",
+        "Full durable activation reduction is not implemented"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-08",
+      "status": "missing",
+      "source_ids": [
+        "SCN-CLEAN-INSTALL",
+        "SCN-HOST-ACTIVATION",
+        "SCN-DRIFT-REPAIR",
+        "SCN-UNINSTALL"
+      ],
+      "owner_module_or_seam": "Factory journey catalog and developer-host topology profile.",
+      "required_behavior": "Refine and execute the existing partial developer_host_mcp_v1 journey over exact release install, package, registration, hook, trust, activation, readiness, repair, and teardown checkpoints.",
+      "prohibited_fallback": "Reuse activation-only evidence as complete setup evidence or claim topology readiness without a catalog journey.",
+      "validation_obligation": {
+        "kind": "manual",
+        "description": "Add the Factory catalog journey and bind its canonical digest before issue slicing or production topology."
+      },
+      "implementation_evidence": [
+        "Journey Boundary Review passed for exact PR head ae7fb94276cf1e9fb15ab83cbbcfbdaeb342a764 in https://github.com/BicameralAI/bicameral-bot/pull/950#issuecomment-5106871327",
+        "developer-host-environment-v1 exists with partial status",
+        "developer_host_mcp_v1 exists in the pinned Factory catalog with partial status and does not yet include the required setup/readiness checkpoints"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-09",
+      "status": "partial",
+      "source_ids": [
+        "ELM-OPERATOR",
+        "ELM-SETUP-CONTROLLER",
+        "STATE-PACKAGE-INSTALL",
+        "STATE-HOST-TRUST",
+        "SCN-CLEAN-INSTALL",
+        "STATE-HOST-PERMISSION"
+      ],
+      "owner_module_or_seam": "Cross-repository setup permission policy.",
+      "required_behavior": "Keep the normal macOS/Linux flow per-user, non-elevated, secret-free, and shell-free; after explicit consent add only the Bicameral-server-scoped host permission and remain conservative under existing host sandbox, approval, and stricter tool policy.",
+      "prohibited_fallback": "sudo, root or machine policy, host credential capture, shell interpolation, generic shell or network allowlist, unrelated MCP server permissions, host-wide approval bypass, sandbox widening, or trust bypass.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Fail deterministic permission tests for every prohibited path, argv token, credential field, config scope, and authority substitution."
+      },
+      "implementation_evidence": [
+        "Current Bot bootstrap defaults to $HOME/.local/bin",
+        "MCP adapter consent and no-trust-bypass rules exist",
+        "bot#1239: src/commands/host_permissions.rs writes only the Bicameral-server-scoped grant and refuses shell, sandbox, network, unrelated-MCP, and host-wide keys"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-10",
+      "status": "missing",
+      "source_ids": [
+        "ELM-LOCAL-DAEMON",
+        "ELM-DASHBOARD",
+        "REL-CONTROLLER-DAEMON",
+        "REL-DAEMON-DASHBOARD-READINESS",
+        "STATE-SETUP-READINESS",
+        "TRANS-REDUCE-READINESS",
+        "TRANS-INVALIDATE-READINESS",
+        "SCN-DASHBOARD-READINESS",
+        "SCN-FORBIDDEN-DASHBOARD-SETUP"
+      ],
+      "owner_module_or_seam": "Bot operator-scoped daemon readiness store and hosted/loopback readiness projection.",
+      "required_behavior": "Persist MCP readiness entirely in the daemon, independently of bridge pairing and Product context, and expose only a read-only dashboard projection with safe terminal guidance.",
+      "prohibited_fallback": "Dashboard-owned readiness, setup action routes, pairing-bound state, Product-keyed state, browser receipt submission, executable/provider selection, shell fragments, or Product entry as a setup side effect.",
+      "validation_obligation": {
+        "kind": "integration",
+        "description": "Prove ready-before-pairing, paired-not-ready, paired-ready, revoked-still-ready, zero-Product readiness, explicit navigation without Product mutation, stable terminal guidance, and rejection of every dashboard setup-control path."
+      },
+      "implementation_evidence": [
+        "Hosted bridge pairing spec already separates pairing from Product selection",
+        "Operator-scoped daemon PR #945 starts with zero Products",
+        "Read-only capability readiness projection is not implemented"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-11",
+      "status": "missing",
+      "source_ids": [
+        "STATE-SETUP-READINESS",
+        "SCN-DASHBOARD-READINESS"
+      ],
+      "owner_module_or_seam": "Bot v0.1.14 release cut and future v0.2.0 reasoning-readiness extension.",
+      "required_behavior": "Ship only capability_kind mcp in v0.1.14 and defer reasoning-provider discovery, configuration, validation, narration, and readiness to a v0.2.0 additive envelope extension with the same daemon/terminal/dashboard authority split.",
+      "prohibited_fallback": "Emit placeholder reasoning readiness in v0.1.14, run an LLM during MCP setup, or let the v0.2.0 dashboard directly configure or validate a provider.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Assert v0.1.14 emits no reasoning-provider record or LLM process call and preserve additive schema fixtures for the separately governed v0.2.0 capability."
+      },
+      "implementation_evidence": [
+        "Current reasoning provider lifecycle is scheduled for v0.2.0",
+        "v0.1.14 Product creation PR #934 must not absorb reasoning setup"
+      ]
+    },
+    {
+      "id": "CONF-MCP-SETUP-12",
+      "status": "partial",
+      "source_ids": [
+        "ELM-OPERATOR",
+        "ELM-SETUP-CONTROLLER",
+        "ELM-DEVELOPER-HOST",
+        "ELM-LOCAL-DAEMON",
+        "STATE-HOST-PERMISSION",
+        "STATE-SETUP-READINESS",
+        "TRANS-GRANT-HOST-PERMISSION",
+        "SCN-CLEAN-INSTALL",
+        "SCN-DRIFT-REPAIR",
+        "SCN-UNINSTALL"
+      ],
+      "owner_module_or_seam": "Bot setup controller host-permission reconciliation seam (bot#1239).",
+      "required_behavior": "After one explicit consent step, configure the broadest host-native Bicameral-server-scoped permission the host supports (Claude Code mcp__bicameral; Codex mcp_servers.bicameral.default_tools_approval_mode = \"approve\"); where unavailable, derive the read-only allowlist deterministically from the declared tool registry; preserve stricter and unrelated host policy; make repair idempotent; remove only the Bicameral-owned grant on uninstall; and report the grant in readiness as a distinct attribute that can never produce active_verified.",
+      "prohibited_fallback": "bypassPermissions or host-wide approval bypass, generic Bash/shell/network rules, unrelated MCP server changes, managed organization policy as the installer path, a second handwritten tool list, clobbering operator changes on uninstall, or treating a configured grant as activation.",
+      "validation_obligation": {
+        "kind": "contract",
+        "description": "Deterministic tests with disposable Claude Code and Codex configuration homes proving scoped Claude and Codex grants, registry-derived deterministic fallback, idempotent repair, preservation of unrelated MCP, shell, network, sandbox, global approval, and stricter policy, owned-only uninstall, and readiness that never manufactures activation. Fresh-host activation evidence remains owned by bicameral-mcp#851."
+      },
+      "implementation_evidence": [
+        "bot#1239: src/commands/host_permissions.rs unit tests (disposable homes)",
+        "bot#1239: crates/bicameral-api capability_readiness host_permission attribute tests",
+        "Fresh supported-host activation evidence not yet executed (bicameral-mcp#851)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0113-bot-reconciled-main-closure",
+  "label": "Reconcile v0.1.13 Bot release closure on main",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#951",
+  "release_unit_type": "bot_daemon",
+  "target_version": "0.1.13",
+  "topology": {"required": false},
+  "proposed_by": "delivery-manager:jinhongkuan",
+  "proposed_at": "2026-07-29T00:00:00Z",
+  "proposal_digest": "sha256:68884ff1ccd21c804b4c45740a9a4909d1a559f71180c83245f1d596cad5db39"
+}

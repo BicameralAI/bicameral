@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0120-mcp-813-adapter-setup-contract",
+  "label": "Adapter setup contract: artifact-generation + status fields (#813)",
+  "repository": "BicameralAI/bicameral-mcp",
+  "scope_ref": "BicameralAI/bicameral-mcp#813",
+  "release_unit_type": "mcp_surface",
+  "target_version": "0.1.20",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "agent:grok-build",
+  "proposed_at": "2026-08-05T18:54:57Z",
+  "proposal_digest": "sha256:133533a867abf5661b9826568b594eb589d0de70a385d36ed3fcc35a49ee8246"
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_unit_id": "v0123-connect-mcp-progressible-gate",
+  "label": "Connect Continue when MCP installed (pending host OK)",
+  "repository": "BicameralAI/bicameral-bot",
+  "scope_ref": "BicameralAI/bicameral-bot#1068",
+  "release_unit_type": "hosted_dashboard",
+  "target_version": "0.1.23",
+  "topology": {
+    "required": false
+  },
+  "proposed_by": "agent:grok-build",
+  "proposed_at": "2026-08-10T11:54:33Z",
+  "proposal_digest": "sha256:19a7743602316a29db78f4c1eac698eef81f5725ee0161c190531f3a89745f44"
+}

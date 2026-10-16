@@ -1,0 +1,8 @@
+{
+  "bindings": [
+    {
+      "role": "roles/iap.httpsResourceAccessor",
+      "members": ["group:eng@example.com"]
+    }
+  ]
+}
