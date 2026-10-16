@@ -79,6 +79,11 @@ Whether contributions require a **Developer Certificate of Origin** sign-off or 
 - High-risk changes (see [GOVERNANCE.md](GOVERNANCE.md)) also need decision owner approval.
 - Prefer small pull requests with one purpose.
 
+
+## Organizational contributions
+
+Companies and independent developers contribute under the same repository review, security, provenance, and licensing requirements. Organizational acknowledgment, including [WhatBytes](MAINTAINERS.md#organizational-contributors), does not grant GitHub permissions, code-owner status, independent merge authority, or exemptions from the contribution process. Formal maintainer appointments and access grants are separate decisions governed by [GOVERNANCE.md](GOVERNANCE.md).
+
 ## Conduct
 
 Participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
