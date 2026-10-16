@@ -1,3 +1,5 @@
+import json
+
 from bicameral_cloud.routes.connect_local_accountability import (
     LINUX_BOOTSTRAP_COMMAND,
     LOCAL_STATUS_PATH,
@@ -5,6 +7,12 @@ from bicameral_cloud.routes.connect_local_accountability import (
     _CONNECT_HTML,
 )
 from bicameral_cloud.routes.connect_onboarding import _CONNECT_HTML as _BASE_CONNECT_HTML
+
+# The page embeds these constants with json.dumps, so they appear as
+# double-quoted JavaScript string literals.
+_STATUS_FETCH = f"DAEMON_URL + {json.dumps(LOCAL_STATUS_PATH)}"
+_SCHEMA_LITERAL = json.dumps(LOCAL_STATUS_SCHEMA)
+_MACOS_COMMAND = "'curl -fsSL https://install.bicameral-ai.com/install.sh | sh'"
 
 
 def test_linux_bootstrap_owns_missing_downloader_prerequisite() -> None:
@@ -22,17 +30,22 @@ def test_linux_bootstrap_does_not_pipe_package_manager_output_to_shell() -> None
 
 
 def test_connect_uses_prerequisite_aware_command_only_for_linux() -> None:
-    old = "commands = ['curl -fsSL https://install.bicameral-ai.com/install.sh | sh'];"
+    old = f"commands = [{_MACOS_COMMAND}];"
     assert _BASE_CONNECT_HTML.count(old) == 1
     assert _CONNECT_HTML.count('sudo apt-get install -y curl') == 1
-    # macOS keeps its existing curl bootstrap; this slice changes Ubuntu/Linux only.
-    assert _CONNECT_HTML.count(old) == 1
+    # The single-platform line becomes a platform ternary: Linux gets the
+    # prerequisite-aware command, macOS keeps its existing curl bootstrap.
+    assert old not in _CONNECT_HTML
+    ternary_at = _CONNECT_HTML.index("commands = [platform === 'linux'")
+    ternary = _CONNECT_HTML[ternary_at : _CONNECT_HTML.index('];', ternary_at) + 2]
+    assert f"? {json.dumps(LINUX_BOOTSTRAP_COMMAND)}" in ternary
+    assert ternary.endswith(f": {_MACOS_COMMAND}];")
     assert _CONNECT_HTML != _BASE_CONNECT_HTML
 
 
 def test_connect_prefers_daemon_authored_local_status() -> None:
-    assert f"DAEMON_URL + '{LOCAL_STATUS_PATH}'" in _CONNECT_HTML
-    assert LOCAL_STATUS_SCHEMA in _CONNECT_HTML
+    assert _STATUS_FETCH in _CONNECT_HTML
+    assert _SCHEMA_LITERAL in _CONNECT_HTML
     assert 'let lastLocalStatus = null;' in _CONNECT_HTML
     assert "const options = { method:'GET', cache:'no-store' };" in _CONNECT_HTML
     assert 'body.gateway_reachable !== true' in _CONNECT_HTML
@@ -41,7 +54,7 @@ def test_connect_prefers_daemon_authored_local_status() -> None:
 
 def test_malformed_status_is_not_treated_as_connected() -> None:
     malformed_guard = (
-        f"body.schema !== '{LOCAL_STATUS_SCHEMA}' || body.gateway_reachable !== true"
+        f"body.schema !== {_SCHEMA_LITERAL} || body.gateway_reachable !== true"
     )
     assert malformed_guard in _CONNECT_HTML
     guard_at = _CONNECT_HTML.index(malformed_guard)
@@ -51,7 +64,7 @@ def test_malformed_status_is_not_treated_as_connected() -> None:
 
 
 def test_legacy_probe_is_only_compatibility_fallback() -> None:
-    status_fetch_at = _CONNECT_HTML.index(f"DAEMON_URL + '{LOCAL_STATUS_PATH}'")
+    status_fetch_at = _CONNECT_HTML.index(_STATUS_FETCH)
     fallback_gate_at = _CONNECT_HTML.index('if (!statusRouteAbsent) return false;')
     legacy_probe_at = _CONNECT_HTML.index(
         'const response = await fetch(PAIR_URL, options);', fallback_gate_at

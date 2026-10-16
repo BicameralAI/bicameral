@@ -98,6 +98,34 @@ class TestSupabaseJWTAuth:
             )
         )
 
+    def _enable_supabase_with_allowlisted_domain(self, monkeypatch) -> list[str]:
+        """Enable Supabase auth with a service key, so the design-partner
+        allowlist is consulted, and answer its lookup with an allowed domain.
+
+        Returns the domains the allowlist was asked about."""
+        import httpx
+
+        queried: list[str] = []
+
+        def fake_get(url, params, headers, timeout):
+            queried.append(params["domain"])
+            return httpx.Response(
+                200, json=[{"id": "allow-domain"}], request=httpx.Request("GET", url)
+            )
+
+        monkeypatch.setattr(
+            "bicameral_cloud.auth.design_partner_allowlist.httpx.get", fake_get
+        )
+        reset_settings(
+            CloudSettings(
+                supabase_url="https://test.supabase.co",
+                supabase_jwt_secret=SUPABASE_TEST_SECRET,
+                supabase_anon_key=None,
+                supabase_service_key="service-role-key",
+            )
+        )
+        return queried
+
     def _disable_supabase(self) -> None:
         reset_settings(
             CloudSettings(
@@ -108,8 +136,8 @@ class TestSupabaseJWTAuth:
             )
         )
 
-    def test_valid_jwt_resolves_user(self, client, store):
-        self._enable_supabase()
+    def test_valid_jwt_resolves_user(self, client, store, monkeypatch):
+        queried = self._enable_supabase_with_allowlisted_domain(monkeypatch)
         try:
             token = self._make_jwt(
                 sub="sb-user-1",
@@ -125,6 +153,7 @@ class TestSupabaseJWTAuth:
             assert data["user_id"] == "sb-user-1"
             assert data["email"] == "alice@example.com"
             assert data["display_name"] == "Alice"
+            assert queried == ["eq.example.com"]
         finally:
             self._disable_supabase()
 
@@ -173,15 +202,17 @@ class TestSupabaseJWTAuth:
         finally:
             self._disable_supabase()
 
-    def test_jwt_user_upserted_to_store(self, client, store):
-        self._enable_supabase()
+    def test_jwt_user_upserted_to_store(self, client, store, monkeypatch):
+        queried = self._enable_supabase_with_allowlisted_domain(monkeypatch)
         try:
             token = self._make_jwt(sub="sb-new-user", email="new@example.com")
-            client.get(
+            resp = client.get(
                 "/api/v1/auth/session",
                 headers={"Authorization": f"Bearer {token}"},
             )
+            assert resp.status_code == 200
             assert store.get_user_by_id("sb-new-user") is not None
+            assert queried == ["eq.example.com"]
         finally:
             self._disable_supabase()
 
