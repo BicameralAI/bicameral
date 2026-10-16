@@ -7,18 +7,23 @@ Only **accepted** records carry authority. Proposed records express intent; hist
 
 ## Accepted authority by topic
 
-_No topic currently has an accepted authoritative record._
+| Topic | Authoritative record |
+| --- | --- |
+| `architecture-index` | [ARCH-0001](records/ARCH-0001-architecture-records-and-canonical-index.md) |
+| `architecture-records` | [ARCH-0001](records/ARCH-0001-architecture-records-and-canonical-index.md) |
+| `code-ownership` | [ARCH-0002](records/ARCH-0002-repository-structure-and-structure-manifest.md) |
+| `repository-layout` | [ARCH-0002](records/ARCH-0002-repository-structure-and-structure-manifest.md) |
 
 ## Accepted records
-
-_No accepted records._
-
-## Proposed records
 
 | Record | Title | Kind | Date | Topics | Depends on | Supersedes |
 | --- | --- | --- | --- | --- | --- | --- |
 | [ARCH-0001](records/ARCH-0001-architecture-records-and-canonical-index.md) | Architecture records and the canonical architecture index | decision | 2026-10-16 | `architecture-index`, `architecture-records` | — | — |
 | [ARCH-0002](records/ARCH-0002-repository-structure-and-structure-manifest.md) | Repository structure and the structure manifest | decision | 2026-10-16 | `code-ownership`, `repository-layout` | ARCH-0001 | — |
+
+## Proposed records
+
+_No proposed records._
 
 ## Historical records
 

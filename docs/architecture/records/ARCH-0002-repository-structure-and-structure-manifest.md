@@ -2,7 +2,7 @@
 id: ARCH-0002
 title: Repository structure and the structure manifest
 kind: decision
-status: proposed
+status: accepted
 date: 2026-10-16
 owners: [@jinhongkuan, @Knapp-Kevin]
 governs: [repository-layout, code-ownership]

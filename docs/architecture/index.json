@@ -1,33 +1,25 @@
 {
   "schema_version": 1,
   "generated_by": "tools/governance/check_architecture.py",
-  "authority": {},
-  "proposed_claims": {
-    "architecture-index": [
-      "ARCH-0001"
-    ],
-    "architecture-records": [
-      "ARCH-0001"
-    ],
-    "code-ownership": [
-      "ARCH-0002"
-    ],
-    "repository-layout": [
-      "ARCH-0002"
-    ]
+  "authority": {
+    "architecture-index": "ARCH-0001",
+    "architecture-records": "ARCH-0001",
+    "code-ownership": "ARCH-0002",
+    "repository-layout": "ARCH-0002"
   },
-  "accepted": [],
-  "proposed": [
+  "proposed_claims": {},
+  "accepted": [
     "ARCH-0001",
     "ARCH-0002"
   ],
+  "proposed": [],
   "historical": [],
   "records": [
     {
       "id": "ARCH-0001",
       "title": "Architecture records and the canonical architecture index",
       "kind": "decision",
-      "status": "proposed",
+      "status": "accepted",
       "date": "2026-10-16",
       "path": "docs/architecture/records/ARCH-0001-architecture-records-and-canonical-index.md",
       "owners": [
@@ -53,7 +45,7 @@
       "id": "ARCH-0002",
       "title": "Repository structure and the structure manifest",
       "kind": "decision",
-      "status": "proposed",
+      "status": "accepted",
       "date": "2026-10-16",
       "path": "docs/architecture/records/ARCH-0002-repository-structure-and-structure-manifest.md",
       "owners": [
