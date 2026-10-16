@@ -86,12 +86,14 @@ jobs:
   pull_request:
     paths:
     - packages/integrations/**
+    - migration/**
     - .github/workflows/integrations-ci.yml
   push:
     branches:
     - main
     paths:
     - packages/integrations/**
+    - migration/**
     - .github/workflows/integrations-ci.yml
 defaults:
   run:

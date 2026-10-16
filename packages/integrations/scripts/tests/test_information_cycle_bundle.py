@@ -81,7 +81,7 @@ def test_stage_ledger_is_the_exact_ordered_twenty() -> None:
 
 def test_reviewed_commit_is_ancestor_and_blobs_match() -> None:
     prov = _BUNDLE["implementation_provenance"]
-    if migration.commit_exists(_REPO, prov["reviewed_commit"]):
+    if migration.locate(_REPO) is None:
         assert validator.git_is_ancestor(_REPO, prov["reviewed_commit"], _HEAD)
         for component in prov["components"]:
             at_reviewed = validator.git_blob_digest(_REPO, prov["reviewed_commit"], component["path"])

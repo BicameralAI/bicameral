@@ -11,12 +11,13 @@ It does not change the bundle, the validator, or the generator: those files are
 reviewed components whose blob digests the bundle records. It composes the
 validator and replaces only its provenance step.
 
-Two modes, selected by whether ``reviewed_commit`` exists in the local history:
+Two modes, selected by where the component lives:
 
-* **Original mode.** The commit resolves locally (the source repository itself),
-  so the validator's own ``provenance_errors`` runs unchanged.
-* **Migration mode.** The commit does not resolve locally. Provenance is checked
-  against migration evidence at the monorepo root:
+* **Original mode.** In the standalone source repository, the validator's own
+  ``provenance_errors`` runs unchanged against that repository's history.
+* **Migration mode.** Inside the monorepo, provenance is always checked against
+  migration evidence at the monorepo root, even if ``reviewed_commit`` happens to
+  exist in the monorepo history:
 
   - ``migration/sources.json``: the imported snapshot's source repository and SHA.
   - ``migration/manifests/<repo>.json``: a deterministic manifest of every file at
@@ -31,6 +32,12 @@ Two modes, selected by whether ``reviewed_commit`` exists in the local history:
   original repository is available (``--source-repo`` or the
   ``BICAMERAL_INTEGRATIONS_SOURCE_REPO`` environment variable), ancestry, component
   blobs and the manifest are re-verified against its history.
+
+Trust boundary: offline, the records are self-consistent hashes, not signatures.
+Someone who edits a record and recomputes every digest can only be caught by code
+review (``migration/`` and ``packages/integrations/`` are code-owned) or by running
+against the original history. The original history is authoritative whenever it
+is available.
 """
 
 from __future__ import annotations
@@ -281,6 +288,7 @@ def migration_provenance_errors(
     *,
     head: str,
     source_repo: Path | None = None,
+    bundle_path: str | None = None,
 ) -> list[str]:
     context, errs = load_migration(repo)
     if context is None:
@@ -331,6 +339,16 @@ def migration_provenance_errors(
             )
         if original.get("repository") != prov.get("repository"):
             errs.append("migration verification covers a different original repository")
+        if verification.get("scope") != VERIFICATION_SCOPE:
+            errs.append("migration verification scope is not the migration-only scope")
+        expected_against = f"{source_repository} Git history"
+        if verification.get("ancestry", {}).get("verified_against") != expected_against:
+            errs.append("migration verification does not record verification against the source history")
+        if bundle_path is not None and original.get("evidence") != bundle_path:
+            errs.append(
+                f"migration verification covers different evidence ({original.get('evidence')!r}, "
+                f"not {bundle_path!r})"
+            )
         if original.get("bundle_id") != bundle.get("bundle_id"):
             errs.append("migration verification covers a different bundle (bundle_id mismatch)")
         if verification.get("source", {}).get("sha") != source_sha:
@@ -428,17 +446,24 @@ def provenance_errors(
     *,
     head: str | None = None,
     source_repo: Path | None = None,
+    bundle_path: str | None = None,
 ) -> list[str]:
-    """Original provenance when ``reviewed_commit`` resolves locally; migration
-    provenance otherwise."""
+    """Original provenance in the standalone source repository; migration
+    provenance inside the monorepo."""
     if head is None:
         code, out = _git(repo, "rev-parse", "HEAD")
         head = out.decode().strip() if code == 0 else ""
-    reviewed = bundle.get("implementation_provenance", {}).get("reviewed_commit", "")
-    if commit_exists(repo, reviewed) or locate(repo) is None:
+    if locate(repo) is None:
+        # Standalone original repository: its own history is the authority.
         return validator.provenance_errors(bundle, repo, head=head)
+    # Inside the monorepo, always use migration evidence. A commit that happens to
+    # exist in the monorepo history is never the original review.
     return migration_provenance_errors(
-        bundle, repo, head=head, source_repo=_resolve_source_repo(source_repo)
+        bundle,
+        repo,
+        head=head,
+        source_repo=_resolve_source_repo(source_repo),
+        bundle_path=bundle_path,
     )
 
 
@@ -448,6 +473,7 @@ def semantic_errors(
     *,
     head: str | None = None,
     source_repo: Path | None = None,
+    bundle_path: str | None = None,
 ) -> list[str]:
     """The validator's semantic checks with only the provenance step replaced."""
     if head is None:
@@ -456,7 +482,9 @@ def semantic_errors(
     remaining = Counter(validator.semantic_errors(bundle, repo, head=head))
     remaining.subtract(Counter(validator.provenance_errors(bundle, repo, head=head)))
     errs = [error for error, count in remaining.items() for _ in range(max(count, 0))]
-    return errs + provenance_errors(bundle, repo, head=head, source_repo=source_repo)
+    return errs + provenance_errors(
+        bundle, repo, head=head, source_repo=source_repo, bundle_path=bundle_path
+    )
 
 
 def validate_bundle(
@@ -467,7 +495,11 @@ def validate_bundle(
     errs = validator._check(bundle, schema, "bundle")
     if errs:
         return errs
-    return semantic_errors(bundle, repo, head=head, source_repo=source_repo)
+    try:
+        relpath: str | None = path.resolve().relative_to(repo.resolve()).as_posix()
+    except ValueError:
+        relpath = None
+    return semantic_errors(bundle, repo, head=head, source_repo=source_repo, bundle_path=relpath)
 
 
 def reviewed_blob_digest(repo: Path, commit: str, path: str) -> str | None:
@@ -537,8 +569,7 @@ def _cmd_validate(args: argparse.Namespace) -> int:
             print(f"- {err}", file=sys.stderr)
         return 1
     bundle = json.loads(path.read_text(encoding="utf-8"))
-    reviewed = bundle["implementation_provenance"]["reviewed_commit"]
-    if commit_exists(_REPO, reviewed):
+    if locate(_REPO) is None:
         mode = "original history"
     elif source_repo is not None:
         mode = "migration evidence, re-verified against source history"

@@ -16,7 +16,9 @@
       "adjustments": [
         "NOTICE moved to repository root",
         "Cargo workspace license set to Apache-2.0",
-        "README license section points at root LICENSE and NOTICE"
+        "README license section points at root LICENSE and NOTICE",
+        "CONTRIBUTING.md license paragraph points at the root Apache-2.0 LICENSE and NOTICE",
+        "runtime/README.md NOTICE link points at the root NOTICE"
       ]
     },
     {
@@ -68,7 +70,8 @@
       ],
       "adjustments": [
         "tests/test_line_ending_policy.py reads blobs as HEAD:./<path> so paths resolve from the component directory",
-        "src/bicameral_cloud/routes/connect_local_accountability.py: 31 pre-existing E501 findings resolved without behavior change (Python string literals split, AST verified identical; the five embedded HTML/CSS/JS templates carry a string-scoped noqa: E501 because their bytes must match the served page)"
+        "src/bicameral_cloud/routes/connect_local_accountability.py: 31 pre-existing E501 findings resolved without behavior change (Python string literals split, AST verified identical; the five embedded HTML/CSS/JS templates carry a string-scoped noqa: E501 because their bytes must match the served page)",
+        "docs/governance/README.md: the excluded soc2-application-controls.md entry is unlinked and marked as kept in the source repository"
       ]
     },
     {

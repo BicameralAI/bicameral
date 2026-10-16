@@ -113,7 +113,9 @@ class Fixture:
 
 
 @pytest.fixture
-def fx(tmp_path: Path) -> Fixture:
+def fx(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Fixture:
+    # The fixture's source repository is passed explicitly; never the real one.
+    monkeypatch.delenv(migration.SOURCE_ENV, raising=False)
     return Fixture(tmp_path)
 
 
@@ -135,6 +137,43 @@ def test_valid_snapshot_passes_against_source_history(fx: Fixture) -> None:
 def test_mode_selection_uses_migration_evidence_without_local_history(fx: Fixture) -> None:
     assert not migration.commit_exists(fx.component, fx.reviewed)
     assert migration.provenance_errors(fx.bundle, fx.component, head=fx.head) == []
+
+
+def test_monorepo_commit_cannot_pose_as_the_original_review(fx: Fixture) -> None:
+    """A commit that exists in the monorepo history (here: one containing the
+    component bytes) must not switch verification to original-history mode."""
+    (fx.root / COMPONENT).parent.mkdir(parents=True, exist_ok=True)
+    (fx.root / COMPONENT).write_text("VALUE = 1\n", encoding="utf-8")
+    forged = fx._commit_all()
+    for record in (fx.bundle["implementation_provenance"], fx.bundle["integrations"]):
+        record["reviewed_commit" if "reviewed_commit" in record else "commit"] = forged
+    assert migration.commit_exists(fx.component, forged)
+    errors = migration.provenance_errors(fx.bundle, fx.component, head=forged)
+    assert _has(errors, "not the commit the migration verification covers")
+
+
+def test_rewritten_scope_is_rejected(fx: Fixture) -> None:
+    fx.verification["scope"] = "This IS the approval"
+    fx.reseal_verification()
+    fx.save()
+    assert _has(fx.errors(), "scope is not the migration-only scope")
+
+
+def test_rewritten_verified_against_is_rejected(fx: Fixture) -> None:
+    fx.verification["ancestry"]["verified_against"] = "nothing"
+    fx.reseal_verification()
+    fx.save()
+    assert _has(fx.errors(), "does not record verification against the source history")
+
+
+def test_verification_for_other_evidence_is_rejected(fx: Fixture) -> None:
+    errors = migration.migration_provenance_errors(
+        fx.bundle, fx.component, head=fx.head, bundle_path="ingest/other/bundle.json"
+    )
+    assert _has(errors, "covers different evidence")
+    assert migration.migration_provenance_errors(
+        fx.bundle, fx.component, head=fx.head, bundle_path="bundle.json"
+    ) == []
 
 
 def test_original_approval_is_referenced_not_restated(fx: Fixture) -> None:
