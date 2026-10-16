@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -66,9 +67,13 @@ def prepare_home(home: Path, host: str, artifact_generation: str) -> dict[str, A
 
 
 def clean_home_witness(
-    home: Path, metadata: AdapterMetadata, *, bind: bool = False
+    home: Path,
+    metadata: AdapterMetadata,
+    *,
+    bind: bool = False,
+    previous: AdapterMetadata | None = None,
 ) -> dict[str, Any] | None:
-    """Bind the first install, or check the same home and exact install later."""
+    """Bind a consented install, or check the same home and exact install later."""
     path = home / MCP_STATE_DIRNAME / WITNESS_FILE
     try:
         witness = json.loads(path.read_text(encoding="utf-8"))
@@ -87,7 +92,18 @@ def clean_home_witness(
         ):
             return None
         identity = _install_identity(metadata)
-        if bind and "install_identity" not in witness:
+        renew_consent = False
+        if bind and previous is not None and previous.consent is not None:
+            same_consent_time = replace(
+                metadata,
+                consent=replace(metadata.consent, granted_at=previous.consent.granted_at),
+            )
+            renew_consent = (
+                _install_identity(same_consent_time) == _install_identity(previous)
+                and clean_home_witness(home, previous) is not None
+            )
+        # Same-binding consent renewal retains the home observation, not old receipts.
+        if bind and ("install_identity" not in witness or renew_consent):
             witness["install_identity"] = identity
             temporary = path.with_suffix(".tmp")
             temporary.write_text(json.dumps(witness, sort_keys=True), encoding="utf-8")

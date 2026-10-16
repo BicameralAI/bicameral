@@ -336,6 +336,7 @@ class HostAdapter(ABC):
                 message=str(exc),
             )
         provenance = resolve_package_provenance()
+        previous = self._store().load()
         self._write_hook(provenance.runner_invocation)
         consent_summary = self.bounded_context_descriptor().render().splitlines()[0]
         metadata = AdapterMetadata(
@@ -355,7 +356,7 @@ class HostAdapter(ABC):
         self._store().save(metadata)
         from .clean_home import clean_home_witness
 
-        clean_home_witness(self.home(), metadata, bind=True)
+        clean_home_witness(self.home(), metadata, bind=True, previous=previous)
         return AdapterActionResult(
             host=self.host_id,
             action="install",
