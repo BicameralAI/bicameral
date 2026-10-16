@@ -1,0 +1,94 @@
+# Mirrors apps/bot/.github/workflows/windows-release-smoke.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in apps/bot/ so the component's commands are unchanged.
+name: 'bot: Windows Release Smoke'
+permissions:
+  contents: read
+jobs:
+  windows-x64-release-smoke:
+    runs-on: windows-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+      with:
+        toolchain: stable
+        targets: x86_64-pc-windows-msvc
+    - name: Cache cargo registry and build artifacts
+      uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+      with:
+        key: x86_64-pc-windows-msvc-smoke
+        workspaces: apps/bot -> target
+    - name: Build Windows x64 release binary with static CRT
+      shell: pwsh
+      env:
+        RUSTFLAGS: -C target-feature=+crt-static
+      run: |
+        $ErrorActionPreference = 'Stop'
+        cargo build --release --locked --target x86_64-pc-windows-msvc
+        if ($LASTEXITCODE -ne 0) { throw 'Windows release build failed' }
+        $binary = 'target/x86_64-pc-windows-msvc/release/bicameral.exe'
+        if (-not (Test-Path $binary)) { throw 'Windows release build did not produce bicameral.exe' }
+    - name: Verify Windows runtime independence and execution
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $binary = 'target/x86_64-pc-windows-msvc/release/bicameral.exe'
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        $dumpbin = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe' | Select-Object -First 1
+        if (-not $dumpbin) { throw 'dumpbin.exe was not found on the Windows smoke runner' }
+        $dependencies = (& $dumpbin /DEPENDENTS $binary) -join "`n"
+        if ($LASTEXITCODE -ne 0) { throw 'dumpbin dependency inspection failed' }
+        if ($dependencies -match '(?i)VCRUNTIME140(?:_1)?\.dll|MSVCP140\.dll') {
+          throw 'Windows release binary still depends on the VC++ redistributable runtime'
+        }
+        & $binary --version
+        if ($LASTEXITCODE -ne 0) { throw 'Windows release binary did not execute --version' }
+    - name: Verify five-target public manifest tests
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        python -m pip install --disable-pip-version-check pytest==8.4.2
+        if ($LASTEXITCODE -ne 0) { throw 'pytest installation failed' }
+        python -m pytest scripts/tests/test_generate_public_release_manifest.py -q
+        if ($LASTEXITCODE -ne 0) { throw 'public release manifest tests failed' }
+    - name: Package exact Windows release shape
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        New-Item -ItemType Directory -Force staging | Out-Null
+        Copy-Item 'target/x86_64-pc-windows-msvc/release/bicameral.exe' 'staging/bicameral.exe'
+        Push-Location staging
+        tar -czf '../bicameral-x86_64-pc-windows-msvc.tar.gz' bicameral.exe
+        Pop-Location
+        if (-not (Test-Path 'bicameral-x86_64-pc-windows-msvc.tar.gz')) {
+          throw 'Windows archive was not created'
+        }
+        $listing = tar -tzf 'bicameral-x86_64-pc-windows-msvc.tar.gz'
+        if ($listing -notcontains 'bicameral.exe') {
+          throw 'Windows archive does not contain bicameral.exe'
+        }
+        if (@($listing).Count -ne 1) {
+          throw 'Windows archive contains unexpected entries'
+        }
+    - name: Retain Windows candidate artifact
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: bicameral-x86_64-pc-windows-msvc-smoke
+        path: apps/bot/bicameral-x86_64-pc-windows-msvc.tar.gz
+        if-no-files-found: error
+        retention-days: 7
+'on':
+  workflow_dispatch: null
+  pull_request:
+    paths:
+    - apps/bot/.github/workflows/release.yml
+    - apps/bot/.github/workflows/windows-release-smoke.yml
+    - apps/bot/scripts/generate_public_release_manifest.py
+    - apps/bot/scripts/tests/test_generate_public_release_manifest.py
+    - apps/bot/Cargo.toml
+    - apps/bot/Cargo.lock
+    - .github/workflows/bot-windows-release-smoke.yml
+defaults:
+  run:
+    working-directory: apps/bot

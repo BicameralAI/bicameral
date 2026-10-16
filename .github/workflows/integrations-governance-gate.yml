@@ -1,0 +1,36 @@
+# Mirrors packages/integrations/.github/workflows/governance-gate.yml at the repository root.
+# That workflow calls _reusable-governance-gate.yml with the Integrations repository itself as the
+# tooling repository at the same commit. A root workflow cannot call a reusable workflow inside a
+# component, so its steps are inlined: the verifier runs from packages/integrations/ against
+# packages/integrations/ with no second checkout. The reusable's verifier self-tests
+# (pytest scripts/tests) already run in integrations-ci.yml.
+name: 'integrations: Governance Gate'
+jobs:
+  governance-integrity:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout caller
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.13'
+    - name: Verify caller's governance artifacts
+      run: python scripts/governance_gate.py --repo-root .
+'on':
+  pull_request:
+    paths:
+    - packages/integrations/**
+    - .github/workflows/integrations-governance-gate.yml
+  push:
+    branches:
+    - main
+    paths:
+    - packages/integrations/**
+    - .github/workflows/integrations-governance-gate.yml
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: packages/integrations

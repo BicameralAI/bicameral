@@ -1,0 +1,62 @@
+# Mirrors apps/bot/.github/workflows/live-projection-working-state.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in apps/bot/ so the component's commands are unchanged.
+name: 'bot: Live Projection Working State'
+permissions:
+  contents: read
+jobs:
+  live-projection-contract:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+      with:
+        toolchain: stable
+        components: rustfmt,clippy
+    - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+      with:
+        workspaces: apps/bot -> target
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+    - name: Check affected crates
+      run: |
+        set -o pipefail
+        mkdir -p test-artifacts/live-projection-working-state
+        {
+          cargo check -p bicameral-gateway --locked
+          cargo check -p bicameral-runtime --locked
+        } 2>&1 | tee test-artifacts/live-projection-working-state/cargo-check.log
+    - name: Verify committed protocol schemas
+      run: |
+        set -o pipefail
+        cargo test -p bicameral-gateway --test schema_gen --locked -- --nocapture \
+          2>&1 | tee test-artifacts/live-projection-working-state/schema-drift.log
+    - name: Run storage and acceptance contracts
+      run: |
+        set -o pipefail
+        {
+          cargo test -p bicameral-gateway projection_work_repository --locked -- --nocapture
+          cargo test -p bicameral-gateway --test durable_evidence_acceptance --locked -- --nocapture
+        } 2>&1 | tee test-artifacts/live-projection-working-state/foundation-tests.log
+    - name: Run live projection journey
+      run: |
+        set -o pipefail
+        cargo test -p bicameral-gateway --test live_projection_working_state --locked -- --nocapture \
+          2>&1 | tee test-artifacts/live-projection-working-state/live-journey.log
+    - name: Clippy affected production libraries
+      run: |
+        set -o pipefail
+        cargo clippy -p bicameral-gateway -p bicameral-runtime --lib --locked -- -D warnings \
+          2>&1 | tee test-artifacts/live-projection-working-state/clippy.log
+    - name: Retain live projection diagnostics
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: live-projection-working-state-diagnostics
+        path: apps/bot/test-artifacts/live-projection-working-state
+        if-no-files-found: ignore
+        retention-days: 14
+'on':
+  workflow_dispatch: null
+defaults:
+  run:
+    working-directory: apps/bot

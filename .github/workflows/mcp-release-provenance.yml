@@ -1,0 +1,36 @@
+# Mirrors packages/mcp/.github/workflows/release-provenance.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in packages/mcp/ so the component's commands are unchanged.
+name: 'mcp: Release provenance'
+permissions:
+  contents: read
+jobs:
+  descriptor:
+    name: mcp-release-descriptor
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Emit and verify descriptor
+      run: |
+        python -m unittest scripts.test_emit_release_descriptor
+        python scripts/emit_release_descriptor.py
+        python scripts/emit_release_descriptor.py --verify release-artifacts/mcp-release-descriptor.json
+    - uses: actions/upload-artifact@v4
+      with:
+        name: mcp-release-descriptor-${{ github.sha }}
+        path: packages/mcp/release-artifacts/mcp-release-descriptor.json
+        if-no-files-found: error
+        retention-days: 90
+'on':
+  pull_request:
+    paths:
+    - packages/mcp/**
+    - .github/workflows/mcp-release-provenance.yml
+  push:
+    branches:
+    - main
+    paths:
+    - packages/mcp/**
+    - .github/workflows/mcp-release-provenance.yml
+defaults:
+  run:
+    working-directory: packages/mcp

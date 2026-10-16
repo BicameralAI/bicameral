@@ -1,0 +1,47 @@
+# Mirrors services/cloud/.github/workflows/hosted-project-creation-journey.yml at the repository root. GitHub only runs
+# root workflows; run steps execute in services/cloud/ so the component's commands are unchanged.
+name: 'cloud: Hosted Dashboard Browser Gate'
+concurrency:
+  group: hosted-dashboard-browser-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  hosted-project-creation-journey:
+    name: hosted-project-creation-journey
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install dependencies (app + journey harness)
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -e '.[dev,journey]'
+    - name: Install Playwright browser
+      run: python -m playwright install --with-deps chromium
+    - name: Run hosted dashboard browser smoke and APC1 onboarding evidence
+      run: pytest -q -m journey tests/journey/test_vendored_dashboard_smoke.py tests/journey/test_apc1_local_network_permission.py tests/journey/test_apc1_setup_polling.py tests/journey/test_apc1_pairing_behavior.py
+    - name: Retain browser evidence (desktop, narrow, trace or failure screenshot)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: hosted-project-creation-journey-evidence
+        path: services/cloud/test-artifacts/hosted_project_creation
+        if-no-files-found: warn
+        retention-days: 14
+'on':
+  pull_request:
+    paths:
+    - services/cloud/src/bicameral_cloud/**
+    - services/cloud/tests/journey/**
+    - services/cloud/scripts/vendor_dashboard.sh
+    - services/cloud/pyproject.toml
+    - services/cloud/.github/workflows/hosted-project-creation-journey.yml
+    - .github/workflows/cloud-hosted-project-creation-journey.yml
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: services/cloud

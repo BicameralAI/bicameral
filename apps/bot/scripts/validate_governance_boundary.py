@@ -145,9 +145,9 @@ def forbidding_root(path: str, roots: list[str]) -> str | None:
 
 
 def candidate_paths() -> list[str]:
-    staged = git_lines(["diff", "--cached", "--name-only", "--diff-filter=ACMRT"])
+    staged = git_lines(["diff", "--cached", "--relative", "--name-only", "--diff-filter=ACMRT"])
     base = os.environ.get("GITHUB_BASE_REF", "main")
-    pr = git_lines(["diff", "--name-only", "--diff-filter=ACMRT", f"origin/{base}...HEAD"])
+    pr = git_lines(["diff", "--relative", "--name-only", "--diff-filter=ACMRT", f"origin/{base}...HEAD"])
     return sorted(set(staged) | set(pr))
 
 

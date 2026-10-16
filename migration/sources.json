@@ -18,7 +18,8 @@
         "Cargo workspace license set to Apache-2.0",
         "README license section points at root LICENSE and NOTICE",
         "CONTRIBUTING.md license paragraph points at the root Apache-2.0 LICENSE and NOTICE",
-        "runtime/README.md NOTICE link points at the root NOTICE"
+        "runtime/README.md NOTICE link points at the root NOTICE",
+        "scripts/validate_governance_boundary.py: git diff gains --relative (staged and PR diff) so paths are component-relative from the component directory, as they were at a repository root. Without it the guard compared apps/... paths with component-relative roots and passed every change (verified: a staged .qor/ file passed before, fails after)"
       ]
     },
     {
@@ -34,7 +35,8 @@
         "README license badge and section point at root Apache-2.0 LICENSE",
         "scripts/migration_provenance.py added: migration-aware provenance for the information-cycle bundle (the bundle, validator and generator are reviewed components and are unchanged)",
         "scripts/tests/test_information_cycle_bundle.py: the seven history-dependent tests use the migration-aware checks; scripts/tests/test_migration_provenance.py adds acceptance and rejection cases",
-        "SPDX headers: 303 Bicameral-authored files changed from MIT to Apache-2.0 (header lines only; 30 'Copyright 2026 Bicameral AI' lines likewise). Ten reviewed components of the information-cycle bundle keep their MIT header byte-for-byte because the bundle pins their digests; they are distributed under the root Apache-2.0 LICENSE and the header follows at the next bundle review. Third-party text (Contributor Covenant 2.0 in ingest fixtures, with its attribution) is untouched."
+        "SPDX headers: 303 Bicameral-authored files changed from MIT to Apache-2.0 (header lines only; 30 'Copyright 2026 Bicameral AI' lines likewise). Ten reviewed components of the information-cycle bundle keep their MIT header byte-for-byte because the bundle pins their digests; they are distributed under the root Apache-2.0 LICENSE and the header follows at the next bundle review. Third-party text (Contributor Covenant 2.0 in ingest fixtures, with its attribution) is untouched.",
+        "scripts/validate_governance_boundary.py: git diff gains --relative (staged and PR diff) so paths are component-relative from the component directory, as they were at a repository root. Without it the guard compared apps/... paths with component-relative roots and passed every change (verified: a staged .qor/ file passed before, fails after)"
       ],
       "migration_evidence": {
         "manifest": "migration/manifests/bicameral-integrations.json",
@@ -56,7 +58,8 @@
         "LICENSE replaced with the Apache-2.0 text so the sdist keeps a license file",
         "pyproject license and classifier set to Apache-2.0",
         "README license section points at root LICENSE",
-        "requirements-ci.lock: mcp 1.28.1 -> 1.30.0 (CVE-2026-59951), regenerated with the recorded pip-compile command; no other pins changed; published range >=1.28.1,<2.0.0 unchanged"
+        "requirements-ci.lock: mcp 1.28.1 -> 1.30.0 (CVE-2026-59951), regenerated with the recorded pip-compile command; no other pins changed; published range >=1.28.1,<2.0.0 unchanged",
+        "scripts/validate_governance_boundary.py: git diff gains --relative (staged and PR diff) so paths are component-relative from the component directory, as they were at a repository root. Without it the guard compared apps/... paths with component-relative roots and passed every change (verified: a staged .qor/ file passed before, fails after)"
       ]
     },
     {
@@ -71,7 +74,8 @@
       "adjustments": [
         "tests/test_line_ending_policy.py reads blobs as HEAD:./<path> so paths resolve from the component directory",
         "src/bicameral_cloud/routes/connect_local_accountability.py: 31 pre-existing E501 findings resolved without behavior change (Python string literals split, AST verified identical; the five embedded HTML/CSS/JS templates carry a string-scoped noqa: E501 because their bytes must match the served page)",
-        "docs/governance/README.md: the excluded soc2-application-controls.md entry is unlinked and marked as kept in the source repository"
+        "docs/governance/README.md: the excluded soc2-application-controls.md entry is unlinked and marked as kept in the source repository",
+        "scripts/validate_governance_boundary.py: git diff gains --relative (staged and PR diff) so paths are component-relative from the component directory, as they were at a repository root. Without it the guard compared apps/... paths with component-relative roots and passed every change (verified: a staged .qor/ file passed before, fails after)"
       ]
     },
     {
@@ -99,8 +103,111 @@
       "cloud-release-provenance",
       "cloud-customer-distribution-boundary",
       "installer-unix",
-      "installer-windows"
+      "installer-windows",
+      "bot-governance-boundary",
+      "mcp-governance-boundary",
+      "integrations-governance-boundary",
+      "cloud-governance-boundary",
+      "bot-secret-scan",
+      "cloud-secret-scan",
+      "cloud-hosted-project-creation-journey",
+      "integrations-quality",
+      "integrations-governance-gate",
+      "integrations-release-provenance",
+      "mcp-release-provenance",
+      "bot-release-provenance",
+      "bot-ui-evidence",
+      "bot-windows-release-smoke",
+      "bot-candidate-disposition-contract",
+      "bot-content-aware-candidate-evaluation",
+      "bot-durable-evidence-acceptance",
+      "bot-integrations-trace-journey-contract",
+      "bot-journey-review-contract",
+      "bot-live-projection-working-state",
+      "bot-projection-recovery-contract",
+      "bot-self-contained-candidate-review",
+      "bot-sqlite-projection-working-state"
     ],
-    "not_activated": "Release, publish, deploy (Cloud Run, GitHub Pages, PyPI, R2), cross-repository dispatch, Factory attestation, Atlas, notification and repository-governance workflows. They remain in each component's .github/ directory unchanged."
+    "not_activated": [
+      {
+        "category": "Release, publish, deploy, tag and Pages",
+        "workflows": [
+          "apps/bot release.yml, tag-release-on-main-version.yml",
+          "packages/mcp publish.yml",
+          "services/cloud deploy-cloud-run.yml, dispatch-cloud-deploy.yml, authorize-internal-admission-migration.yml",
+          "installer pages.yml",
+          "apps/bot v0112-release-rehearsal.yml"
+        ],
+        "reason": "Publish or deploy, need separate authorization and production secrets; the rehearsal also needs Factory release tooling that is blocked (factory_inventory)"
+      },
+      {
+        "category": "Cross-repository dispatch and vendoring",
+        "workflows": [
+          "apps/bot dispatch-cloud-dashboard-vendor.yml, dispatch-integrations-external-ingest-contract.yml",
+          "services/cloud vendor-dashboard-bundle.yml",
+          "packages/integrations external-ingest-contract-release.yml"
+        ],
+        "reason": "Move release artifacts between repositories; how releases compose inside one repository is an open decision (cross_repository_references)"
+      },
+      {
+        "category": "Cross-component release journey",
+        "workflows": [
+          "services/cloud terminal-hosted-product-journey.yml"
+        ],
+        "reason": "Composes pinned Bot and MCP releases with Cloud; same open decision; needs blocked Factory release tooling"
+      },
+      {
+        "category": "Factory attestation and Atlas",
+        "workflows": [
+          "apps/bot, packages/mcp, services/cloud factory-attestation.yml, factory-attestation-migration-gate.yml (cloud)",
+          "apps/bot, packages/mcp, services/cloud atlas-release-assignment-status.yml"
+        ],
+        "reason": "Factory control plane and Atlas, excluded (#969)"
+      },
+      {
+        "category": "Repository security and supply-chain suites",
+        "workflows": [
+          "codeql.yml (mcp, integrations)",
+          "dependency-review.yml (bot, mcp, integrations)",
+          "scorecard.yml (bot, mcp, integrations)",
+          "sbom.yml (bot, mcp, integrations, cloud)",
+          "secret-scan.yml with TruffleHog (mcp, integrations)",
+          "security-scan.yml with bandit/pip-audit (mcp, integrations, cloud)",
+          "cargo-audit.yml (bot)",
+          "packages/integrations _reusable-codeql.yml, _reusable-dependency-review.yml, _reusable-sbom.yml, _reusable-scorecard.yml"
+        ],
+        "reason": "Third-party scanners per component; #969 recommends one deduplicated security-and-provenance suite, which is publication-readiness work (#971). The script-based secret scans of Bot and Cloud are mirrored"
+      },
+      {
+        "category": "Source-repository process automation",
+        "workflows": [
+          "apps/bot, services/cloud branch-sync.yml",
+          "packages/mcp label-merged-to-dev.yml, notify-slack-on-merge.yml, pr-body-refs-lint.yml",
+          "packages/integrations pr-hygiene.yml, _reusable-pr-hygiene.yml, contributor-check.yml"
+        ],
+        "reason": "Branch, label, notification and PR-text conventions of the source repositories (dev branches, Slack secret, pull_request_target); not product verification. Contributor checks belong to #970/#971"
+      },
+      {
+        "category": "Requires excluded state",
+        "workflows": [
+          "packages/mcp repo-governance.yml"
+        ],
+        "reason": "Reads .bicameral/repo-governance.yaml, Factory control-plane state that is not imported"
+      },
+      {
+        "category": "Fails at the source",
+        "workflows": [
+          "packages/integrations redaction-evaluation-stacked.yml"
+        ],
+        "reason": "Names scripts/evaluate_redaction_backends.py and scripts/measure_redaction_memory.py, which do not exist at the source SHA 3e00781 (a stacked-branch workflow)"
+      }
+    ],
+    "inlined": [
+      {
+        "workflow": "integrations-governance-gate",
+        "source": "packages/integrations/.github/workflows/governance-gate.yml + _reusable-governance-gate.yml",
+        "change": "A root workflow cannot call a reusable workflow inside a component, and the reusable checks out the Integrations repository itself at the same commit as its tooling. Its verifier step runs inline from packages/integrations/; its self-tests (pytest scripts/tests) already run in integrations-ci."
+      }
+    ]
   }
 }
