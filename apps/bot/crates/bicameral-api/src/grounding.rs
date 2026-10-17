@@ -10,7 +10,7 @@
 //! Mirrors the SDK `grounding` contract (`bicameral-sdk/src/grounding/index.ts`),
 //! serialized snake_case per bot convention. Reuses [`FindingSeverity`] (#484)
 //! and [`Attribution`] (#481). Provider-specific PR/Git/docs mechanics belong to
-//! integrations; Alex-specific source-doc templates belong to `bicameral-sidecar`.
+//! integrations; design-partner-specific source-doc templates belong to `bicameral-sidecar`.
 
 use crate::constraint::{Attribution, LifecycleReviewState};
 use crate::drift::FindingSeverity;

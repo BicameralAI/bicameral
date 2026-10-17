@@ -1,6 +1,6 @@
-# Alex Alignment Delivery
+# Design Partner Alignment Delivery
 
-This file maps Alex-aligned core product requirements to implementation issues in `bicameral-bot`.
+This file maps design-partner-aligned core product requirements to implementation issues in `bicameral-bot`.
 
 The bot owns the core decision authority layer. Customer-specific workflow expression belongs in `bicameral-sidecar`. Stable shared contracts belong in `bicameral-sdk`.
 

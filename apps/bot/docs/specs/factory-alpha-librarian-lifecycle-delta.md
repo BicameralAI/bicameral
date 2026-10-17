@@ -2,7 +2,7 @@
 
 Date: 2026-06-19
 Status: requirements delta, not implementation plan
-Source material: Alex setup notes, `docs/specs/librarian-recall-readme.md`, an internal asset assessment (not published), four asset-specific `$bic:to-runtime-spec` passes for CODEGENOME, FailSafe, EvolveAI, and qortara-governance, factory product-validation roadmap, cognitive-debt alpha posture docs, and bot alpha release readiness docs.
+Source material: design-partner setup notes, `docs/specs/librarian-recall-readme.md`, an internal asset assessment (not published), four asset-specific `$bic:to-runtime-spec` passes for CODEGENOME, FailSafe, EvolveAI, and qortara-governance, factory product-validation roadmap, cognitive-debt alpha posture docs, and bot alpha release readiness docs.
 
 ## Purpose
 
@@ -70,7 +70,7 @@ Required additions:
 
 **Constraint Lookup**
 
-Constraint lookup should become the primary librarian preflight call for Alex-style use: "pull the relevant prior decisions and matching feature docs before work starts."
+Constraint lookup should become the primary librarian preflight call for design-partner-style use: "pull the relevant prior decisions and matching feature docs before work starts."
 
 Required additions:
 

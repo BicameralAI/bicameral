@@ -1,6 +1,6 @@
-# Alex Alignment Delivery
+# Design Partner Alignment Delivery
 
-This file maps Alex-aligned agent and operator workflow requirements to implementation issues in `bicameral-mcp`.
+This file maps design-partner-aligned agent and operator workflow requirements to implementation issues in `bicameral-mcp`.
 
 MCP exposes Bicameral context and review actions to agents and developer workflows. Core authority remains in `bicameral-bot`. Stable contracts remain in `bicameral-sdk`.
 

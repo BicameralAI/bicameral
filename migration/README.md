@@ -170,6 +170,8 @@ git push <new public repository> "$COMMIT:refs/heads/main"
 
 `--history` checks that a publication commit has no parents.
 
+The destination, content decisions, rights approvals, GitHub settings and full procedure are in [`PUBLICATION.md`](PUBLICATION.md).
+
 ## Release composition
 
 Releases keep composing pinned component releases, as the components' own release specifications define: Cloud consumes "a manifest-selected Bot SPA bundle by immutable digest" (`services/cloud/docs/specs/release-manifest-cloud-adoption.md`), MCP is validated "against exact pinned Bot interface" (`packages/mcp/docs/specs/release-manifest-mcp-adoption.md`), and Integrations revalidates "with pinned Bot and MCP artifacts" (`packages/integrations/docs/specs/release-manifest-integrations-adoption.md`). The accepted repository records (ARCH-0001, ARCH-0002) do not address release composition, so building every component from the same commit would be an architecture change that no record authorizes.

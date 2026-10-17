@@ -3,7 +3,7 @@
 **Status:** Active · **Relates to:** ADR-0008, GOVERNED_ADAPTER_CONTRACT, bicameral-sdk #7 (evidence contract), GH #187
 
 This document states, in one place, what a `bicameral-integrations` connector **may** and **may not** do with
-the evidence it produces — the integrations side of the Alex-aligned evidence-only ingest boundary.
+the evidence it produces — the integrations side of the design-partner-aligned evidence-only ingest boundary.
 
 ## The invariant: a connector emits raw, non-authoritative Evidence
 
@@ -46,7 +46,7 @@ A connector observes an external system and emits **raw evidence**. It never own
 ## Scoped permissions & opt-in monitoring
 
 Each connector declares a **`trust_tier`** in its `config.json` — the scoped-permission metadata a consumer
-(the `bicameral-sidecar`, sidecar #5 Alex monitoring) uses to decide *which* connectors a customer opts into
+(the `bicameral-sidecar`, sidecar #5 design-partner monitoring) uses to decide *which* connectors a customer opts into
 and at what scope. Integrations exposes the capability/trust facts; the **sidecar owns the customer-specific
 monitoring scope and routing**; the **bot owns canonical promotion and authority**; the **SDK owns the shared
 contracts**.
