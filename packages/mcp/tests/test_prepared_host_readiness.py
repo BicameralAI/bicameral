@@ -37,11 +37,11 @@ def installed(request, tmp_path, monkeypatch):
     return adapter
 
 
-def activation(adapter, daemon=None):
+def activation(adapter, daemon=None, *, session_id="sess-1"):
     asyncio.run(
         run_prework(
             adapter.host_id,
-            startup_event(adapter.home()),
+            {**startup_event(adapter.home()), "session_id": session_id},
             home=adapter.home(),
             client_factory=lambda: daemon or FakeDaemon(),
         )
@@ -101,6 +101,40 @@ def test_prepared_install_reaches_verified_without_renewing_receipt(installed, c
     assert second == first
 
 
+@pytest.mark.parametrize("disable_first", [False, True])
+def test_same_binding_reinstall_requires_a_fresh_verified_receipt(installed, capsys, disable_first):
+    old_receipt = activation(installed)
+    before = old_receipt.read_bytes()
+    assert verify(installed, old_receipt, capsys)[0] == 0
+    if disable_first:
+        assert installed.disable().ok
+        assert verify(installed, old_receipt, capsys)[0] == 1
+    assert installed.install(consent=True, artifact_generation=ARTIFACT, host_version="test 1").ok
+    assert old_receipt.read_bytes() == before
+    assert verify(installed, old_receipt, capsys)[0] == 1
+    fresh_receipt = activation(installed, session_id="sess-2")
+    code, result = verify(installed, fresh_receipt, capsys)
+    assert code == 0
+    assert result["state"] == "active_verified"
+    assert result["invocation_count"] == 1
+
+
+@pytest.mark.parametrize(
+    ("artifact", "host_version"),
+    [("sha256:" + "b" * 64, "test 1"), (ARTIFACT, "test 2")],
+)
+def test_reinstall_with_changed_binding_cannot_renew_home_proof(
+    installed, capsys, artifact, host_version
+):
+    witness = installed.home() / "bicameral-mcp" / "clean-home.json"
+    before = witness.read_bytes()
+    assert installed.install(
+        consent=True, artifact_generation=artifact, host_version=host_version
+    ).ok
+    assert witness.read_bytes() == before
+    assert verify(installed, activation(installed), capsys, artifact=artifact)[0] == 1
+
+
 @pytest.mark.parametrize(
     "change", ["artifact", "copy_home", "unprepared", "reinstall", "disabled", "package", "host"]
 )
@@ -124,6 +158,11 @@ def test_changed_install_or_home_cannot_reuse_clean_evidence(installed, capsys, 
         setattr(metadata, "package_version" if change == "package" else "host_version", "different")
         installed._store().save(metadata)
     assert verify(installed, path, capsys)[0] == 1
+    if change not in {"reinstall", "disabled"}:
+        assert installed.install(
+            consent=True, artifact_generation=ARTIFACT, host_version="test 1"
+        ).ok
+        assert verify(installed, activation(installed, session_id="sess-2"), capsys)[0] == 1
 
 
 @pytest.mark.parametrize(
