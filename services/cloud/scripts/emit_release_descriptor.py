@@ -229,11 +229,6 @@ def build_descriptor(commit: str) -> dict[str, Any]:
             ),
             "deployment": files_digest(
                 [
-                    ROOT / ".github" / "workflows" / "deploy-cloud-run.yml",
-                    ROOT
-                    / ".github"
-                    / "workflows"
-                    / "terminal-hosted-product-journey.yml",
                     ROOT / "scripts" / "migration_delivery.py",
                     ROOT / "scripts" / "verify_bot_dashboard_provenance.py",
                 ]

@@ -83,7 +83,34 @@ class WorkflowRuleTests(unittest.TestCase):
 
     def test_component_workflow_copies_are_not_root_workflows(self) -> None:
         text = SAFE_WORKFLOW.replace("echo ok", "echo ${{ secrets.TOKEN }}")
-        self.assertEqual(check_publication.check_file("apps/bot/.github/workflows/release.yml", text), [])
+        self.assertEqual(check_publication.check_file("apps/bot/.github/workflows/rust.yml", text), [])
+
+    def test_security_events_write_is_allowed_for_codeql(self) -> None:
+        text = SAFE_WORKFLOW.replace("contents: read", "contents: read\n  security-events: write")
+        self.assertEqual(check_publication.check_workflow(self.PATH, text), [])
+
+    def test_rejects_deploy_and_publish_actions(self) -> None:
+        for snippet in (
+            "uses: google-github-actions/auth@v2",
+            "uses: actions/deploy-pages@v4",
+            "run: cargo publish",
+            "run: npm publish",
+        ):
+            with self.subTest(snippet=snippet):
+                text = SAFE_WORKFLOW.replace("echo ok", snippet)
+                self.assertNotEqual(check_publication.check_workflow(self.PATH, text), [])
+
+    def test_removed_workflow_paths_fail_when_present(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            rel = check_publication.REMOVED_WORKFLOWS[0]
+            path = root / rel
+            path.parent.mkdir(parents=True)
+            path.write_text("name: deploy\n")
+            self.assertEqual(
+                check_publication.check_removed_workflows(root),
+                [f"{rel}: privileged workflow must not be in the public repository"],
+            )
 
 
 class HistoryTests(unittest.TestCase):

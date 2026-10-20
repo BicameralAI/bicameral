@@ -7,8 +7,10 @@
 Content rules catch the kinds of material removed before publication (personal
 addresses, private workspace links, agent-session URLs, local tool logs, real Factory
 attestations). Workflow rules keep root workflows safe for pull requests from forks:
-no privileged triggers, no secrets, no write permissions. --history checks that REF is
-a single parentless commit, so no earlier object is reachable from it.
+no privileged triggers, no secrets, no write permissions except the CodeQL
+security-events upload, and no deploy or publish actions. Removed workflow paths
+must stay absent. --history checks that REF is a single parentless commit, so no
+earlier object is reachable from it.
 """
 
 from __future__ import annotations
@@ -41,8 +43,36 @@ SYNTHETIC_ATTESTATION = "synthetic-test-placeholder"
 WORKFLOW_DIR = ".github/workflows/"
 PRIVILEGED_TRIGGERS = re.compile(r"^\s{0,4}['\"]?(pull_request_target|workflow_run)['\"]?\s*:", re.MULTILINE)
 SECRETS_REFERENCE = re.compile(r"\$\{\{[^}]*\bsecrets\.")
-WRITE_PERMISSION = re.compile(r"^\s*[\w-]+\s*:\s*write\b|^\s*permissions\s*:\s*write-all\b", re.MULTILINE)
+# security-events: write is the CodeQL SARIF upload. Every other write is rejected.
+WRITE_PERMISSION = re.compile(
+    r"^\s*(?!security-events\b)[\w-]+\s*:\s*write\b|^\s*permissions\s*:\s*write-all\b",
+    re.MULTILINE,
+)
 TOP_LEVEL_PERMISSIONS = re.compile(r"^permissions\s*:", re.MULTILINE)
+DEPLOY_OR_PUBLISH = re.compile(
+    r"google-github-actions/(?:auth|deploy-cloudrun)|actions/deploy-pages|"
+    r"action-gh-release|gh-action-pypi-publish|\bcargo publish\b|\bnpm publish\b|\btwine upload\b"
+)
+REMOVED_WORKFLOWS = (
+    "services/cloud/.github/workflows/deploy-cloud-run.yml",
+    "services/cloud/.github/workflows/dispatch-cloud-deploy.yml",
+    "services/cloud/.github/workflows/atlas-release-assignment-status.yml",
+    "services/cloud/.github/workflows/authorize-internal-admission-migration.yml",
+    "services/cloud/.github/workflows/vendor-dashboard-bundle.yml",
+    "services/cloud/.github/workflows/factory-attestation.yml",
+    "services/cloud/.github/workflows/factory-attestation-migration-gate.yml",
+    "services/cloud/.github/workflows/terminal-hosted-product-journey.yml",
+    "apps/bot/.github/workflows/release.yml",
+    "apps/bot/.github/workflows/tag-release-on-main-version.yml",
+    "apps/bot/.github/workflows/atlas-release-assignment-status.yml",
+    "apps/bot/.github/workflows/dispatch-cloud-dashboard-vendor.yml",
+    "apps/bot/.github/workflows/dispatch-integrations-external-ingest-contract.yml",
+    "installer/.github/workflows/pages.yml",
+    "packages/mcp/.github/workflows/publish.yml",
+    "packages/mcp/.github/workflows/notify-slack-on-merge.yml",
+    "packages/mcp/.github/workflows/atlas-release-assignment-status.yml",
+    "packages/integrations/.github/workflows/contributor-check.yml",
+)
 
 
 def check_content(path: str, text: str) -> list[str]:
@@ -72,9 +102,19 @@ def check_workflow(path: str, text: str) -> list[str]:
         errors.append(f"{path}: workflows must not reference secrets")
     if WRITE_PERMISSION.search(text):
         errors.append(f"{path}: workflows must not request write permissions")
+    if DEPLOY_OR_PUBLISH.search(text):
+        errors.append(f"{path}: workflows must not deploy or publish")
     if not TOP_LEVEL_PERMISSIONS.search(text):
         errors.append(f"{path}: workflows must declare top-level permissions")
     return errors
+
+
+def check_removed_workflows(root: Path) -> list[str]:
+    return [
+        f"{rel}: privileged workflow must not be in the public repository"
+        for rel in REMOVED_WORKFLOWS
+        if (root / rel).exists()
+    ]
 
 
 def check_file(path: str, text: str) -> list[str]:
@@ -87,7 +127,7 @@ def check_file(path: str, text: str) -> list[str]:
 
 
 def run(root: Path) -> list[str]:
-    errors = []
+    errors = check_removed_workflows(root)
     for rel in check_structure.candidate_files(root):
         if FORBIDDEN_PATHS.search(rel):
             errors.append(f"{rel}: file type must not be published")

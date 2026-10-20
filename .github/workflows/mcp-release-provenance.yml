@@ -21,10 +21,6 @@ jobs:
         if-no-files-found: error
         retention-days: 90
 'on':
-  pull_request:
-    paths:
-    - packages/mcp/**
-    - .github/workflows/mcp-release-provenance.yml
   push:
     branches:
     - main

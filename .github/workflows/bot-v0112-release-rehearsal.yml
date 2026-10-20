@@ -129,17 +129,6 @@ jobs:
         if-no-files-found: error
         retention-days: 90
 'on':
-  pull_request:
-    paths:
-    - apps/bot/release-plans/v0.1.12-retroactive-simulation.json
-    - apps/bot/release-units/v0112-*.json
-    - apps/bot/release-rehearsals/v0.1.12-retroactive-simulation.json
-    - apps/bot/.github/workflows/v0112-release-rehearsal.yml
-    - apps/bot/scripts/tests/test_v0112_release_rehearsal_workflow.py
-    - tools/factory/scripts/release_unit.py
-    - tools/factory/scripts/release_rehearsal.py
-    - tools/factory/registries/bot-release-closure-policy.v1.json
-    - .github/workflows/bot-v0112-release-rehearsal.yml
   workflow_dispatch: null
 defaults:
   run:

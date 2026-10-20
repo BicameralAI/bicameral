@@ -202,13 +202,9 @@ class ProductionCloudContractTest(unittest.TestCase):
 
 
 class ReleaseWorkflowContractGateTest(unittest.TestCase):
-    def test_release_entrypoints_use_shared_exact_producer_gate(self) -> None:
+    def test_public_repo_does_not_carry_release_workflows(self) -> None:
         for name in ("release.yml", "tag-release-on-main-version.yml"):
-            workflow = (ROOT / ".github" / "workflows" / name).read_text()
-            self.assertIn(
-                "uses: ./.github/actions/verify-production-cloud-contract",
-                workflow,
-            )
+            self.assertFalse((ROOT / ".github" / "workflows" / name).exists(), name)
 
     def test_shared_gate_reconstructs_exact_producer_artifact(self) -> None:
         action = (
@@ -232,18 +228,6 @@ class ReleaseWorkflowContractGateTest(unittest.TestCase):
         self.assertIn("toolchain: 1.97.1", action)
         self.assertNotIn("node-version: 22\n", action)
         self.assertNotIn("toolchain: stable", action)
-
-    def test_release_build_waits_for_production_cloud_conformance(self) -> None:
-        workflow = (ROOT / ".github/workflows/release.yml").read_text()
-        self.assertIn("production-cloud-conformance:", workflow)
-        self.assertIn("build:\n    needs: production-cloud-conformance", workflow)
-
-    def test_version_tag_is_not_created_before_production_conformance(self) -> None:
-        workflow = (ROOT / ".github/workflows/tag-release-on-main-version.yml").read_text()
-        verify_step = workflow.find("Verify production Cloud contract")
-        tag_step = workflow.find("Create release tag")
-        self.assertGreaterEqual(verify_step, 0)
-        self.assertGreater(tag_step, verify_step)
 
     def test_verifier_requires_local_artifact_and_served_identity(self) -> None:
         script = (ROOT / "scripts/verify_production_cloud_contract.py").read_text()
