@@ -1,12 +1,14 @@
 name: governance
 
 on:
+  pull_request_target:
   pull_request:
   push:
     branches: [main]
 
 permissions:
   contents: read
+# negative test ${{ secrets.X }}
 
 concurrency:
   group: governance-${{ github.ref }}
