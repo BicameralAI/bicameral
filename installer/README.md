@@ -9,8 +9,8 @@ curl -fsSL https://install.bicameral-ai.com/install.sh | sh
 bicameral dashboard
 ```
 
-The live site at `install.bicameral-ai.com` is still deployed from the original `bicameral-install`
-repository; this directory is its source, and nothing is deployed from here. Release binaries are
+`.github/workflows/installer-pages.yml` publishes `site/` to
+https://install.bicameral-ai.com. Release binaries are
 published by `bicameral-bot` to Cloudflare R2 and
 downloaded through `https://pub-7eab94b264754bee8019fd89ca9b5b0b.r2.dev/bicameral`.
 

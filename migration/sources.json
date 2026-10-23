@@ -219,6 +219,7 @@
       "cloud-customer-distribution-boundary",
       "installer-unix",
       "installer-windows",
+      "installer-pages",
       "factory-tools",
       "bot-governance-boundary",
       "mcp-governance-boundary",
@@ -250,8 +251,7 @@
         "workflows": [
           "apps/bot release.yml, tag-release-on-main-version.yml",
           "packages/mcp publish.yml",
-          "services/cloud deploy-cloud-run.yml, dispatch-cloud-deploy.yml, authorize-internal-admission-migration.yml",
-          "installer pages.yml"
+          "services/cloud deploy-cloud-run.yml, dispatch-cloud-deploy.yml, authorize-internal-admission-migration.yml"
         ],
         "reason": "Publish or deploy, and need separate authorization and production secrets"
       },

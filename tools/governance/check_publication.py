@@ -8,9 +8,10 @@ Content rules catch the kinds of material removed before publication (personal
 addresses, private workspace links, agent-session URLs, local tool logs, real Factory
 attestations). Workflow rules keep root workflows safe for pull requests from forks:
 no privileged triggers, no secrets, no write permissions except the CodeQL
-security-events upload, and no deploy or publish actions. Removed workflow paths
-must stay absent. --history checks that REF is a single parentless commit, so no
-earlier object is reachable from it.
+security-events upload and the install-site Pages token, and no deploy or
+publish actions except actions/deploy-pages in the install-site workflow.
+Removed workflow paths must stay absent. --history checks that REF is a single
+parentless commit, so no earlier object is reachable from it.
 """
 
 from __future__ import annotations
@@ -41,6 +42,11 @@ ATTESTATION_DIR = ".bicameral/factory-attestations/"
 SYNTHETIC_ATTESTATION = "synthetic-test-placeholder"
 
 WORKFLOW_DIR = ".github/workflows/"
+INSTALLER_PAGES_WORKFLOW = ".github/workflows/installer-pages.yml"
+# pages: write, id-token: write, and actions/deploy-pages are the GitHub Pages
+# deployment for the install site. They are allowed on that workflow only.
+INSTALLER_PAGES_WRITE = re.compile(r"^\s*(?:pages|id-token)\s*:\s*write\b", re.MULTILINE)
+INSTALLER_PAGES_DEPLOY = re.compile(r"actions/deploy-pages\b")
 PRIVILEGED_TRIGGERS = re.compile(r"^\s{0,4}['\"]?(pull_request_target|workflow_run)['\"]?\s*:", re.MULTILINE)
 SECRETS_REFERENCE = re.compile(r"\$\{\{[^}]*\bsecrets\.")
 # security-events: write is the CodeQL SARIF upload. Every other write is rejected.
@@ -100,9 +106,15 @@ def check_workflow(path: str, text: str) -> list[str]:
         errors.append(f"{path}: pull_request_target and workflow_run triggers are not allowed")
     if SECRETS_REFERENCE.search(text):
         errors.append(f"{path}: workflows must not reference secrets")
-    if WRITE_PERMISSION.search(text):
+    if path == INSTALLER_PAGES_WORKFLOW:
+        write_text = INSTALLER_PAGES_WRITE.sub("", text)
+        deploy_text = INSTALLER_PAGES_DEPLOY.sub("", text)
+    else:
+        write_text = text
+        deploy_text = text
+    if WRITE_PERMISSION.search(write_text):
         errors.append(f"{path}: workflows must not request write permissions")
-    if DEPLOY_OR_PUBLISH.search(text):
+    if DEPLOY_OR_PUBLISH.search(deploy_text):
         errors.append(f"{path}: workflows must not deploy or publish")
     if not TOP_LEVEL_PERMISSIONS.search(text):
         errors.append(f"{path}: workflows must declare top-level permissions")

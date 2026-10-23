@@ -110,7 +110,7 @@ cd bicameral
 python3 tools/governance/check.py                                   # repository governance checks
 ```
 
-None of these needs Bicameral credentials or private infrastructure. Each component's README has its development guide, and the exact CI commands are the `run:` steps in [`.github/workflows/`](.github/workflows/) (named `<component>-*.yml`). [`installer/`](installer/) holds the installer source; published installs are not built from this repository yet.
+None of these needs Bicameral credentials or private infrastructure. Each component's README has its development guide, and the exact CI commands are the `run:` steps in [`.github/workflows/`](.github/workflows/) (named `<component>-*.yml`). [`.github/workflows/installer-pages.yml`](.github/workflows/installer-pages.yml) publishes [`installer/site/`](installer/site/) to https://install.bicameral-ai.com.
 
 ## Repository structure
 

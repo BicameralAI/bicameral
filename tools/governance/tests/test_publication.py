@@ -81,6 +81,64 @@ class WorkflowRuleTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertNotEqual(check_publication.check_workflow(self.PATH, text), [])
 
+    def test_installer_pages_may_publish_the_install_site(self) -> None:
+        text = """name: Deploy install site
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+'on':
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/deploy-pages@v4
+"""
+        self.assertEqual(
+            check_publication.check_workflow(".github/workflows/installer-pages.yml", text),
+            [],
+        )
+
+    def test_installer_pages_rejects_other_writes(self) -> None:
+        text = """name: Deploy install site
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+'on':
+  push:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/deploy-pages@v4
+"""
+        self.assertNotEqual(
+            check_publication.check_workflow(".github/workflows/installer-pages.yml", text),
+            [],
+        )
+
+    def test_installer_pages_rejects_other_publish_actions(self) -> None:
+        text = """name: Deploy install site
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+'on':
+  push:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - run: cargo publish
+"""
+        self.assertNotEqual(
+            check_publication.check_workflow(".github/workflows/installer-pages.yml", text),
+            [],
+        )
+
     def test_component_workflow_copies_are_not_root_workflows(self) -> None:
         text = SAFE_WORKFLOW.replace("echo ok", "echo ${{ secrets.TOKEN }}")
         self.assertEqual(check_publication.check_file("apps/bot/.github/workflows/rust.yml", text), [])
