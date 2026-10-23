@@ -107,6 +107,10 @@ def check_workflow(path: str, text: str) -> list[str]:
     if SECRETS_REFERENCE.search(text):
         errors.append(f"{path}: workflows must not reference secrets")
     if path == INSTALLER_PAGES_WORKFLOW:
+        # The only workflow with a Pages/OIDC write exception must never execute
+        # pull-request-controlled content, including inline YAML event arrays.
+        if re.search(r"\bpull_request\b", text):
+            errors.append(f"{path}: Pages publisher cannot run on pull_request")
         write_text = INSTALLER_PAGES_WRITE.sub("", text)
         deploy_text = INSTALLER_PAGES_DEPLOY.sub("", text)
     else:
@@ -114,6 +118,10 @@ def check_workflow(path: str, text: str) -> list[str]:
         deploy_text = text
     if WRITE_PERMISSION.search(write_text):
         errors.append(f"{path}: workflows must not request write permissions")
+    if path != ".github/workflows/codeql.yml" and re.search(
+        r"^\s*security-events\s*:\s*write\b", text, re.MULTILINE
+    ):
+        errors.append(f"{path}: security-events write is reserved for CodeQL")
     if DEPLOY_OR_PUBLISH.search(deploy_text):
         errors.append(f"{path}: workflows must not deploy or publish")
     if not TOP_LEVEL_PERMISSIONS.search(text):
