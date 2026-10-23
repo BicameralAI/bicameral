@@ -47,7 +47,16 @@ INSTALLER_PAGES_WORKFLOW = ".github/workflows/installer-pages.yml"
 # deployment for the install site. They are allowed on that workflow only.
 INSTALLER_PAGES_WRITE = re.compile(r"^\s*(?:pages|id-token)\s*:\s*write\b", re.MULTILINE)
 INSTALLER_PAGES_DEPLOY = re.compile(r"actions/deploy-pages\b")
-PRIVILEGED_TRIGGERS = re.compile(r"^\s{0,4}['\"]?(pull_request_target|workflow_run)['\"]?\s*:", re.MULTILINE)
+# Deny these event names wherever they occur in a root workflow, including
+# YAML flow style: on: [pull_request_target] and on: {workflow_run: ...}.
+# This intentionally rejects even quoted/commented spellings; no privileged
+# workflow-event marker is needed in an unprivileged public CI workflow.
+PRIVILEGED_TRIGGERS = re.compile(r"\b(?:pull_request_target|workflow_run)\b")
+# Flow-style permission mappings can hide writes from the line-oriented scanner.
+# Require block-style permissions, where every requested privilege is visible.
+UNSUPPORTED_PERMISSIONS = re.compile(
+    r"^\s*permissions\s*:\s*(?:\{|\[|read-all\b|write-all\b)", re.MULTILINE
+)
 SECRETS_REFERENCE = re.compile(r"\$\{\{[^}]*\bsecrets\.")
 # security-events: write is the CodeQL SARIF upload. Every other write is rejected.
 WRITE_PERMISSION = re.compile(
@@ -106,6 +115,8 @@ def check_workflow(path: str, text: str) -> list[str]:
         errors.append(f"{path}: pull_request_target and workflow_run triggers are not allowed")
     if SECRETS_REFERENCE.search(text):
         errors.append(f"{path}: workflows must not reference secrets")
+    if UNSUPPORTED_PERMISSIONS.search(text):
+        errors.append(f"{path}: workflows must declare block-style least-privilege permissions")
     if path == INSTALLER_PAGES_WORKFLOW:
         # The only workflow with a Pages/OIDC write exception must never execute
         # pull-request-controlled content, including inline YAML event arrays.
