@@ -145,7 +145,39 @@ jobs:
 
     def test_security_events_write_is_allowed_for_codeql(self) -> None:
         text = SAFE_WORKFLOW.replace("contents: read", "contents: read\n  security-events: write")
-        self.assertEqual(check_publication.check_workflow(self.PATH, text), [])
+        self.assertEqual(check_publication.check_workflow(".github/workflows/codeql.yml", text), [])
+
+    def test_non_codeql_cannot_request_code_scanning_upload_privilege(self) -> None:
+        text = SAFE_WORKFLOW.replace("contents: read", "contents: read\n  security-events: write")
+        self.assertIn("reserved for CodeQL", " ".join(check_publication.check_workflow(self.PATH, text)))
+
+    def test_installer_pages_cannot_be_triggered_by_pull_request(self) -> None:
+        pages = """name: Deploy install site
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4
+"""
+        self.assertEqual(
+            check_publication.check_workflow(".github/workflows/installer-pages.yml", pages), []
+        )
+        for edit in (
+            pages.replace("  push:\n", "  pull_request:\n  push:\n"),
+            pages.replace("on:\n  push:\n    branches: [main]\n", "on: [pull_request, push]\n"),
+        ):
+            with self.subTest(edit=edit):
+                self.assertIn(
+                    "Pages publisher cannot run on pull_request",
+                    " ".join(check_publication.check_workflow(".github/workflows/installer-pages.yml", edit)),
+                )
 
     def test_rejects_deploy_and_publish_actions(self) -> None:
         for snippet in (
