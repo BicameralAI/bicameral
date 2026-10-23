@@ -7,7 +7,8 @@
 Content rules catch the kinds of material removed before publication (personal
 addresses, private workspace links, agent-session URLs, local tool logs, real Factory
 attestations). Workflow rules keep root workflows safe for pull requests from forks:
-no privileged triggers, no secrets, no write permissions. --history checks that REF is
+no privileged triggers, no secrets, no write permissions. The install-site
+workflow may hold the GitHub Pages deployment token. --history checks that REF is
 a single parentless commit, so no earlier object is reachable from it.
 """
 
@@ -39,6 +40,9 @@ ATTESTATION_DIR = ".bicameral/factory-attestations/"
 SYNTHETIC_ATTESTATION = "synthetic-test-placeholder"
 
 WORKFLOW_DIR = ".github/workflows/"
+INSTALLER_PAGES_WORKFLOW = ".github/workflows/installer-pages.yml"
+# pages: write and id-token: write are the GitHub Pages deployment token.
+INSTALLER_PAGES_WRITE = re.compile(r"^\s*(?:pages|id-token)\s*:\s*write\b", re.MULTILINE)
 PRIVILEGED_TRIGGERS = re.compile(r"^\s{0,4}['\"]?(pull_request_target|workflow_run)['\"]?\s*:", re.MULTILINE)
 SECRETS_REFERENCE = re.compile(r"\$\{\{[^}]*\bsecrets\.")
 WRITE_PERMISSION = re.compile(r"^\s*[\w-]+\s*:\s*write\b|^\s*permissions\s*:\s*write-all\b", re.MULTILINE)
@@ -70,7 +74,8 @@ def check_workflow(path: str, text: str) -> list[str]:
         errors.append(f"{path}: pull_request_target and workflow_run triggers are not allowed")
     if SECRETS_REFERENCE.search(text):
         errors.append(f"{path}: workflows must not reference secrets")
-    if WRITE_PERMISSION.search(text):
+    write_text = INSTALLER_PAGES_WRITE.sub("", text) if path == INSTALLER_PAGES_WORKFLOW else text
+    if WRITE_PERMISSION.search(write_text):
         errors.append(f"{path}: workflows must not request write permissions")
     if not TOP_LEVEL_PERMISSIONS.search(text):
         errors.append(f"{path}: workflows must declare top-level permissions")
