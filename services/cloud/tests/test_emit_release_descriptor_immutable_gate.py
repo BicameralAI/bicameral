@@ -29,19 +29,8 @@ def test_descriptor_cli_separates_validation_from_producer_proof() -> None:
     assert "choose exactly one" in script
 
 
-def test_trusted_deploy_reconstructs_exact_private_bot_before_materializing_release() -> None:
-    workflow = (ROOT / ".github/workflows/deploy-cloud-run.yml").read_text()
-    assert "Check out exact private Bot source" in workflow
-    assert "repository: BicameralAI/bicameral-bot" in workflow
-    assert "ref: ${{ steps.bot_source.outputs.sha }}" in workflow
-    assert "BICAMERAL_CROSS_REPO_TOKEN || secrets.BICAMERAL_BOT_READ_TOKEN" in workflow
-    assert "cargo build --release --locked --bin bicameral" in workflow
-    assert "npm ci --silent && npm run build" in workflow
-    assert "tar --sort=name --mtime=@0" in workflow
-    assert (
-        '--immutable-bot-artifact "${BOT_CANONICAL_SOURCE_PATH}/release-dashboard/bicameral-dashboard.tar.gz"'
-        in workflow
-    )
+def test_public_repo_does_not_carry_deploy_workflow() -> None:
+    assert not (ROOT / ".github/workflows/deploy-cloud-run.yml").exists()
 
 
 def test_cloud_runtime_digest_excludes_materialized_bot_dashboard(tmp_path: Path) -> None:
@@ -81,4 +70,4 @@ def test_cloud_runtime_digest_excludes_materialized_bot_dashboard(tmp_path: Path
 def test_pr_release_provenance_is_explicitly_validation_only() -> None:
     workflow = (ROOT / ".github/workflows/release-provenance.yml").read_text()
     assert "python scripts/emit_release_descriptor.py --validation-only" in workflow
-    assert "trusted producer reconstruction is enforced by deploy-cloud-run.yml before deployment" in workflow
+    assert "This repository does not deploy." in workflow

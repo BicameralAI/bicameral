@@ -155,31 +155,6 @@ def test_binding_round_trips_as_closed_json(tmp_path: Path) -> None:
     assert loaded == binding()
 
 
-def test_release_workflows_require_the_exact_binding_before_tag_and_publish() -> None:
-    tag_workflow = (ROOT / ".github/workflows/tag-release-on-main-version.yml").read_text()
-    release_workflow = (ROOT / ".github/workflows/release.yml").read_text()
-
-    assert "push:" not in tag_workflow
-    assert "push:" not in release_workflow
-    for workflow in (tag_workflow, release_workflow):
-        assert "release_binding_url:" in workflow
-        assert "release_binding_sha256:" in workflow
-        assert "--validate-only" in workflow
-
-    validation = tag_workflow.index("Verify exact release publication binding")
-    tagging = tag_workflow.index("Create release tag")
-    assert validation < tagging
-    assert "Verify immutable tag binding" in tag_workflow
-    assert 'git cat-file -t "${tag}"' in tag_workflow
-    assert '-f release_binding_url="${{ inputs.release_binding_url }}"' in tag_workflow
-    assert (
-        '-f release_binding_sha256="${{ inputs.release_binding_sha256 }}"'
-        in tag_workflow
-    )
-
-    assert "needs: release-binding" in release_workflow
-    assert 'git cat-file -t "${RELEASE_TAG}"' in release_workflow
-    assert "release/publication-binding.json" in release_workflow
-    assert "scripts/generate_public_release_manifest.py" in release_workflow
-    assert "x86_64-pc-windows-msvc" in release_workflow
-    assert "expected_assets=5" in release_workflow
+def test_public_repo_does_not_carry_release_workflows() -> None:
+    for name in ("tag-release-on-main-version.yml", "release.yml"):
+        assert not (ROOT / ".github/workflows" / name).exists()

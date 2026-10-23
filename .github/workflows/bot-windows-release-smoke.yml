@@ -80,15 +80,6 @@ jobs:
         retention-days: 7
 'on':
   workflow_dispatch: null
-  pull_request:
-    paths:
-    - apps/bot/.github/workflows/release.yml
-    - apps/bot/.github/workflows/windows-release-smoke.yml
-    - apps/bot/scripts/generate_public_release_manifest.py
-    - apps/bot/scripts/tests/test_generate_public_release_manifest.py
-    - apps/bot/Cargo.toml
-    - apps/bot/Cargo.lock
-    - .github/workflows/bot-windows-release-smoke.yml
 defaults:
   run:
     working-directory: apps/bot

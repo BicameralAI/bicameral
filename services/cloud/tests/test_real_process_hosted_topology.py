@@ -480,23 +480,13 @@ def test_terminal_surface_drift_detects_missing_disconnect_dialog(
         module._validate_terminal_acceptance_surface(tmp_path)
 
 
-def _read_workflow(name: str) -> str:
-    return (Path(__file__).parents[1] / ".github" / "workflows" / name).read_text(
-        encoding="utf-8"
-    )
-
-
-def test_terminal_workflow_resolves_the_bot_selected_by_served_spa() -> None:
-    workflow = _read_workflow("terminal-hosted-product-journey.yml")
-    assert 'static/dashboard/version.json"))["bot_commit"]' in workflow
-    assert "ref: ${{ steps.release.outputs.bot_ref }}" in workflow
-    assert "--use-vendored-dashboard" in workflow
-    assert '"src/bicameral_cloud/static/dashboard/**"' in workflow
+def test_public_repo_does_not_carry_terminal_or_attestation_workflows() -> None:
+    root = Path(__file__).parents[1] / ".github" / "workflows"
+    assert not (root / "terminal-hosted-product-journey.yml").exists()
+    assert not (root / "factory-attestation.yml").exists()
 
 
 def test_factory_attestation_workflow_targets_this_validation_run() -> None:
-    workflow = _read_workflow("factory-attestation.yml")
-    assert "FACTORY_RUN_ID: validation-terminal-hosted-v0.1.10" in workflow
     factory_ref = "0d972754750c45d73aae4bf3606af248034e8dbf"
     attestation = (
         Path(__file__).parents[1]

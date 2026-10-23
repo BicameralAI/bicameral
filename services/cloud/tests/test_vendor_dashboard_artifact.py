@@ -13,17 +13,8 @@ ROOT = Path(__file__).parents[1]
 
 
 class VendorDashboardTests(unittest.TestCase):
-    def test_vendor_workflow_stages_the_pinned_bot_descriptor(self) -> None:
-        workflow = (
-            ROOT / ".github" / "workflows" / "vendor-dashboard-bundle.yml"
-        ).read_text(encoding="utf-8")
-
-        self.assertIn(
-            "git add src/bicameral_cloud/static/dashboard "
-            "src/bicameral_cloud/contracts "
-            "release-inputs/bot-release-descriptor.json",
-            workflow,
-        )
+    def test_public_repo_does_not_carry_vendor_workflow(self) -> None:
+        self.assertFalse((ROOT / ".github" / "workflows" / "vendor-dashboard-bundle.yml").exists())
 
     def test_prebuilt_dashboard_is_vendored_byte_for_byte(self) -> None:
         with tempfile.TemporaryDirectory() as raw_tmp:

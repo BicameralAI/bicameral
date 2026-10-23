@@ -116,31 +116,10 @@ class ReleaseManifestDeliveryTests(unittest.TestCase):
             identity["components"],
         )
 
-    def test_workflows_gate_deploy_and_rollback_on_served_identity(self) -> None:
-        topology = (
-            ROOT / ".github/workflows/terminal-hosted-product-journey.yml"
-        ).read_text()
-        deploy = (ROOT / ".github/workflows/deploy-cloud-run.yml").read_text()
+    def test_public_repo_does_not_carry_deploy_or_journey_workflows(self) -> None:
+        self.assertFalse((ROOT / ".github/workflows/terminal-hosted-product-journey.yml").exists())
+        self.assertFalse((ROOT / ".github/workflows/deploy-cloud-run.yml").exists())
         descriptor_script = (ROOT / "scripts/emit_release_descriptor.py").read_text()
-
-        for required in (
-            "release_manifest_delivery.py manifest",
-            "release_manifest_delivery.py receipt",
-            "release_manifest.py",
-            "--receipt",
-            "release-manifest-evidence",
-        ):
-            self.assertIn(required, topology)
-        for required in (
-            "release_manifest_delivery.py identity",
-            "/app/release-identity.json",
-            "--served-identity",
-            "previous_revision",
-            "update-traffic",
-            "steps.deploy_release.outcome",
-            "steps.configure_release.outcome",
-        ):
-            self.assertIn(required, deploy)
         self.assertIn("verify_immutable_dashboard", descriptor_script)
         self.assertIn("served-dashboard-provenance.json", descriptor_script)
 
