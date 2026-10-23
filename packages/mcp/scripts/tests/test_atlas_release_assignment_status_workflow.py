@@ -1,7 +1,9 @@
 import unittest
 from pathlib import Path
 
-WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/atlas-release-assignment-status.yml"
+WORKFLOW = (
+    Path(__file__).resolve().parents[2] / ".github/workflows/atlas-release-assignment-status.yml"
+)
 
 
 class AtlasReleaseAssignmentStatusWorkflowTests(unittest.TestCase):
