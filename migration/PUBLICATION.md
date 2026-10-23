@@ -1,5 +1,11 @@
 # Publication packet
 
+> **Status reconciliation, 23 October 2026.** This packet originally documented a proposed private-to-public transition and a clean-root-commit publication plan. The owner and technical maintainer have since **intentionally made `BicameralAI/bicameral` public** to enable OSS/security configuration, including private vulnerability reporting. Public visibility is the **actual approved operating state**, not an unintended exposure and not evidence that the repository met all previously proposed launch conditions.
+>
+> **Authoritative open follow-through:** [Bicameral #22](https://github.com/BicameralAI/bicameral/issues/22) now tracks *post-publication* risk, rights, history and contributor-security acceptance. The original private-repository rename/new-root procedure and the "not configured"/"private" status statements below are **historical design/rehearsal records**, not current instructions to republish or revert public visibility. No force-push, history rewrite, archive freeze, license change or repository settings change is authorized by this note.
+>
+> **Material exceptions are not closed:** the [23 October GitHub-history receipt](https://github.com/BicameralAI/bicameral/issues/22#issuecomment-6367421311) reports reachable historical objects and a failed single-root history check; selected actual security-negative tests ran, but not all threat cases were covered and administrator bypass was restored. Security/IP review must determine any required containment without reposting sensitive data. [Jin's officer statement](https://github.com/BicameralAI/bicameral/issues/22#issuecomment-6367070147) records the company's release/licensing intention; it is **not independent evidence of another legal rights holder's grant**. Reconcile that documentation with the original rights table and contracts. [Factory #971](https://github.com/BicameralAI/bicameral-factory/issues/971) owns the technical contributor-CI qualification; legacy Bot/MCP freeze and production release remain separately gated.
+
 The decision record for publishing this repository's source (#22). It holds:
 - the content decisions still owed;
 - the rights approvals still owed;

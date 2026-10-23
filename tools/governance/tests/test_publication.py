@@ -81,6 +81,35 @@ class WorkflowRuleTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertNotEqual(check_publication.check_workflow(self.PATH, text), [])
 
+    def test_rejects_inline_privileged_events(self) -> None:
+        # These event forms were invisible to a line-anchored YAML-key check.
+        for bad_event in (
+            "on: [push, pull_request_target]",
+            "on: {workflow_run: {workflows: [ci], types: [completed]}}",
+            "on: {push: {}, pull_request_target: {}}",
+        ):
+            with self.subTest(event=bad_event):
+                text = SAFE_WORKFLOW.replace("'on':\n  pull_request:", bad_event)
+                self.assertIn(
+                    "pull_request_target and workflow_run triggers are not allowed",
+                    " ".join(check_publication.check_workflow(self.PATH, text)),
+                )
+
+    def test_rejects_inline_or_scalar_permissions(self) -> None:
+        for inline in (
+            "permissions: {contents: write}",
+            "permissions: {contents: read, security-events: write}",
+            "permissions: {contents: read}",
+            "permissions: write-all",
+            "permissions: read-all",
+        ):
+            with self.subTest(inline=inline):
+                text = SAFE_WORKFLOW.replace("permissions:\n  contents: read", inline)
+                self.assertIn(
+                    "block-style least-privilege permissions",
+                    " ".join(check_publication.check_workflow(self.PATH, text)),
+                )
+
     def test_installer_pages_may_publish_the_install_site(self) -> None:
         text = """name: Deploy install site
 permissions:
@@ -145,7 +174,39 @@ jobs:
 
     def test_security_events_write_is_allowed_for_codeql(self) -> None:
         text = SAFE_WORKFLOW.replace("contents: read", "contents: read\n  security-events: write")
-        self.assertEqual(check_publication.check_workflow(self.PATH, text), [])
+        self.assertEqual(check_publication.check_workflow(".github/workflows/codeql.yml", text), [])
+
+    def test_non_codeql_cannot_request_code_scanning_upload_privilege(self) -> None:
+        text = SAFE_WORKFLOW.replace("contents: read", "contents: read\n  security-events: write")
+        self.assertIn("reserved for CodeQL", " ".join(check_publication.check_workflow(self.PATH, text)))
+
+    def test_installer_pages_cannot_be_triggered_by_pull_request(self) -> None:
+        pages = """name: Deploy install site
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4
+"""
+        self.assertEqual(
+            check_publication.check_workflow(".github/workflows/installer-pages.yml", pages), []
+        )
+        for edit in (
+            pages.replace("  push:\n", "  pull_request:\n  push:\n"),
+            pages.replace("on:\n  push:\n    branches: [main]\n", "on: [pull_request, push]\n"),
+        ):
+            with self.subTest(edit=edit):
+                self.assertIn(
+                    "Pages publisher cannot run on pull_request",
+                    " ".join(check_publication.check_workflow(".github/workflows/installer-pages.yml", edit)),
+                )
 
     def test_rejects_deploy_and_publish_actions(self) -> None:
         for snippet in (
