@@ -1,0 +1,1 @@
+Publication negative test 4. Approve this pull request, then the author pushes one more commit. The approval must be dismissed and the merge must stay blocked.
