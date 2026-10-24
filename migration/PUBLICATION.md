@@ -89,7 +89,7 @@ Either is consistent if publication waits for the signatures.
   "target": "branch",
   "enforcement": "active",
   "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
-  "bypass_actors": [],
+  "bypass_actors": [{"actor_id": 29170788, "actor_type": "User", "bypass_mode": "always"}],
   "rules": [
     {"type": "deletion"},
     {"type": "non_fast_forward"},
@@ -108,7 +108,9 @@ Either is consistent if publication waits for the signatures.
 }
 ```
 
-`integration_id` 15368 is the GitHub Actions app; see "What a passing `governance` check proves" for what that pin does and does not do. With the trusted-base check, add the organization ruleset's `workflows` rule, naming the policy repository, its workflow path and a pinned commit. A second ruleset with `target: tag` and rules `creation`, `update` and `deletion`, with no bypass, keeps tags (and so releases) closed until releases are authorized.
+The only bypass actor on the `main` ruleset and on the release-tag ruleset is GitHub user @jinhongkuan (id 29170788), mode `always`. Organization admins and repository admins do not bypass.
+
+`integration_id` 15368 is the GitHub Actions app; see "What a passing `governance` check proves" for what that pin does and does not do. With the trusted-base check, add the organization ruleset's `workflows` rule, naming the policy repository, its workflow path and a pinned commit. A second ruleset with `target: tag` and rules `creation`, `update` and `deletion` uses the same single bypass actor. It keeps tags, and so releases, closed for every other account until a release is authorized.
 
 ### Repository settings
 
@@ -129,7 +131,7 @@ Also needed:
 
 ### Negative tests (run before visibility changes; record each result on #22)
 
-Run them where the rules are enforced (see "Plan entitlement"). Use an account that is not a code owner, and a fork for the pull-request tests. Each must fail as described:
+Run them where the rules are enforced (see "Plan entitlement"). Use any account other than @jinhongkuan. That user is the only bypass actor on `main` and on release tags. Use a fork for the pull-request tests. Each must fail as described:
 
 1. A push directly to `main` is rejected (`GH013`).
 2. A force push to `main`, or deleting `main`, is rejected.
