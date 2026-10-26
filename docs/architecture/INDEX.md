@@ -9,10 +9,17 @@ Only **accepted** records carry authority. Proposed records express intent; hist
 
 | Topic | Authoritative record |
 | --- | --- |
+| `approve-permission` | [ARCH-0004](records/ARCH-0004-signoff-is-the-governed-domain.md) |
 | `architecture-index` | [ARCH-0001](records/ARCH-0001-architecture-records-and-canonical-index.md) |
 | `architecture-records` | [ARCH-0001](records/ARCH-0001-architecture-records-and-canonical-index.md) |
+| `check-record` | [ARCH-0003](records/ARCH-0003-governed-domain-is-one-source-snapshot.md) |
 | `code-ownership` | [ARCH-0002](records/ARCH-0002-repository-structure-and-structure-manifest.md) |
+| `conflict-resolution` | [ARCH-0004](records/ARCH-0004-signoff-is-the-governed-domain.md) |
+| `governed-domain` | [ARCH-0003](records/ARCH-0003-governed-domain-is-one-source-snapshot.md) |
+| `hosted-extract` | [ARCH-0003](records/ARCH-0003-governed-domain-is-one-source-snapshot.md) |
 | `repository-layout` | [ARCH-0002](records/ARCH-0002-repository-structure-and-structure-manifest.md) |
+| `signoff` | [ARCH-0004](records/ARCH-0004-signoff-is-the-governed-domain.md) |
+| `source-snapshot` | [ARCH-0003](records/ARCH-0003-governed-domain-is-one-source-snapshot.md) |
 
 ## Accepted records
 
@@ -20,10 +27,15 @@ Only **accepted** records carry authority. Proposed records express intent; hist
 | --- | --- | --- | --- | --- | --- | --- |
 | [ARCH-0001](records/ARCH-0001-architecture-records-and-canonical-index.md) | Architecture records and the canonical architecture index | decision | 2026-10-16 | `architecture-index`, `architecture-records` | — | — |
 | [ARCH-0002](records/ARCH-0002-repository-structure-and-structure-manifest.md) | Repository structure and the structure manifest | decision | 2026-10-16 | `code-ownership`, `repository-layout` | ARCH-0001 | — |
+| [ARCH-0003](records/ARCH-0003-governed-domain-is-one-source-snapshot.md) | A GovernedDomain is one SourceSnapshot | decision | 2026-10-01 | `check-record`, `governed-domain`, `hosted-extract`, `source-snapshot` | — | — |
+| [ARCH-0004](records/ARCH-0004-signoff-is-the-governed-domain.md) | Signoff is the GovernedDomain | decision | 2026-10-01 | `approve-permission`, `conflict-resolution`, `signoff` | ARCH-0003 | — |
 
 ## Proposed records
 
-_No proposed records._
+| Record | Title | Kind | Date | Topics | Depends on | Supersedes |
+| --- | --- | --- | --- | --- | --- | --- |
+| [ARCH-0005](records/ARCH-0005-replay-stable-governed-context-reads.md) | Reconstruct approved governed context with explainable, replay-stable reads | decision | 2026-10-26 | `governed-context-reconstruction`, `governed-read-diagnostics` | ARCH-0003, ARCH-0004 | — |
+| [ARCH-0006](records/ARCH-0006-bind-agent-claims-to-approved-evidence.md) | Bind consequential agent claims to exact approved Product evidence | decision | 2026-10-26 | `agent-claim-evidence-binding` | ARCH-0003, ARCH-0004, ARCH-0005 | — |
 
 ## Historical records
 
@@ -35,3 +47,7 @@ _No historical records._
 | --- | --- | --- | --- |
 | ARCH-0001 | ARCH-0002 | — | — |
 | ARCH-0002 | — | — | — |
+| ARCH-0003 | ARCH-0004, ARCH-0005, ARCH-0006 | — | — |
+| ARCH-0004 | ARCH-0005, ARCH-0006 | — | — |
+| ARCH-0005 | ARCH-0006 | — | — |
+| ARCH-0006 | — | — | — |

@@ -39,7 +39,7 @@ Generated files (`.github/CODEOWNERS`, `docs/architecture/INDEX.md`, `docs/archi
 - **Directories** are declared in `directories`. A `declared` directory only allows files directly inside it plus subdirectories that are themselves declared. An `open` directory allows any layout beneath it.
 - **Reserved** directories hold only their README until an authorized import marks them `active` in the same pull request that brings in the code and its provenance record.
 - Declared directories need a `README.md` describing their purpose unless the manifest sets `"readme": false`.
-- Architecture records live only in `docs/architecture/records/`. Directories named `adr`, `adrs`, `decisions`, `architecture-decisions` or `design-docs` are rejected anywhere, except the pre-consolidation decision directories of imported components that the manifest lists as `legacy_decision_dirs`.
+- Architecture records live only in `docs/architecture/records/`. Directories named `adr`, `adrs`, `decisions`, `architecture-decisions` or `design-docs` are rejected anywhere, except the pre-consolidation decision directories of imported components that the manifest lists as `legacy_decision_dirs`. Those directories are frozen: `governance/legacy-decisions.json` locks their contents. To build on a legacy record, first rewrite it as an `ARCH-NNNN` record (ARCH-0001).
 - Symbolic links are rejected.
 
 To add a location, add it to the manifest (parents before children), add its README, run `--write` so CODEOWNERS is regenerated, and explain the change in the pull request. Manifest changes are high-risk changes under [GOVERNANCE.md](GOVERNANCE.md).

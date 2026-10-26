@@ -1,0 +1,48 @@
+---
+id: ARCH-0003
+title: A GovernedDomain is one SourceSnapshot
+kind: decision
+status: accepted
+date: 2026-10-01
+owners: [@jinhongkuan]
+governs: [governed-domain, source-snapshot, check-record, hosted-extract]
+depends_on: []
+supersedes: []
+references: [ARCH-0001, ARCH-0004, apps/bot/docs/adr/0033-governed-domain-relations-cite-source-snapshots.md]
+---
+
+# ARCH-0003: A GovernedDomain is one SourceSnapshot
+
+## Context
+
+This record rewrites Bot ADR-0033 (`apps/bot/docs/adr/0033-governed-domain-relations-cite-source-snapshots.md`) into this repository's format, per ARCH-0001. Its status was checked, not assumed. The ADR was accepted on 2026-09-25, and its final text landed in the Bot repository through a reviewed and approved pull request merged on 2026-10-01. The decision text below is unchanged except that "ADR-0034" now reads ARCH-0004.
+
+The spec registry needs one stored unit of governed meaning per captured source, a content identity that checks can cite, and a single stored relation between two such units.
+
+## Decision
+
+A `GovernedDomain` is the board for one `SourceSnapshot`. It holds one claim set: claims, atoms, claim-to-atom assertions with polarity, and the `AtomRelationV1` edges. `atom_ids` is not stored again. Scopes and source anchors are not on this payload. Capturing the snapshot creates the domain empty. `source_digest` is absent until extract. Extract sets it to the SHA-256 hex of the compact UTF-8 JSON of `claims`, `atoms`, `claim_assertions`, and `relations` only. Object keys are sorted. Array order is the stored order. Provenance fields are outside the hash. Four empty arrays have a digest. A `CheckRecord` uses that digest, so a check cannot be stored against a domain that has not been extracted. The snapshot's `content_hash` remains the identity of the bytes. A `Source` does not store its snapshots. A `SourceSnapshot` carries `source_uri`, the same string as the `Source`'s `uri`. That field is a back-pointer, not the address of the captured bytes. Versions of one file or ticket are the snapshots with that `source_uri`, ordered by `captured_at`. A snapshot does not point at the previous snapshot. The `Source` is what you look up. A newer snapshot gets its own domain.
+
+The only stored relation between two domains is a `CheckRecord`: the two `source_digest` values and `conflict`. The pair is unordered. The digests are stored in lexicographic order, the two values differ, and `conflict` is symmetric. A second write of the same pair is the same check and does not replace the stored daemon. The record carries `daemon_id`, the daemon that ran the check. That field is not part of the pair, and approval still reads `conflict` only. Either domain's approval reads that one record. There is no `Join` type and no `RelationClass`. Approval reads `conflict` and nothing else. A newer snapshot does not inherit check records. A check is stored only when both domains have a `source_digest`. A missing or failed check writes no record. Absence is not `conflict: false`. Approval that needs the pair and finds no record is refused.
+
+A byte difference between a branch snapshot and `main` is an identification fact about one `Source`. It does not write a `CheckRecord`. An adapter must not write one because the bytes differ. Whether the snapshot matched `main` at capture is a planned external-version-control fact and is not on the snapshot payload. External version control drift has no alpha workflow.
+
+Which daemon captures a `Source` is not decided. C1 runs on the daemon that holds the lease for that snapshot. The first daemon to acquire the lease runs the extract, a crashed holder loses the lease when it expires, and a completion is not run again. C2 runs on any daemon that has both completed domains. It writes the one `CheckRecord` for that pair and does not rewrite either domain. A later request for the same pair reads that record. The model call follows `route`. Signoff is ARCH-0004.
+
+This contract freezes the hosted extract only. BYOK stays in the architecture and is not a value in this payload. A hosted extract records `route` as `system_one` or `openai_compatible`, plus `model_id`. `extractor_id` is derived when C1 runs. For `openai_compatible` it is the extraction digest: model, prompt-template digest, output-schema digest, and decoding-profile digest. For `system_one` it is the System One profile that ran, not that OpenAI digest. It is not an operator-typed setting.
+
+The prompt bytes are hosted, not compiled into the daemon. They live in a new Supabase table, read and written only through the Cloud API, the same service-role boundary as the product directory. They are not a row on `product_directory`. That table is Product discovery. A prompt version is shared by every Product on a route. The table does not hold a claim set, a signoff, a source binding, or a provider credential. One assignment per route points at the current `prompt_id`. The daemon sends only `route`. Cloud returns that row's bytes, `prompt_id`, and digest. The daemon refuses the call if the hash does not match. Moving the assignment does not rewrite a domain already extracted. The domain stores `prompt_id` and `prompt_digest` with `source_digest`. A change of route, model, or prompt applies to the next capture. It does not add an evaluation-lineage entity, and it does not create a second domain for the same snapshot.
+
+A finished extract has two outcomes, and they never share a payload. Completion writes `source_digest`, `route`, `model_id`, `prompt_id`, and `prompt_digest` in one commit with the claim set. The claim set may be empty. `source_digest` is still the digest of that set, and the completion is immutable. A finished failure writes `extract_error` and writes no `source_digest` and no claims. Absence of both means no attempt has finished, so a worker may extract. A person may extract again after `extract_error`. That success removes `extract_error` and writes the completion. A check cannot be stored against a domain with no `source_digest`.
+
+## Consequences
+
+Considered options:
+
+1. A `CheckRecord` with `conflict` only. Chosen. The boolean was named `contradicts` until 2026-09-29.
+2. A `Join` type admitted separately from the check.
+3. An eight-value `RelationClass` shared by checks and joins.
+4. Let the relation follow the mutable `Source`.
+5. An extract status of pending, running, error, and complete. Rejected. Pending repeats an absent outcome. Running is a lease, not a domain fact.
+6. An evaluation-lineage entity for a changed prompt or model. Rejected. The next `SourceSnapshot` is the new evaluation.
+7. A cloud worker runs C1 and C2. Rejected. The daemon that holds the inputs runs them.

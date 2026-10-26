@@ -15,6 +15,7 @@ Standard library only (Python 3.10+). Git is the only external command.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import posixpath
@@ -27,6 +28,7 @@ from pathlib import Path
 
 MANIFEST_PATH = "governance/structure.json"
 CODEOWNERS_PATH = ".github/CODEOWNERS"
+LEGACY_LOCK_PATH = "governance/legacy-decisions.json"
 
 FORBIDDEN_DIRECTORY_NAMES = frozenset(
     {"adr", "adrs", "decisions", "architecture-decisions", "design-docs"}
@@ -459,6 +461,55 @@ def _legacy_decision_dir(manifest: Manifest, directory: str) -> bool:
     )
 
 
+def _legacy_decision_files(manifest: Manifest, files: list[str]) -> list[str]:
+    return [
+        path
+        for path in files
+        if any(
+            path.startswith(legacy + "/")
+            for entry in manifest.directories.values()
+            for legacy in entry.legacy_decision_dirs
+        )
+    ]
+
+
+def validate_legacy_lock(root: Path, manifest: Manifest, files: list[str]) -> list[str]:
+    """Legacy decision directories are frozen: every file in them must match
+    governance/legacy-decisions.json byte for byte, and every locked file must exist.
+    The lock is reviewed data, not a generated file; --write never changes it."""
+    present = _legacy_decision_files(manifest, files)
+    lock_file = root / LEGACY_LOCK_PATH
+    if not lock_file.is_file() or lock_file.is_symlink():
+        if present:
+            return [f"{LEGACY_LOCK_PATH}: missing; legacy decision directories must be locked"]
+        return []
+    try:
+        lock = json.loads(lock_file.read_text(encoding="utf-8"))
+        locked = lock["files"]
+        if not isinstance(locked, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in locked.items()
+        ):
+            raise ValueError
+    except (ValueError, KeyError, TypeError):
+        return [f"{LEGACY_LOCK_PATH}: must be a JSON object with a files map of path to sha256"]
+
+    errors: list[str] = []
+    for path in present:
+        digest = hashlib.sha256((root / path).read_bytes()).hexdigest()
+        if path not in locked:
+            errors.append(
+                f"{path}: legacy decision directories are frozen; architecture records "
+                f"belong in {manifest.architecture_records}/"
+            )
+        elif locked[path] != digest:
+            errors.append(f"{path}: legacy decision record changed; it is frozen")
+    present_set = set(present)
+    for path in locked:
+        if path not in present_set:
+            errors.append(f"{path}: locked legacy decision record is missing")
+    return errors
+
+
 def _inside_root(root: Path, rel: str) -> bool:
     try:
         resolved = (root / rel).resolve()
@@ -550,6 +601,8 @@ def validate(root: Path, manifest: Manifest) -> list[str]:
                         f"{readme}: reserved directory README must name its intended "
                         f"source repository {entry.source}"
                     )
+
+    errors.extend(validate_legacy_lock(root, manifest, files))
 
     expected = render_codeowners(manifest)
     codeowners = root / CODEOWNERS_PATH
