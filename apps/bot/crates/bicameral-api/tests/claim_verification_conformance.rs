@@ -1,5 +1,4 @@
-//! Phase 0 conformance for final-answer claim verification (issue #56,
-//! ARCH-0006 proposed).
+//! Phase 0 conformance for final-answer claim verification (issue #56).
 //!
 //! Correct retrieval does not make a correct answer. This suite pins a
 //! synthetic gold corpus of adversarial cases under
@@ -7,8 +6,8 @@
 //! separate axes: retrieval, authority, groundedness and answer accuracy.
 //!
 //! Test-only by design: the verdict vocabulary below is not a protocol type,
-//! and nothing here changes `RecallPacket` or the recall answer path. The
-//! verifier joins as a new predictor once ARCH-0006 is accepted.
+//! and nothing here changes `RecallPacket` or the recall answer path. A
+//! verifier needs a new architecture record; ARCH-0006 was rejected.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
@@ -54,7 +53,6 @@ struct Corpus {
     corpus_version: String,
     status: String,
     issue: String,
-    governing_record: String,
     #[serde(rename = "_comment")]
     _comment: String,
     product_id: String,
@@ -222,7 +220,7 @@ fn gold_predictor(corpus: &Corpus) -> Vec<Prediction> {
         .collect()
 }
 
-/// Naive baseline that ARCH-0006 rejects: retrieval is perfect (taken from
+/// Naive baseline: retrieval is perfect (taken from
 /// gold, to isolate the later stages), the cited source is trusted as the
 /// authority, and any claim citing a retrieved source counts as supported.
 fn citation_trust_baseline(corpus: &Corpus) -> Vec<Prediction> {
@@ -282,7 +280,6 @@ fn corpus_is_synthetic_and_tracks_issue_56() {
     assert_eq!(corpus.corpus_version, "claim-verification-v0");
     assert_eq!(corpus.status, "synthetic_phase0");
     assert_eq!(corpus.issue, "BicameralAI/bicameral#56");
-    assert!(corpus.governing_record.starts_with("ARCH-0006"));
     assert!(corpus.product_id.starts_with("synthetic-"));
     for source in &corpus.sources {
         assert!(

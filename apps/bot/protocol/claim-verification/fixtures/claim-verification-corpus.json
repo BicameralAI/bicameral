@@ -2,7 +2,6 @@
   "corpus_version": "claim-verification-v0",
   "status": "synthetic_phase0",
   "issue": "BicameralAI/bicameral#56",
-  "governing_record": "ARCH-0006 (proposed)",
   "_comment": "Synthetic gold corpus for final-answer claim verification. Every Product, source and claim here is invented. A score computed from this corpus is a harness result, not a product performance claim.",
   "product_id": "synthetic-product-cv",
   "sources": [
