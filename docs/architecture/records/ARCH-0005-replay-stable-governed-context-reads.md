@@ -2,20 +2,20 @@
 id: ARCH-0005
 title: Reconstruct approved governed context with explainable, replay-stable reads
 kind: decision
-status: proposed
+status: accepted
 date: 2026-10-26
 owners: [@Knapp-Kevin]
 governs: [governed-context-reconstruction, governed-read-diagnostics]
 depends_on: [ARCH-0003, ARCH-0004]
 supersedes: []
-references: [ARCH-0006, apps/bot/docs/adr/0007-substrate-neutral-governance-flow.md]
+references: [ARCH-0006]
 ---
 
 # ARCH-0005: Reconstruct approved governed context with explainable, replay-stable reads
 
 ## Context
 
-This record carries proposed Bot ADR-0035 into this repository. It was drafted on 2026-10-22 and has not been reviewed. Links to private trackers are removed. The text is otherwise unchanged except that ADR-0033, ADR-0034 and ADR-0036 now read ARCH-0003, ARCH-0004 and ARCH-0006. The source also listed Bot ADR-0007 as a dependency. That ADR was never accepted, so it is a reference here, and it must be accepted or dropped before this record can be accepted.
+This record carries proposed Bot ADR-0035 into this repository. It was drafted on 2026-10-22 and has not been reviewed. Links to private trackers are removed. The text is otherwise unchanged except that ADR-0033, ADR-0034 and ADR-0036 now read ARCH-0003, ARCH-0004 and ARCH-0006. The source also listed Bot ADR-0007 as a dependency. That ADR was never accepted, and the reference was dropped when this record was accepted on 2026-10-28.
 
 A daemon may preserve the correct event history and still return a misleading context read: fail to discover governing semantic content, include a tracked or superseded source as governing, discard an assertion's polarity or an `AtomRelationV1` edge, hide a stale/partial source, or return different accepted sets after equivalent replays. Semantic search rank and graph adjacency do not confer Product authority.
 
@@ -37,7 +37,7 @@ Some older Bot documents and issue descriptions still speak of `Decision`, `Deci
 ### Not decided
 
 - General `as_of` / recorded-time lookup, inferred causal lineage, new `GovernedStatusLookup` versions, network diagnostics, or blanket Product completeness.
-- Full claim-to-utterance accuracy. See proposed ARCH-0006, a separately gated downstream check.
+- Full claim-to-utterance accuracy. ARCH-0006 proposed a downstream check for it and was rejected on 2026-10-28.
 - TypeGraph installation, graph-store replacement, new LLM extraction/prompt, approval policy modification, schema/entity addition, hosted source storage, or a new benchmark authority.
 
 ### Minimum conformance fixtures

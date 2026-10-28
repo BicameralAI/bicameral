@@ -2,7 +2,7 @@
 id: ARCH-0006
 title: Bind consequential agent claims to exact approved Product evidence
 kind: decision
-status: proposed
+status: rejected
 date: 2026-10-26
 owners: [@Knapp-Kevin]
 governs: [agent-claim-evidence-binding]
@@ -12,6 +12,8 @@ references: []
 ---
 
 # ARCH-0006: Bind consequential agent claims to exact approved Product evidence
+
+> **Rejected on 2026-10-28** by the decision owner. A claim-level verifier adds a new component whose core check (whether a sentence follows from its evidence) is open-ended, and there is no recorded evidence yet of real misstatements to justify it. ARCH-0005's rules address the wrong-source failures at lower cost. The Phase 0 harness (#56, #58) stays as a test-only measurement. Revisit with a new record if real cases of agents misstating approved Product facts appear.
 
 ## Context
 

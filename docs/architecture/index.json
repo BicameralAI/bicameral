@@ -8,34 +8,26 @@
     "check-record": "ARCH-0003",
     "code-ownership": "ARCH-0002",
     "conflict-resolution": "ARCH-0004",
+    "governed-context-reconstruction": "ARCH-0005",
     "governed-domain": "ARCH-0003",
+    "governed-read-diagnostics": "ARCH-0005",
     "hosted-extract": "ARCH-0003",
     "repository-layout": "ARCH-0002",
     "signoff": "ARCH-0004",
     "source-snapshot": "ARCH-0003"
   },
-  "proposed_claims": {
-    "agent-claim-evidence-binding": [
-      "ARCH-0006"
-    ],
-    "governed-context-reconstruction": [
-      "ARCH-0005"
-    ],
-    "governed-read-diagnostics": [
-      "ARCH-0005"
-    ]
-  },
+  "proposed_claims": {},
   "accepted": [
     "ARCH-0001",
     "ARCH-0002",
     "ARCH-0003",
-    "ARCH-0004"
+    "ARCH-0004",
+    "ARCH-0005"
   ],
-  "proposed": [
-    "ARCH-0005",
+  "proposed": [],
+  "historical": [
     "ARCH-0006"
   ],
-  "historical": [],
   "records": [
     {
       "id": "ARCH-0001",
@@ -154,7 +146,7 @@
       "id": "ARCH-0005",
       "title": "Reconstruct approved governed context with explainable, replay-stable reads",
       "kind": "decision",
-      "status": "proposed",
+      "status": "accepted",
       "date": "2026-10-26",
       "path": "docs/architecture/records/ARCH-0005-replay-stable-governed-context-reads.md",
       "owners": [
@@ -170,8 +162,7 @@
       ],
       "supersedes": [],
       "references": [
-        "ARCH-0006",
-        "apps/bot/docs/adr/0007-substrate-neutral-governance-flow.md"
+        "ARCH-0006"
       ],
       "required_by": [
         "ARCH-0006"
@@ -183,7 +174,7 @@
       "id": "ARCH-0006",
       "title": "Bind consequential agent claims to exact approved Product evidence",
       "kind": "decision",
-      "status": "proposed",
+      "status": "rejected",
       "date": "2026-10-26",
       "path": "docs/architecture/records/ARCH-0006-bind-agent-claims-to-approved-evidence.md",
       "owners": [
