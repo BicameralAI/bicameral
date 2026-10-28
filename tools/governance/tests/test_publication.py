@@ -68,6 +68,15 @@ class WorkflowRuleTests(unittest.TestCase):
     def test_safe_workflow_passes(self) -> None:
         self.assertEqual(check_publication.check_workflow(self.PATH, SAFE_WORKFLOW), [])
 
+    def test_quoted_read_permissions_pass(self) -> None:
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                text = SAFE_WORKFLOW.replace(
+                    "permissions:\n  contents: read",
+                    f"{quote}permissions{quote}:\n  {quote}contents{quote}: {quote}read{quote}",
+                )
+                self.assertEqual(check_publication.check_workflow(self.PATH, text), [])
+
     def test_rejects_privileged_triggers_secrets_and_writes(self) -> None:
         unsafe = {
             "pull_request_target": SAFE_WORKFLOW.replace("  pull_request:", "  pull_request_target:"),
@@ -110,6 +119,33 @@ class WorkflowRuleTests(unittest.TestCase):
                     " ".join(check_publication.check_workflow(self.PATH, text)),
                 )
 
+    def test_rejects_quoted_job_permission_overrides(self) -> None:
+        for quote in ("'", '"'):
+            for value in ("{contents: write}", "write-all", f"{quote}write-all{quote}"):
+                with self.subTest(quote=quote, value=value):
+                    text = SAFE_WORKFLOW.replace(
+                        "  test:\n",
+                        f"  test:\n    {quote}permissions{quote}: {value}\n",
+                    )
+                    self.assertIn(
+                        "block-style least-privilege permissions",
+                        " ".join(check_publication.check_workflow(self.PATH, text)),
+                    )
+
+    def test_rejects_quoted_block_permission_writes(self) -> None:
+        for key_quote in ("", "'", '"'):
+            for value_quote in ("", "'", '"'):
+                with self.subTest(key_quote=key_quote, value_quote=value_quote):
+                    text = SAFE_WORKFLOW.replace(
+                        "  test:\n",
+                        "  test:\n    permissions:\n"
+                        f"      {key_quote}contents{key_quote}: {value_quote}write{value_quote}\n",
+                    )
+                    self.assertIn(
+                        "must not request write permissions",
+                        " ".join(check_publication.check_workflow(self.PATH, text)),
+                    )
+
     def test_installer_pages_may_publish_the_install_site(self) -> None:
         text = """name: Deploy install site
 permissions:
@@ -125,10 +161,15 @@ jobs:
     steps:
     - uses: actions/deploy-pages@v4
 """
-        self.assertEqual(
-            check_publication.check_workflow(".github/workflows/installer-pages.yml", text),
-            [],
-        )
+        for quote in ("", "'", '"'):
+            with self.subTest(quote=quote):
+                quoted = text
+                for key in ("pages", "id-token"):
+                    quoted = quoted.replace(f"{key}: write", f"{quote}{key}{quote}: {quote}write{quote}")
+                self.assertEqual(
+                    check_publication.check_workflow(".github/workflows/installer-pages.yml", quoted),
+                    [],
+                )
 
     def test_installer_pages_rejects_other_writes(self) -> None:
         text = """name: Deploy install site
@@ -173,12 +214,16 @@ jobs:
         self.assertEqual(check_publication.check_file("apps/bot/.github/workflows/rust.yml", text), [])
 
     def test_security_events_write_is_allowed_for_codeql(self) -> None:
-        text = SAFE_WORKFLOW.replace("contents: read", "contents: read\n  security-events: write")
-        self.assertEqual(check_publication.check_workflow(".github/workflows/codeql.yml", text), [])
+        for quote in ("", "'", '"'):
+            with self.subTest(quote=quote):
+                text = SAFE_WORKFLOW.replace("contents: read", f"{quote}security-events{quote}: {quote}write{quote}")
+                self.assertEqual(check_publication.check_workflow(".github/workflows/codeql.yml", text), [])
 
     def test_non_codeql_cannot_request_code_scanning_upload_privilege(self) -> None:
-        text = SAFE_WORKFLOW.replace("contents: read", "contents: read\n  security-events: write")
-        self.assertIn("reserved for CodeQL", " ".join(check_publication.check_workflow(self.PATH, text)))
+        for quote in ("", "'", '"'):
+            with self.subTest(quote=quote):
+                text = SAFE_WORKFLOW.replace("contents: read", f"{quote}security-events{quote}: {quote}write{quote}")
+                self.assertIn("reserved for CodeQL", " ".join(check_publication.check_workflow(self.PATH, text)))
 
     def test_installer_pages_cannot_be_triggered_by_pull_request(self) -> None:
         pages = """name: Deploy install site

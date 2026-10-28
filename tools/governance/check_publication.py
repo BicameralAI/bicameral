@@ -45,7 +45,9 @@ WORKFLOW_DIR = ".github/workflows/"
 INSTALLER_PAGES_WORKFLOW = ".github/workflows/installer-pages.yml"
 # pages: write, id-token: write, and actions/deploy-pages are the GitHub Pages
 # deployment for the install site. They are allowed on that workflow only.
-INSTALLER_PAGES_WRITE = re.compile(r"^\s*(?:pages|id-token)\s*:\s*write\b", re.MULTILINE)
+INSTALLER_PAGES_WRITE = re.compile(
+    r"""^\s*['"]?(?:pages|id-token)['"]?\s*:\s*['"]?write\b['"]?""", re.MULTILINE
+)
 INSTALLER_PAGES_DEPLOY = re.compile(r"actions/deploy-pages\b")
 # Deny these event names wherever they occur in a root workflow, including
 # YAML flow style: on: [pull_request_target] and on: {workflow_run: ...}.
@@ -54,16 +56,18 @@ INSTALLER_PAGES_DEPLOY = re.compile(r"actions/deploy-pages\b")
 PRIVILEGED_TRIGGERS = re.compile(r"\b(?:pull_request_target|workflow_run)\b")
 # Flow-style permission mappings can hide writes from the line-oriented scanner.
 # Require block-style permissions, where every requested privilege is visible.
+# Recognize simple quoted keys/scalars too; this is not a general YAML parser.
 UNSUPPORTED_PERMISSIONS = re.compile(
-    r"^\s*permissions\s*:\s*(?:\{|\[|read-all\b|write-all\b)", re.MULTILINE
+    r"""^\s*['"]?permissions['"]?\s*:\s*(?:\{|\[|['"]?(?:read-all|write-all)\b)""",
+    re.MULTILINE,
 )
 SECRETS_REFERENCE = re.compile(r"\$\{\{[^}]*\bsecrets\.")
 # security-events: write is the CodeQL SARIF upload. Every other write is rejected.
 WRITE_PERMISSION = re.compile(
-    r"^\s*(?!security-events\b)[\w-]+\s*:\s*write\b|^\s*permissions\s*:\s*write-all\b",
+    r"""^\s*['"]?(?!security-events\b)[\w-]+['"]?\s*:\s*['"]?write\b""",
     re.MULTILINE,
 )
-TOP_LEVEL_PERMISSIONS = re.compile(r"^permissions\s*:", re.MULTILINE)
+TOP_LEVEL_PERMISSIONS = re.compile(r"""^['"]?permissions['"]?\s*:""", re.MULTILINE)
 DEPLOY_OR_PUBLISH = re.compile(
     r"google-github-actions/(?:auth|deploy-cloudrun)|actions/deploy-pages|"
     r"action-gh-release|gh-action-pypi-publish|\bcargo publish\b|\bnpm publish\b|\btwine upload\b"
@@ -130,7 +134,7 @@ def check_workflow(path: str, text: str) -> list[str]:
     if WRITE_PERMISSION.search(write_text):
         errors.append(f"{path}: workflows must not request write permissions")
     if path != ".github/workflows/codeql.yml" and re.search(
-        r"^\s*security-events\s*:\s*write\b", text, re.MULTILINE
+        r"""^\s*['"]?security-events['"]?\s*:\s*['"]?write\b""", text, re.MULTILINE
     ):
         errors.append(f"{path}: security-events write is reserved for CodeQL")
     if DEPLOY_OR_PUBLISH.search(deploy_text):
