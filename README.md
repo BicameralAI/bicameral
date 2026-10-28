@@ -162,7 +162,7 @@ Bicameral is not accepting public contributions yet. The rules that will apply a
 - [GOVERNANCE.md](GOVERNANCE.md): roles, review rules, recorded and pending decisions
 - [MAINTAINERS.md](MAINTAINERS.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) (Contributor Covenant 2.1)
 
-Whether outside contributions will use a DCO sign-off or a CLA (decision J-09) is still pending.
+Contributions use a Developer Certificate of Origin sign-off (`git commit -s`); there is no CLA. See [CONTRIBUTING.md](CONTRIBUTING.md#inbound-contribution-terms).
 
 
 ## Organizational contributors

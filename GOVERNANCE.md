@@ -99,6 +99,7 @@ If reviewers disagree, or a change's risk classification is unclear, the pull re
 | ID | Decision | Status | Record |
 | --- | --- | --- | --- |
 | **J-03** | Outbound license for the open-source product is **Apache-2.0 only**, covering Bot, Cloud, MCP, Integrations and this repository. | **Approved** (2026-10-15, Jin Kuan) | [Factory #969 comment](https://github.com/BicameralAI/bicameral-factory/issues/969#issuecomment-6199511106), [correction](https://github.com/BicameralAI/bicameral-factory/issues/969#issuecomment-6199520464) |
+| **J-09** | Inbound contribution terms are the **Developer Certificate of Origin** (sign-off on every commit). No CLA. | **Approved** (2026-10-28, Jin Kuan) | This change; [CONTRIBUTING.md](CONTRIBUTING.md#inbound-contribution-terms) |
 
 J-03 sets the target license. Under the 2026-10-15 correction, MCP and Integrations enter the Apache-2.0 tree only after each copyright holder agrees in writing; that agreement is not yet recorded. Cloud, the Installer and the allowlisted Factory files also need recorded owner authorization. Until the evidence listed in [`migration/README.md`](migration/README.md#rights-evidence) is recorded, nothing is published.
 
@@ -109,7 +110,6 @@ The following are open. Until each is recorded, nothing in this repository shoul
 | ID | Topic | Status |
 | --- | --- | --- |
 | J-08 | Governance model at launch (founder-reserved, maintainer-led, elected) | Pending |
-| J-09 | Inbound contribution terms: DCO or CLA | Pending |
 | J-10 | Review thresholds for routine versus high-risk paths | Pending |
 | J-11 | Use of contributor reputation signals | Pending |
 | J-12 | Git history publication approach | Pending |
