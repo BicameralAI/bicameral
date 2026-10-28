@@ -46,6 +46,8 @@ export type ProductJoinRecovery =
   | ProductJoinFailureCode
   | "unavailable"
   | "cloud_unavailable"
+  | "product_not_registered"
+  | "join_failed"
   | "join_not_configured";
 
 export type ProductJoinFailureView = {
@@ -113,6 +115,20 @@ export const PRODUCT_JOIN_FAILURE_COPY: Record<
       "Update Bicameral, restart the local app, then try again.",
     retryable: true,
   },
+  product_not_registered: {
+    code: "product_not_registered",
+    message:
+      "Your local app responded, but this product is not set up on this device. " +
+      "Product setup needs repair before joining can finish.",
+    retryable: false,
+  },
+  join_failed: {
+    code: "join_failed",
+    message:
+      "Your local app responded, but could not complete joining this product. " +
+      "Try again.",
+    retryable: true,
+  },
 };
 
 export function failureView(code: ProductJoinRecovery): ProductJoinFailureView {
@@ -175,6 +191,23 @@ export function recoveryFromJoinError(
       return "cloud_unavailable";
     }
     return "cloud_unavailable";
+  }
+
+  // A successful HTTP response can still contain a rejected tool request.
+  if (
+    status !== undefined &&
+    status >= 200 && status < 300 &&
+    typeof body === "object" && body !== null &&
+    "status" in body && (body.status === "rejected" || body.status === "error")
+  ) {
+    if (
+      body.status === "rejected" &&
+      "message" in body && typeof body.message === "string" &&
+      body.message.startsWith("product_not_registered:")
+    ) {
+      return "product_not_registered";
+    }
+    return "join_failed";
   }
 
   // Daemon hop: real transport vs reachable-but-rejected.
