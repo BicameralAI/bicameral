@@ -72,6 +72,14 @@ Use the [pull request template](.github/pull_request_template.md). Every pull re
 
 Whether contributions require a **Developer Certificate of Origin** sign-off or a **Contributor License Agreement** is decision **J-09**, which is **pending**. Until it is recorded, no DCO or CLA check is enforced here. Outside contributions will not be accepted before J-09 is decided.
 
+## Issues
+
+Every issue follows the standard in [#47](https://github.com/BicameralAI/bicameral/issues/47): a summary, a scope, and a checks table whose rows each name a setup, an action, an expected result and a result.
+
+**Backlog.** An issue with no assignee and the `help wanted` label is open to take. Comment on it to claim it; a maintainer assigns you. Until decision J-09 is recorded (see [Inbound contribution terms](#inbound-contribution-terms)), only organization members and invited contributors can claim backlog issues.
+
+**What needs no further authorization.** An organization member may propose and merge any change that leaves product behavior unchanged: tests, fixtures, harnesses, documentation, audits and contract inventories. Membership confers this; an issue does not need to grant it. A change to product behavior also needs the record that governs it to be accepted first. In an issue, rows that depend on that record are marked `BLOCKED` until it is accepted. Either way, the review rules below apply.
+
 ## Review and merge
 
 - All changes reach `main` through a pull request.
