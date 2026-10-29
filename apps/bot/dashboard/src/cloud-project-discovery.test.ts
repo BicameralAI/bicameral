@@ -169,11 +169,44 @@ describe("mapCloudProjectItem", () => {
     expect(entry.event_store_label).toBe("Cloud project");
   });
 
+  it("does not tell the operator to update the daemon for a discoverable row with unknown compatibility (bot#1347)", async () => {
+    const { mapCloudProjectItem } = await import(
+      "./lib/cloud-project-discovery"
+    );
+    // Cloud directory rows are not yet bound to a paired daemon, so Cloud
+    // reports `daemon_compatible: false` as "unknown", not "incompatible".
+    const entry = mapCloudProjectItem(
+      item({
+        pairing_status: "unpaired",
+        binding_readiness: "unbound",
+        daemon_compatible: false,
+        is_member: false,
+      }),
+    );
+    expect(entry.event_store_label).toBe("Cloud project");
+    expect(entry.event_store_label).not.toContain("update");
+  });
+
+  it.each(["unpaired", "unbound", "degraded", "ready", "unknown"] as const)(
+    "shows update guidance only for Cloud's upgrade_required verdict, not for %s with daemon_compatible false (bot#1347)",
+    async (binding_readiness) => {
+      const { mapCloudProjectItem } = await import(
+        "./lib/cloud-project-discovery"
+      );
+      const entry = mapCloudProjectItem(
+        item({ binding_readiness, daemon_compatible: false }),
+      );
+      expect(entry.event_store_label).toBe("Cloud project");
+    },
+  );
+
   it("flags an incompatible daemon in the row label", async () => {
     const { mapCloudProjectItem } = await import(
       "./lib/cloud-project-discovery"
     );
-    const entry = mapCloudProjectItem(item({ daemon_compatible: false }));
+    const entry = mapCloudProjectItem(
+      item({ binding_readiness: "upgrade_required", daemon_compatible: false }),
+    );
     expect(entry.event_store_label).toContain("update the local daemon");
   });
 });
