@@ -23,7 +23,9 @@ Only **accepted** records carry authority. Proposed records express intent; hist
 
 ## Proposed records
 
-_No proposed records._
+| Record | Title | Kind | Date | Topics | Depends on | Supersedes |
+| --- | --- | --- | --- | --- | --- | --- |
+| [ARCH-0007](records/ARCH-0007-google-drive-scope-for-multi-operator-product-join.md) | Google Drive scope for multi-operator Product Join | decision | 2026-10-26 | `google-drive-oauth-scope`, `shared-drive-product-join` | ARCH-0001 | — |
 
 ## Historical records
 
@@ -33,5 +35,6 @@ _No historical records._
 
 | Record | Required by | Superseded by | Proposed replacements |
 | --- | --- | --- | --- |
-| ARCH-0001 | ARCH-0002 | — | — |
+| ARCH-0001 | ARCH-0002, ARCH-0007 | — | — |
 | ARCH-0002 | — | — | — |
+| ARCH-0007 | — | — | — |
