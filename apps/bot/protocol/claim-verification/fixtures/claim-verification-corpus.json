@@ -1,0 +1,146 @@
+{
+  "corpus_version": "claim-verification-v0",
+  "status": "synthetic_phase0",
+  "issue": "BicameralAI/bicameral#56",
+  "_comment": "Synthetic gold corpus for final-answer claim verification. Every Product, source and claim here is invented. A score computed from this corpus is a harness result, not a product performance claim.",
+  "product_id": "synthetic-product-cv",
+  "sources": [
+    {
+      "source_id": "src.export-archived.v1",
+      "snapshot_id": "snap.export-archived.v1",
+      "approval": "approved",
+      "superseded_by": null,
+      "locator": "synthetic://policies/export.md#L4",
+      "excerpt": "Workspace exports must not include archived projects.",
+      "excerpt_sha256": "sha256:441fb058a72defde894f58c6c84c4a14d3a62bc5c227104738862ce9dbdc3e01"
+    },
+    {
+      "source_id": "src.retention.v1",
+      "snapshot_id": "snap.retention.v1",
+      "approval": "superseded",
+      "superseded_by": "src.retention.v2",
+      "locator": "synthetic://policies/retention.md#L2",
+      "excerpt": "Audit logs are retained for 30 days.",
+      "excerpt_sha256": "sha256:d79f83aa2d9b3af4586aa4f20340e65b6afad68696f66346446d54a03d532979"
+    },
+    {
+      "source_id": "src.retention.v2",
+      "snapshot_id": "snap.retention.v2",
+      "approval": "approved",
+      "superseded_by": null,
+      "locator": "synthetic://policies/retention.md#L2",
+      "excerpt": "Audit logs are retained for 90 days.",
+      "excerpt_sha256": "sha256:c3cfb5916d87db618500e3ae4e272e080c096fdd30a4bfe21170b9859a7f0e48"
+    },
+    {
+      "source_id": "src.export-approval.v1",
+      "snapshot_id": "snap.export-approval.v1",
+      "approval": "approved",
+      "superseded_by": null,
+      "locator": "synthetic://policies/export.md#L9",
+      "excerpt": "Only workspace admins can approve an export request.",
+      "excerpt_sha256": "sha256:6d845a5074c70c0a45ce3863cc33b713066869b4dda3c70cac4d0e7352573cb8"
+    },
+    {
+      "source_id": "src.sso.v1",
+      "snapshot_id": "snap.sso.v1",
+      "approval": "approved",
+      "superseded_by": null,
+      "locator": "synthetic://policies/access.md#L3",
+      "excerpt": "Single sign-on is required for every member of an Enterprise workspace.",
+      "excerpt_sha256": "sha256:62a1dd61269e188ddfa8aa1deb1ce58b32465d79ed2ca42ee117dc6ac5694722"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "CV-CONTROL-01",
+      "row": "Control",
+      "query": "Who can approve an export request?",
+      "relevant_sources": ["src.export-approval.v1"],
+      "authoritative_source": "src.export-approval.v1",
+      "claims": [
+        {
+          "claim_id": "CV-CONTROL-01.c1",
+          "text": "Only workspace admins can approve an export request.",
+          "cites": ["src.export-approval.v1"],
+          "verdict": "supported"
+        }
+      ]
+    },
+    {
+      "case_id": "CV-NEGATION-01",
+      "row": "Negation",
+      "query": "Can a workspace export include archived projects?",
+      "relevant_sources": ["src.export-archived.v1"],
+      "authoritative_source": "src.export-archived.v1",
+      "claims": [
+        {
+          "claim_id": "CV-NEGATION-01.c1",
+          "text": "Workspace exports may include archived projects.",
+          "cites": ["src.export-archived.v1"],
+          "verdict": "contradicted"
+        }
+      ]
+    },
+    {
+      "case_id": "CV-SUPERSEDED-01",
+      "row": "Superseded",
+      "query": "How long are audit logs retained?",
+      "relevant_sources": ["src.retention.v1", "src.retention.v2"],
+      "authoritative_source": "src.retention.v2",
+      "claims": [
+        {
+          "claim_id": "CV-SUPERSEDED-01.c1",
+          "text": "Audit logs are retained for 30 days.",
+          "cites": ["src.retention.v1"],
+          "verdict": "stale"
+        }
+      ]
+    },
+    {
+      "case_id": "CV-PARAPHRASE-01",
+      "row": "Paraphrase",
+      "query": "Who must use single sign-on?",
+      "relevant_sources": ["src.sso.v1"],
+      "authoritative_source": "src.sso.v1",
+      "claims": [
+        {
+          "claim_id": "CV-PARAPHRASE-01.c1",
+          "text": "Single sign-on is required for every workspace member.",
+          "cites": ["src.sso.v1"],
+          "verdict": "not_supported"
+        }
+      ]
+    },
+    {
+      "case_id": "CV-MISSING-01",
+      "row": "Missing evidence",
+      "query": "Is workspace data encrypted at rest?",
+      "relevant_sources": [],
+      "authoritative_source": null,
+      "claims": [
+        {
+          "claim_id": "CV-MISSING-01.c1",
+          "text": "All workspace data is encrypted at rest.",
+          "cites": [],
+          "verdict": "not_supported"
+        }
+      ]
+    },
+    {
+      "case_id": "CV-TRACEABLE-01",
+      "row": "Traceable",
+      "query": "Can a workspace export include archived projects?",
+      "relevant_sources": ["src.export-archived.v1"],
+      "authoritative_source": "src.export-archived.v1",
+      "claims": [
+        {
+          "claim_id": "CV-TRACEABLE-01.c1",
+          "text": "Workspace exports must not include archived projects.",
+          "cites": ["src.export-archived.v1"],
+          "verdict": "supported"
+        }
+      ]
+    }
+  ]
+}
