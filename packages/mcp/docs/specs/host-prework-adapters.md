@@ -123,7 +123,11 @@ generation, and observation time. The first consented install binds it to the
 exact package/runner/contract, host version, and consent record. A genuine hook
 receipt carries that evidence. `verify-host` checks it against current local
 state and the requested artifact generation. Copying to another home, changing
-the binding, reinstalling, or uninstalling cannot reuse the original proof.
+the binding, reinstalling, or uninstalling cannot reuse the original activation receipt.
+Reinstalling or re-enabling with explicit consent on the same home and unchanged
+package/runner/contract, host version, and release binding carries the valid home
+observation forward to the renewed consent record. It still requires a fresh
+host-triggered receipt. Missing or mismatched prior proof cannot be repaired this way.
 Repeated verification keeps the original observation's 24-hour expiry.
 The hook receipt remains diagnostic-only until the daemon protocol/capability
 handshake succeeds. Missing Product context is still a separate downstream
