@@ -28,6 +28,7 @@ import {
 } from "./lib/operator-home-model";
 import {
   PRODUCT_JOIN_FAILURE_COPY,
+  defaultProductJoinTransport,
   recoveryFromJoinError,
   runProductJoin,
   type ProductJoinTransport,
@@ -249,9 +250,9 @@ describe("runProductJoin", () => {
     }
   });
 
-  it("wrong_domain is the only non-retryable failure", async () => {
+  it("does not offer plain retry for domain or local registration failures", () => {
     for (const [code, view] of Object.entries(PRODUCT_JOIN_FAILURE_COPY)) {
-      expect(view.retryable).toBe(code !== "wrong_domain");
+      expect(view.retryable).toBe(!["wrong_domain", "product_not_registered"].includes(code));
     }
   });
 
@@ -330,6 +331,51 @@ describe("recoveryFromJoinError", () => {
 
 describe("live product join transport", () => {
   beforeEach(() => vi.restoreAllMocks());
+
+  it("does not report an HTTP 200 registration rejection as an unreachable app", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(SIGNED_TICKET)))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        status: "rejected",
+        message: "product_not_registered: 'prod_1' is absent from the operator registry",
+      })));
+
+    const outcome = await runProductJoin({
+      preview: PREVIEW,
+      accessToken: "cloud-token",
+      sessionToken: "bridge-token",
+      transport: defaultProductJoinTransport,
+    });
+
+    expect(outcome.status).toBe("failed");
+    if (outcome.status === "failed") {
+      expect(outcome.failure.code).toBe("product_not_registered");
+      expect(outcome.failure.message).toContain("not set up on this device");
+      expect(outcome.failure.message).not.toMatch(/unreachable|couldn.t reach|prod_1|registry/i);
+    }
+  });
+
+  it.each(["rejected", "error"])("keeps an HTTP 200 %s response distinct from transport loss", async (status) => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(SIGNED_TICKET)))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        status,
+        message: "internal_failure: failed to fetch /private/product-data",
+      })));
+
+    const outcome = await runProductJoin({
+      preview: PREVIEW,
+      accessToken: "cloud-token",
+      sessionToken: "bridge-token",
+      transport: defaultProductJoinTransport,
+    });
+
+    expect(outcome.status).toBe("failed");
+    if (outcome.status === "failed") {
+      expect(outcome.failure.code).toBe("join_failed");
+      expect(outcome.failure.message).not.toMatch(/couldn.t reach|\/private|internal_failure/i);
+    }
+  });
 
   it("passes the Cloud-signed envelope unchanged in the daemon bridge body", async () => {
     const signedTicket = SIGNED_TICKET;
