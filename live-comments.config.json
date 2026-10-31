@@ -1,5 +1,5 @@
 {
-  "governed": ["apps/bot/dashboard/src/lib/drive-connection.ts"],
+  "governed": [],
   "sticky": true,
   "authority": "AUTHORITY",
   "resolvers": {

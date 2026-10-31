@@ -1,0 +1,50 @@
+{
+  "sources": {
+    "github:BicameralAI/bicameral#50": {
+      "uri": "https://github.com/BicameralAI/bicameral/issues/50",
+      "resolver": "composio:github",
+      "retrieved_at": "2026-10-31T02:54:49.338Z",
+      "version": "updated_at=2026-10-26T20:15:57Z;comments=1;last=2026-10-26T20:15:56Z",
+      "container": "BicameralAI/bicameral",
+      "creator": {
+        "system": "github",
+        "account": "jinhongkuan"
+      },
+      "text_sha256": "2e62cdc9465f8ace0349c0650397a7f7f90caea59ca73b85c08465473dd1f8ba",
+      "text": "Widen the Google Drive scope from drive.file to drive Decided on BicameralAI/bicameral-bot#1262 on 2026-10-26. Summary Under drive.file, each account's Bicameral token sees only the files that the same account created through the app, even inside a shared Shared Drive. So a second operator cannot read a Product's ledger. Join across operators needs the drive scope. Alpha path (decided 2026-10-26): ship drive unverified, under Google's 100-user cap. Users click through the \"unverified app\" warning. Full verification runs in parallel and must finish before the user count nears 100. Scope Component: Google OAuth client configuration, the consent text, and the Drive connector in apps/bot Governing file: none yet. The scope decision becomes an architecture record in docs/architecture/records/. In: the scope change, consent text, publishing status, Google's restricted-scope app verification, the yearly CASA security assessment Out: the Join locator (#51) Owner: @jinhongkuan. Verification and the assessment are organization tasks. Checks Command: none. These are manual checks, each with a linked record. | Case | Setup | Action | Expected | Result | |---|---|---|---|---| | Publishing status | Production OAuth client | Check the consent screen settings | User type External, status In Production, not Testing (Testing expires refresh tokens after 7 days; confirm in the console) | NOT_RUN | | Alpha consent | Fresh account, unverified client | Connect Drive | Warning shown once; consent lists drive; connection works across a daemon restart | NOT_RUN | | User cap | Unverified client | Count authorized users | Below 100; verification must be approved before 100 | NOT_RUN | | Record | n/a | Review | The architecture record for the scope change is accepted | NOT_RUN | | Domain | Homepage domain | Verify in Search Console | Ownership verified | NOT_RUN | | Privacy policy | Policy on the verified domain | Review | Discloses Drive data use and states compliance with Google's API Services User Data Policy, including Limited Use | NOT_RUN | | Scope justification | Two-account Shared Drive test (bot #1262 matrix) | Write the justification | Explains why drive.file cannot serve Join | NOT_RUN | | Demo video | Production build | Record the consent flow and the scope in use | Video linked | NOT_RUN | | Verification | All rows above done | Submit to Google | Restricted-scope verification approved (link the approval) | NOT_RUN | | Assessment | Authorized CASA lab | Tier 2 assessment | Passed (link the report); renewal date recorded | NOT_RUN | | Consent text | Verified client | Connect Drive | No warning; consent shows the new text | NOT_RUN | Architecture-record handoff: Drive scope decision (2026-10-26) Jin's decision on bicameral-bot#1262 is Option A: drive.file → drive, to support Shared Drive cross-operator reads. This issue already holds the implementation/verification checks, so no duplicate implementation ticket is needed. The remaining architecture work belongs in docs/architecture/records/, governed by the current architecture index. Proposed ADR obligations: Context and evidence: the two-account 13-row Shared Drive matrix: drive.file exposes only each user's app-created files. A 200 with zero results must never be taken as an empty authoritative ledger. Decision: request Google restricted drive scope for the Drive connector, with explicit consent and a reviewed rollout; preserve the owner's manual sharing step and enforce real Shared Drive access rather than issuing ACL grants. Security boundary: protect Product identity through signed ticket and proof-bound locator; no raw locator in Cloud directory; no browser-supplied replacement identity; no empty ledger fallback; access revocation must fail closed. Rollout: Alpha may use the already-decided unverified-consent path only while under the applicable Google cap; verify publishing status, warning, consent text, restart persistence, user count, and privacy/Limited Use statements. Google restricted-scope verification and the periodic CASA assessment remain Jin-owned and are not implied to be complete by a local test. Interim behavior: before drive is approved and effective, Join of another operator's Product must return a typed rejection, never a false daemon-unreachable message. Acceptance: record actual two-account member/nonmember/revoked/join tests and verification artifacts; distinguish unverified Alpha qualification from fully verified production readiness. Status: decision documented in #50; ADR file and acceptance remain outstanding. Do not switch active OAuth scopes simply because this issue is open. Cross-operator Join work stays sequenced behind the governing record.",
+      "attribution": [
+        {
+          "start": 0,
+          "end": 53,
+          "author": {
+            "system": "github",
+            "account": "jinhongkuan"
+          },
+          "created_at": "2026-10-26T18:48:24Z",
+          "id": "title"
+        },
+        {
+          "start": 54,
+          "end": 2663,
+          "author": {
+            "system": "github",
+            "account": "jinhongkuan"
+          },
+          "created_at": "2026-10-26T18:48:24Z",
+          "id": "body"
+        },
+        {
+          "start": 2664,
+          "end": 4695,
+          "author": {
+            "system": "github",
+            "account": "Knapp-Kevin"
+          },
+          "created_at": "2026-10-26T20:15:56Z",
+          "id": "comment-6426322698"
+        }
+      ]
+    }
+  },
+  "memberships": {}
+}
