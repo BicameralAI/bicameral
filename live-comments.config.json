@@ -1,0 +1,9 @@
+{
+  "governed": ["apps/bot/dashboard/src/lib/drive-connection.ts"],
+  "sticky": true,
+  "authority": "AUTHORITY",
+  "resolvers": {
+    "file": { "builtin": "file" },
+    "github": { "provider": "github", "composio": { "via": "cli" } }
+  }
+}

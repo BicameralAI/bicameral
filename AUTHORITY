@@ -1,0 +1,12 @@
+# AUTHORITY — names for people, places and authorities (live-comments spec §7).
+
+jin     = github:jinhongkuan | email:jin@bicameral-ai.com
+kevin   = github:Knapp-Kevin
+
+# Product decisions are Jin's; Kevin owns architecture records.
+product      = jin
+architecture = kevin
+
+# Where product decisions are written down.
+issues       = github:BicameralAI/bicameral
+product-call = product in issues

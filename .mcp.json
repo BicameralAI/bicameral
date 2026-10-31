@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "live-comments": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "live-comments",
+        "mcp"
+      ]
+    }
+  }
+}

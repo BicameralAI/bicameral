@@ -130,6 +130,9 @@ export const DRIVE_MAX_TRANSPORT_FAILURES = 5;
 /**
  * Observe a pending Google authorization until the daemon reports a terminal
  * outcome. Settles exactly once; `stop()` cancels without settling.
+ *
+ * @open drive.scope "Which Google Drive scope should the authorization request: drive.file or drive?"
+ *   by product in github:BicameralAI/bicameral#50 options "drive.file" | "drive"
  */
 export function watchDriveAuthorization(
   options: DriveAuthorizationWatcherOptions,
