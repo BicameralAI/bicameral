@@ -2,18 +2,32 @@
   "schema_version": 1,
   "generated_by": "tools/governance/check_architecture.py",
   "authority": {
+    "approve-permission": "ARCH-0004",
     "architecture-index": "ARCH-0001",
     "architecture-records": "ARCH-0001",
+    "check-record": "ARCH-0003",
     "code-ownership": "ARCH-0002",
-    "repository-layout": "ARCH-0002"
+    "conflict-resolution": "ARCH-0004",
+    "governed-context-reconstruction": "ARCH-0005",
+    "governed-domain": "ARCH-0003",
+    "governed-read-diagnostics": "ARCH-0005",
+    "hosted-extract": "ARCH-0003",
+    "repository-layout": "ARCH-0002",
+    "signoff": "ARCH-0004",
+    "source-snapshot": "ARCH-0003"
   },
   "proposed_claims": {},
   "accepted": [
     "ARCH-0001",
-    "ARCH-0002"
+    "ARCH-0002",
+    "ARCH-0003",
+    "ARCH-0004",
+    "ARCH-0005"
   ],
   "proposed": [],
-  "historical": [],
+  "historical": [
+    "ARCH-0006"
+  ],
   "records": [
     {
       "id": "ARCH-0001",
@@ -63,6 +77,119 @@
       "references": [
         "https://github.com/BicameralAI/bicameral-factory/issues/969"
       ],
+      "required_by": [],
+      "superseded_by": [],
+      "proposed_replacements": []
+    },
+    {
+      "id": "ARCH-0003",
+      "title": "A GovernedDomain is one SourceSnapshot",
+      "kind": "decision",
+      "status": "accepted",
+      "date": "2026-10-01",
+      "path": "docs/architecture/records/ARCH-0003-governed-domain-is-one-source-snapshot.md",
+      "owners": [
+        "@jinhongkuan"
+      ],
+      "governs": [
+        "check-record",
+        "governed-domain",
+        "hosted-extract",
+        "source-snapshot"
+      ],
+      "depends_on": [],
+      "supersedes": [],
+      "references": [
+        "ARCH-0001",
+        "ARCH-0004",
+        "apps/bot/docs/adr/0033-governed-domain-relations-cite-source-snapshots.md"
+      ],
+      "required_by": [
+        "ARCH-0004",
+        "ARCH-0005",
+        "ARCH-0006"
+      ],
+      "superseded_by": [],
+      "proposed_replacements": []
+    },
+    {
+      "id": "ARCH-0004",
+      "title": "Signoff is the GovernedDomain",
+      "kind": "decision",
+      "status": "accepted",
+      "date": "2026-10-01",
+      "path": "docs/architecture/records/ARCH-0004-signoff-is-the-governed-domain.md",
+      "owners": [
+        "@jinhongkuan"
+      ],
+      "governs": [
+        "approve-permission",
+        "conflict-resolution",
+        "signoff"
+      ],
+      "depends_on": [
+        "ARCH-0003"
+      ],
+      "supersedes": [],
+      "references": [
+        "ARCH-0001",
+        "apps/bot/docs/adr/0034-signoff-is-the-governed-domain.md"
+      ],
+      "required_by": [
+        "ARCH-0005",
+        "ARCH-0006"
+      ],
+      "superseded_by": [],
+      "proposed_replacements": []
+    },
+    {
+      "id": "ARCH-0005",
+      "title": "Reconstruct approved governed context with explainable, replay-stable reads",
+      "kind": "decision",
+      "status": "accepted",
+      "date": "2026-10-26",
+      "path": "docs/architecture/records/ARCH-0005-replay-stable-governed-context-reads.md",
+      "owners": [
+        "@Knapp-Kevin"
+      ],
+      "governs": [
+        "governed-context-reconstruction",
+        "governed-read-diagnostics"
+      ],
+      "depends_on": [
+        "ARCH-0003",
+        "ARCH-0004"
+      ],
+      "supersedes": [],
+      "references": [
+        "ARCH-0006"
+      ],
+      "required_by": [
+        "ARCH-0006"
+      ],
+      "superseded_by": [],
+      "proposed_replacements": []
+    },
+    {
+      "id": "ARCH-0006",
+      "title": "Bind consequential agent claims to exact approved Product evidence",
+      "kind": "decision",
+      "status": "rejected",
+      "date": "2026-10-26",
+      "path": "docs/architecture/records/ARCH-0006-bind-agent-claims-to-approved-evidence.md",
+      "owners": [
+        "@Knapp-Kevin"
+      ],
+      "governs": [
+        "agent-claim-evidence-binding"
+      ],
+      "depends_on": [
+        "ARCH-0003",
+        "ARCH-0004",
+        "ARCH-0005"
+      ],
+      "supersedes": [],
+      "references": [],
       "required_by": [],
       "superseded_by": [],
       "proposed_replacements": []

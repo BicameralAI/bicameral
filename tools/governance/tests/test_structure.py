@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import unittest
@@ -344,10 +345,48 @@ class RepositoryLayoutTests(TempRepoTestCase):
                 entry["legacy_decision_dirs"] = legacy
         self.write_manifest(manifest)
 
-    def test_declared_legacy_decision_dir_allowed(self) -> None:
+    LEGACY_FILE = "tools/governance/docs/adr/0001-old.md"
+
+    def _lock(self, files: dict[str, str]) -> None:
+        self.write(
+            check_structure.LEGACY_LOCK_PATH,
+            json.dumps({"files": files}, indent=2) + "\n",
+        )
+
+    def _locked_legacy(self) -> None:
         self._with_legacy(["docs/adr"])
-        self.write("tools/governance/docs/adr/0001-old.md")
+        self.write(self.LEGACY_FILE, "old\n")
+        self._lock({self.LEGACY_FILE: hashlib.sha256(b"old\n").hexdigest()})
+
+    def test_declared_legacy_decision_dir_allowed(self) -> None:
+        self._locked_legacy()
         self.assertEqual(check_structure.run(self.root), [])
+
+    def test_legacy_file_requires_lock(self) -> None:
+        self._with_legacy(["docs/adr"])
+        self.write(self.LEGACY_FILE)
+        self.assertLayoutError("legacy-decisions.json: missing")
+
+    def test_new_file_in_legacy_dir_rejected(self) -> None:
+        self._locked_legacy()
+        self.write("tools/governance/docs/adr/0002-new.md")
+        self.assertLayoutError("0002-new.md: legacy decision directories are frozen")
+
+    def test_changed_legacy_file_rejected(self) -> None:
+        self._locked_legacy()
+        self.write(self.LEGACY_FILE, "edited\n")
+        self.assertLayoutError("0001-old.md: legacy decision record changed")
+
+    def test_removed_legacy_file_rejected(self) -> None:
+        self._locked_legacy()
+        (self.root / self.LEGACY_FILE).unlink()
+        self.assertLayoutError("0001-old.md: locked legacy decision record is missing")
+
+    def test_write_does_not_bless_legacy_changes(self) -> None:
+        self._locked_legacy()
+        self.write("tools/governance/docs/adr/0002-new.md")
+        errors = check_structure.run(self.root, write=True)
+        self.assertTrue(any("frozen" in error for error in errors), errors)
 
     def test_undeclared_decision_dir_still_rejected_beside_legacy(self) -> None:
         self._with_legacy(["docs/adr"])
