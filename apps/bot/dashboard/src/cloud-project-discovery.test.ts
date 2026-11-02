@@ -169,7 +169,7 @@ describe("mapCloudProjectItem", () => {
     expect(entry.event_store_label).toBe("Cloud project");
   });
 
-  it("does not tell the operator to update the daemon for a discoverable row with unknown compatibility (bot#1347)", async () => {
+  it("does not tell the operator to update the daemon for a discoverable row with unknown compatibility (bot#1347, bicameral#53)", async () => {
     const { mapCloudProjectItem } = await import(
       "./lib/cloud-project-discovery"
     );
@@ -188,7 +188,7 @@ describe("mapCloudProjectItem", () => {
   });
 
   it.each(["unpaired", "unbound", "degraded", "ready", "unknown"] as const)(
-    "shows update guidance only for Cloud's upgrade_required verdict, not for %s with daemon_compatible false (bot#1347)",
+    "shows update guidance only for Cloud's upgrade_required verdict, not for %s with daemon_compatible false (bot#1347, bicameral#53)",
     async (binding_readiness) => {
       const { mapCloudProjectItem } = await import(
         "./lib/cloud-project-discovery"

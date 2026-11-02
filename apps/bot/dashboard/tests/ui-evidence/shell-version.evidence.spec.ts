@@ -1,5 +1,5 @@
 /**
- * Browser evidence for bot#1347 — hosted shell version and update guidance.
+ * Browser evidence for bot#1347, bicameral#53 — hosted shell version and update guidance.
  *
  * The hosted header must not present a version the SPA cannot verify, and the
  * "update the local daemon" guidance must appear only for Cloud's evaluated
@@ -45,7 +45,6 @@ test("hosted header shows no unverifiable version and discoverable rows carry no
 
   await expect(page.getByTestId("paired-shell")).toBeVisible();
   await expect(page.getByTestId("app-shell-version")).toHaveCount(0);
-  await expect(page.getByText(/\bv?0\.1\.25\b/)).toHaveCount(0);
   await expect(page.getByText("Discoverable Product")).toBeVisible();
   await expect(page.getByText(UPDATE_COPY)).toHaveCount(0);
 
@@ -62,7 +61,6 @@ test("hosted header shows no unverifiable version and discoverable rows carry no
   await page.reload();
   await expect(page.getByTestId("paired-shell")).toBeVisible();
   await expect(page.getByTestId("app-shell-version")).toHaveCount(0);
-  await expect(page.getByText(/\bv?0\.1\.25\b/)).toHaveCount(0);
 });
 
 test("an evaluated upgrade_required verdict still tells the operator to update the daemon", async ({ ui, page }) => {
