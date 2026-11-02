@@ -75,6 +75,7 @@
       <ul class="onboarding-benefits">
         <li>Your Bicameral event store stays in your Google Drive.</li>
         <li>The connection uses Google OAuth and only the permissions you approve.</li>
+        <li>Google will ask to let Bicameral see and edit files in your Drive. Bicameral only reads and writes the Product ledger folder you choose and never changes sharing.</li>
         <li>This is optional now. You can connect later from Settings.</li>
       </ul>
     </section>

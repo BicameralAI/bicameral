@@ -41,6 +41,12 @@ const DEFAULT_API_BASE: &str = "https://www.googleapis.com";
 /// Default Google OAuth token endpoint used for refresh grants.
 const DEFAULT_TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
 
+/// Safe operator message when the stored Google credential lacks the
+/// `drive` grant required since ARCH-0007 (#50).
+pub const DRIVE_SCOPE_NOT_GRANTED_MESSAGE: &str =
+    "The stored Google credential was not granted the Drive scope Bicameral now requires \
+     (it predates the change from drive.file). Reconnect Google.";
+
 /// Deterministic near-expiry refresh skew (#1134). A stored access token
 /// that expires within this window is refreshed proactively, so a request
 /// never departs with a token that would die in flight.
@@ -131,6 +137,7 @@ impl KeyringGoogleAccessTokenProvider {
     fn refresh(
         &self,
         refresh_token: &str,
+        stored_scope: Option<&str>,
         config: &GoogleOAuthConfig,
     ) -> Result<String, DriveTransportError> {
         let endpoint = self.token_endpoint.clone();
@@ -179,12 +186,24 @@ impl KeyringGoogleAccessTokenProvider {
             .map(String::from)
             .or_else(|| Some(refresh_token.to_string()));
 
+        // A refresh grant can never broaden the original grant. When Google
+        // reports the refreshed scope it must still include `drive`; when it
+        // omits it, the previously recorded grant carries forward so the
+        // rotated envelope keeps its scope evidence (ARCH-0007).
+        let granted_scope = json["scope"]
+            .as_str()
+            .map(String::from)
+            .or_else(|| stored_scope.map(String::from));
+        if !bicameral_config::scope_grants_google_drive(granted_scope.as_deref()) {
+            return Err(auth_error(DRIVE_SCOPE_NOT_GRANTED_MESSAGE));
+        }
+
         let envelope = bicameral_config::OAuthTokenEnvelopeV1::from_token_exchange(
             access_token.clone(),
             rotated_refresh,
             json["expires_in"].as_u64(),
             json["token_type"].as_str().map(String::from),
-            json["scope"].as_str().map(String::from),
+            granted_scope,
             chrono::Utc::now(),
         )
         // Preserve the minting client identity through rotation so the
@@ -252,6 +271,13 @@ impl DriveAccessTokenProvider for KeyringGoogleAccessTokenProvider {
                 "No usable Google credential is stored. Connect Google first.",
             ));
         };
+        // ARCH-0007 Decision 1: never assume a stored credential carries
+        // the `drive` grant. One minted under the former `drive.file` scope
+        // (or a legacy plain token with no recorded scope) fails closed
+        // before any Drive request; refreshing cannot broaden it.
+        if !stored.grants_google_drive_scope() {
+            return Err(auth_error(DRIVE_SCOPE_NOT_GRANTED_MESSAGE));
+        }
 
         match &stored {
             StoredOAuthToken::Envelope(envelope) => {
@@ -274,7 +300,9 @@ impl DriveAccessTokenProvider for KeyringGoogleAccessTokenProvider {
                     stored.refresh_token(),
                     self.effective_refresh_config(envelope),
                 ) {
-                    (Some(refresh_token), Some(config)) => self.refresh(refresh_token, &config),
+                    (Some(refresh_token), Some(config)) => {
+                        self.refresh(refresh_token, envelope.scope.as_deref(), &config)
+                    }
                     (Some(_), None) => Err(auth_error(
                         "Google credential is expired and no refresh client identity is \
                          available. Reconnect Google.",

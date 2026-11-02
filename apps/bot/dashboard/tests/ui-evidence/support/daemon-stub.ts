@@ -141,7 +141,7 @@ function registryBody(google: GoogleConnection | null): JsonBody {
     connections.google = {
       status: google.status,
       account_label: google.account_label,
-      capabilities: google.capabilities ?? ["drive.file"],
+      capabilities: google.capabilities ?? ["drive"],
       auth_method: google.auth_method ?? "local_loopback",
       updated_at: google.updated_at ?? "2026-01-01T00:00:00Z",
     };
