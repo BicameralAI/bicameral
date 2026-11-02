@@ -520,6 +520,13 @@ fn restart_health_operation_refreshes_envelope_then_performs_drive_io() {
 fn google_drive_api_route_resolves_production_composition_fail_closed() {
     use bicameral_runtime::project_registry::EventStoreRoute;
 
+    struct NoTokenAccess;
+    impl DriveAccessTokenProvider for NoTokenAccess {
+        fn access_token(&self) -> Result<String, DriveTransportError> {
+            panic!("route/capability checks must not request credentials or network I/O");
+        }
+    }
+    let transport = Arc::new(HttpDriveApiTransport::new(Arc::new(NoTokenAccess)));
     let route = EventStoreRoute::GoogleDriveApi {
         folder_id: "folder-registered".into(),
     };
@@ -528,8 +535,9 @@ fn google_drive_api_route_resolves_production_composition_fail_closed() {
     let parsed: EventStoreRoute = serde_json::from_str(&serialized).unwrap();
     assert_eq!(parsed, route);
 
-    // Constructor-only identity assertions (no network, no keyring I/O).
-    let dual = route.open_atomic();
+    // Real routing/adapter, with an explicit provider boundary that cannot
+    // read operator credentials or authorize an HTTP request.
+    let dual = route.open_atomic_with_drive_transport(transport.clone());
     let error = dual
         .append_atomic_batch(
             bicameral_runtime::atomic_event_store::AtomicEventBatchV1::new(
@@ -547,7 +555,7 @@ fn google_drive_api_route_resolves_production_composition_fail_closed() {
     let corrupt = EventStoreRoute::GoogleDriveApi {
         folder_id: "   ".into(),
     };
-    let dual = corrupt.open_atomic();
+    let dual = corrupt.open_atomic_with_drive_transport(transport);
     let error = dual.health_check().unwrap_err();
     assert!(error.to_string().contains("unopenable"));
     let error = dual.replay().unwrap_err();

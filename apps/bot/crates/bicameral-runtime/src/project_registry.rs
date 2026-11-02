@@ -17,6 +17,7 @@ use bicameral_config::{BicameralPaths, EventStoreConfig};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::drive_api_event_store::{DriveApiAdapter, DriveApiTransport};
 use crate::event_store_adapters::{DriveFolderAdapter, GitAdapter, GitAdapterConfig};
 
 const REGISTRY_SCHEMA_VERSION: u32 = 1;
@@ -90,15 +91,35 @@ impl EventStoreRoute {
         Arc<dyn EventStoreAdapter>,
         Option<Arc<dyn crate::drive_api_event_store::ConfirmedAppend>>,
     ) {
+        self.open_for_create_with_drive_transport(None)
+    }
+
+    pub(crate) fn open_for_create_with_drive_transport(
+        &self,
+        transport: Option<Arc<dyn DriveApiTransport>>,
+    ) -> (
+        Arc<dyn EventStoreAdapter>,
+        Option<Arc<dyn crate::drive_api_event_store::ConfirmedAppend>>,
+    ) {
         match self {
             Self::GoogleDriveApi { folder_id } => {
-                match crate::google_drive_credential_route::open_google_drive_api_adapter(folder_id)
-                {
+                let adapter = match &transport {
+                    Some(transport) => {
+                        DriveApiAdapter::new(folder_id, transport.clone()).map(Arc::new)
+                    }
+                    None => crate::google_drive_credential_route::open_google_drive_api_adapter(
+                        folder_id,
+                    ),
+                };
+                match adapter {
                     Ok(concrete) => (
                         concrete.clone() as Arc<dyn EventStoreAdapter>,
                         Some(concrete as Arc<dyn crate::drive_api_event_store::ConfirmedAppend>),
                     ),
-                    Err(_) => (self.open(), None),
+                    Err(_) => (
+                        self.open_dual_with_drive_transport(transport).event_store,
+                        None,
+                    ),
                 }
             }
             _ => (self.open(), None),
@@ -111,7 +132,24 @@ impl EventStoreRoute {
         self.open_dual().atomic
     }
 
+    /// Exercise ordinary route selection with an explicit provider boundary.
+    /// The transport is process-local, never part of a persisted route or a
+    /// caller-supplied command. Production uses `open_atomic` and OS credentials.
+    pub fn open_atomic_with_drive_transport(
+        &self,
+        transport: Arc<dyn DriveApiTransport>,
+    ) -> Arc<dyn crate::atomic_event_store::AtomicEventStoreAdapter> {
+        self.open_dual_with_drive_transport(Some(transport)).atomic
+    }
+
     fn open_dual(&self) -> crate::event_store_adapters::DualEventStoreAdapter {
+        self.open_dual_with_drive_transport(None)
+    }
+
+    fn open_dual_with_drive_transport(
+        &self,
+        transport: Option<Arc<dyn DriveApiTransport>>,
+    ) -> crate::event_store_adapters::DualEventStoreAdapter {
         match self {
             Self::Git {
                 events_dir,
@@ -136,6 +174,26 @@ impl EventStoreRoute {
                 }
             }
             Self::GoogleDriveApi { folder_id } => {
+                if let Some(transport) = transport {
+                    return match DriveApiAdapter::new(folder_id, transport) {
+                        Ok(adapter) => {
+                            let adapter = Arc::new(adapter);
+                            crate::event_store_adapters::DualEventStoreAdapter {
+                                event_store: adapter.clone(),
+                                atomic: adapter,
+                            }
+                        }
+                        Err(error) => {
+                            let adapter = Arc::new(
+                                crate::drive_api_transport_base::UnopenableEventStore::google_drive_route(error),
+                            );
+                            crate::event_store_adapters::DualEventStoreAdapter {
+                                event_store: adapter.clone(),
+                                atomic: adapter,
+                            }
+                        }
+                    };
+                }
                 crate::drive_api_transport::open_google_drive_api_route(folder_id)
             }
         }

@@ -214,13 +214,7 @@ impl crate::dispatch::CandidateSnapshotProvider
 
 impl RuntimeDispatch for DaemonDispatch {
     fn dispatch(&self, request: &ToolRequest, workspace_root: Option<&Path>) -> ToolResponse {
-        // Product-scoped operator routing (search/bind/ingest after product.select)
-        // must leave the same redacted operational fingerprint evidence as
-        // product.create/publish. Topology multi-product-routing asserts these
-        // receipts; previously only create/publish wrote them.
-        let response = self.dispatch_body(request, workspace_root);
-        self.record_product_scoped_operational_log(request, &response);
-        response
+        self.dispatch_with_create_transport(request, workspace_root, None)
     }
 
     fn capabilities(&self) -> serde_json::Value {
@@ -286,6 +280,21 @@ impl RuntimeDispatch for DaemonDispatch {
 }
 
 impl DaemonDispatch {
+    fn dispatch_with_create_transport(
+        &self,
+        request: &ToolRequest,
+        workspace_root: Option<&Path>,
+        create_transport: Option<Arc<dyn crate::drive_api_event_store::DriveApiTransport>>,
+    ) -> ToolResponse {
+        // Product-scoped operator routing (search/bind/ingest after product.select)
+        // must leave the same redacted operational fingerprint evidence as
+        // product.create/publish. Topology multi-product-routing asserts these
+        // receipts; previously only create/publish wrote them.
+        let response = self.dispatch_body(request, workspace_root, create_transport);
+        self.record_product_scoped_operational_log(request, &response);
+        response
+    }
+
     fn record_product_scoped_operational_log(
         &self,
         request: &ToolRequest,
@@ -316,7 +325,12 @@ impl DaemonDispatch {
         }
     }
 
-    fn dispatch_body(&self, request: &ToolRequest, workspace_root: Option<&Path>) -> ToolResponse {
+    fn dispatch_body(
+        &self,
+        request: &ToolRequest,
+        workspace_root: Option<&Path>,
+        create_transport: Option<Arc<dyn crate::drive_api_event_store::DriveApiTransport>>,
+    ) -> ToolResponse {
         let watcher_observation = match request.product_id.as_deref() {
             Some(product_id) => self.product_commit_watchers.latest_for(product_id),
             None => self.commit_watcher.latest(),
@@ -549,7 +563,8 @@ impl DaemonDispatch {
                     // append. No local, memory, or fixture substrate can
                     // satisfy this path.
                     Some(route) => {
-                        let (adapter, confirmed_append) = route.open_for_create();
+                        let (adapter, confirmed_append) =
+                            route.open_for_create_with_drive_transport(create_transport);
                         let Some(confirmed_append) = confirmed_append else {
                             return ToolResponse::rejected(
                                 request.request_id,
@@ -1920,6 +1935,9 @@ mod tests {
         let store: Arc<bicameral_config::OsKeyringSecretsStore> = production_secrets_store();
         let _trait_object: Arc<dyn bicameral_config::SecretsStore> = store;
     }
+    use crate::drive_api_event_store::{
+        DriveApiTransport, DriveRemoteObject, DriveTransportError, DriveTransportErrorKind,
+    };
     use crate::workspace_binding::{
         FileWorkspaceBindingStore, LocalWorkspaceBinding, WorkspaceBindingStore,
         DAEMON_WORKSPACE_BINDING_CAPABILITY,
@@ -2296,17 +2314,62 @@ mod tests {
             .starts_with("product_event_store_unvalidated"));
     }
 
+    #[derive(Default)]
+    struct RejectingDriveTransport {
+        folders: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl DriveApiTransport for RejectingDriveTransport {
+        fn list_children(
+            &self,
+            folder_id: &str,
+        ) -> Result<Vec<DriveRemoteObject>, DriveTransportError> {
+            self.folders.lock().unwrap().push(folder_id.into());
+            Err(DriveTransportError::new(
+                DriveTransportErrorKind::Authentication,
+                "Google credentials unavailable in isolated test",
+            ))
+        }
+
+        fn find_children_by_name(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> Result<Vec<DriveRemoteObject>, DriveTransportError> {
+            panic!("append must not begin after replay failure");
+        }
+
+        fn create_json_file(
+            &self,
+            _: &str,
+            _: &str,
+            _: &[u8],
+        ) -> Result<DriveRemoteObject, DriveTransportError> {
+            panic!("no provider write is allowed");
+        }
+
+        fn download_file(&self, _: &str) -> Result<Vec<u8>, DriveTransportError> {
+            panic!("no provider download is allowed");
+        }
+
+        fn probe_folder(&self, _: &str) -> Result<(), DriveTransportError> {
+            panic!("no provider probe is allowed");
+        }
+    }
+
     #[test]
     fn operator_daemon_routes_a_validated_descriptor_to_the_drive_folder_store() {
+        let transport = Arc::new(RejectingDriveTransport::default());
         let dispatch = operator_create_dispatch();
-        let response = dispatch.dispatch(
+        let response = dispatch.dispatch_with_create_transport(
             &operator_create_request(google_descriptor("1FolderAbc"), Some("1FolderAbc")),
             None,
+            Some(transport.clone()),
         );
         // The guard is satisfied and the create is dispatched against the
-        // Google Drive API route for that exact folder. In this unit test no
-        // Google credential exists, so the durable store fails closed at the
-        // first append: never a guard rejection, never a memory-store success.
+        // real Drive adapter. The test-owned transport rejects replay before
+        // append, regardless of operator credentials or ambient OAuth config.
+        assert_eq!(*transport.folders.lock().unwrap(), ["1FolderAbc"]);
         let message = response.message.clone().unwrap_or_default();
         assert!(
             !message.starts_with("product_event_store"),
@@ -2321,6 +2384,15 @@ mod tests {
             message.contains("google_drive_api") || message.contains("Google"),
             "create must have been routed to the Drive folder store: {message}"
         );
+        assert!(dispatch.adapter.replay().unwrap().is_empty());
+        assert!(dispatch
+            .project_router
+            .as_ref()
+            .unwrap()
+            .store()
+            .list()
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -2328,9 +2400,11 @@ mod tests {
         // bot#1087: the daemon signer is checked before the Drive route is
         // ever appended to. No registry record and no memory-store success.
         let dispatch = operator_create_dispatch_without_signer();
-        let response = dispatch.dispatch(
+        let transport = Arc::new(RejectingDriveTransport::default());
+        let response = dispatch.dispatch_with_create_transport(
             &operator_create_request(google_descriptor("1FolderAbc"), Some("1FolderAbc")),
             None,
+            Some(transport.clone()),
         );
         assert_ne!(
             response.status,
@@ -2346,6 +2420,11 @@ mod tests {
             store.list().unwrap().is_empty(),
             "no route may be persisted"
         );
+        assert!(
+            transport.folders.lock().unwrap().is_empty(),
+            "no provider I/O before signer check"
+        );
+        assert!(dispatch.adapter.replay().unwrap().is_empty());
     }
 
     #[test]
