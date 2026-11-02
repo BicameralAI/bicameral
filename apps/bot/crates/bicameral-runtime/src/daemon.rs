@@ -1102,7 +1102,10 @@ impl DaemonDispatch {
             }
         }
         match router.store().write(&record) {
-            Ok(()) => response,
+            Ok(()) => {
+                self.refresh_project_registrations();
+                response
+            }
             Err(error) => ToolResponse::error(
                 request.request_id,
                 format!(
@@ -2689,7 +2692,7 @@ mod tests {
     }
 
     #[test]
-    fn creation_persists_route_used_by_restarted_daemon() {
+    fn creation_allows_immediate_binding_and_persists_route_for_restart() {
         let product_workspace = tempfile::tempdir().unwrap();
         let operator_home = tempfile::tempdir().unwrap();
         let product_events = product_workspace.path().join(".bicameral/events");
@@ -2715,7 +2718,7 @@ mod tests {
             product_commit_watchers: crate::commit_watcher::ProductCommitWatcherStore::default(),
             capability_readiness: None,
             operational_logs: None,
-            workspace_bindings_dir: None,
+            workspace_bindings_dir: Some(operator_home.path().join("workspace-bindings")),
             project_registrations: Arc::new(std::sync::RwLock::new(Vec::new())),
             product_join_trust: None,
             confirmation_challenges: Arc::new(
@@ -2753,6 +2756,31 @@ mod tests {
             .as_str()
             .unwrap()
             .to_string();
+
+        let mut bind = bicameral_api::fixtures::workspace_bind_request().for_product(&product_id);
+        let ToolCommand::WorkspaceBind(params) = &mut bind.command else {
+            unreachable!();
+        };
+        params.proposal.project_id = product_id.clone();
+        params.proposal.candidate_path = product_workspace.path().display().to_string();
+        bind.authority.workspace = Some(product_workspace.path().display().to_string());
+        let bound = create_dispatch.dispatch(&bind, Some(product_workspace.path()));
+        assert_eq!(
+            bound.status,
+            bicameral_api::tool_request::ToolResponseStatus::Ok,
+            "newly created Product must bind without a daemon restart: {bound:?}"
+        );
+        let retried = create_dispatch.dispatch(&create, Some(product_workspace.path()));
+        assert_eq!(
+            retried.status,
+            bicameral_api::tool_request::ToolResponseStatus::Ok,
+            "{retried:?}"
+        );
+        let registrations = create_dispatch.project_registrations.read().unwrap();
+        assert_eq!(registrations.len(), 1);
+        assert_eq!(registrations[0].name, product_id);
+        assert!(registrations[0].has_workspace_binding);
+        drop(registrations);
 
         // New dispatch + unrelated default adapter models process restart from
         // another cwd. Only the persisted operator route can find the Product.
