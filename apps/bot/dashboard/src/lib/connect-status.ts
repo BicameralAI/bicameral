@@ -32,3 +32,16 @@ export function bridgeStateToConnectStatus(
       return "unavailable";
   }
 }
+
+/**
+ * The header pill. A paired bridge is only "connected" while the daemon is
+ * reachable: when the disconnect dialog is open the pill must not contradict it
+ * (bicameral#52). Every other state is left to the pairing mapping.
+ */
+export function hostedConnectionStatus(
+  state: HostedBridgeUIState,
+  daemonDisconnected: boolean,
+): ConnectStatus {
+  const status = bridgeStateToConnectStatus(state);
+  return daemonDisconnected && status === "connected" ? "unavailable" : status;
+}

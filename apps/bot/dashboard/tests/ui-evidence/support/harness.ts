@@ -66,6 +66,8 @@ export class UiEvidence {
   private consoleErrors: string[] = [];
   private consoleWarnings = 0;
   private pageErrors: string[] = [];
+  /** Console errors this one scenario states it expects (see `allowConsoleError`). */
+  private scenarioConsoleAllowlist: RegExp[] = [];
 
   constructor(
     readonly page: Page,
@@ -74,7 +76,10 @@ export class UiEvidence {
     page.on("console", (msg) => {
       const text = msg.text();
       if (msg.type() === "error") {
-        if (!CONSOLE_ALLOWLIST.some((re) => re.test(text))) {
+        if (
+          !CONSOLE_ALLOWLIST.some((re) => re.test(text)) &&
+          !this.scenarioConsoleAllowlist.some((re) => re.test(text))
+        ) {
           this.consoleErrors.push(text);
         }
       } else if (msg.type() === "warning") {
@@ -82,6 +87,16 @@ export class UiEvidence {
       }
     });
     page.on("pageerror", (err) => this.pageErrors.push(`${err.name}: ${err.message}`));
+  }
+
+  /**
+   * Declare a console error this scenario causes on purpose. A scenario that
+   * stops the daemon makes the browser log the refused connection; that is the
+   * thing under test, not a defect. Scoped to the one scenario and to the given
+   * pattern, so every other error still fails the capture gate.
+   */
+  allowConsoleError(pattern: RegExp): void {
+    this.scenarioConsoleAllowlist.push(pattern);
   }
 
   private baseUrl(): string {
