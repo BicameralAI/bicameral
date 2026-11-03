@@ -29,12 +29,16 @@ More cases (equal-authority tie, wrong scope, replay and restart, missing `Check
 
 ## What the passing tests check today
 
+Payload shape is checked by the repository's existing registry validator, not by a second schema implementation in Rust: the test runs `python3 -I scripts/validate_authority_resolution_fixtures.py` (from `apps/bot`), which reuses `errors_for` from `scripts/validate_spec_registry_schemas.py` on every `source_snapshot`, `governed_domain`, `signoff`, `supersede_snapshot` and `check_records` payload. It needs `python3` (3.10 or newer). The Rust test checks the rules that span several objects:
+
 - every fixture is marked synthetic and contains no URL, email or local path
-- each payload has only keys the registry schemas allow, and the required ones
-- `source_digest` recomputes from `claims`, `atoms`, `claim_assertions`, `relations`
-- `Signoff` is bound to its own domain digest; `supersede_snapshot` names a successor of the same source
+- `source_digest` recomputes from `claims`, `atoms`, `claim_assertions`, `relations`, and ids and references inside a domain are consistent
+- `Signoff` is bound to its own snapshot and domain digest
+- a `supersede_snapshot` event names the snapshot it replaces and carries that snapshot's own `source_uri`; its successor must be another snapshot in the fixture and may belong to another source (cross-source conflict resolution, ARCH-0004)
 - `CheckRecord` pairs are distinct, lexicographically ordered, and cite known digests
 - every snapshot is either governing (approved only) or excluded with a reason
+
+Negative regression tests prove the rules reject broken fixtures: a failed extract that keeps populated claims, atoms or assertions, a supersede event whose source differs from the snapshot it replaces, a tampered digest, and a tracked snapshot listed as governing. The matching positive controls (an empty failed extract, a cross-source successor) must pass.
 
 ## Digest recipe
 

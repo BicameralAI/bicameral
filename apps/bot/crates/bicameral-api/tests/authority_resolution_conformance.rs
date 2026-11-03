@@ -7,10 +7,14 @@
 //! This test changes no product behavior. It does two things:
 //!
 //! 1. It checks that the synthetic fixtures under
-//!    `protocol/authority-resolution/fixtures/` are well formed against the
-//!    forward-defining payload schemas in `protocol/spec-registry/`, that every
-//!    `source_digest` recomputes, and that every fixture states a typed expected
-//!    outcome. These tests run and pass today.
+//!    `protocol/authority-resolution/fixtures/` are sound. Payload shape comes
+//!    from the existing registry validator
+//!    (`scripts/validate_authority_resolution_fixtures.py`, which reuses
+//!    `validate_spec_registry_schemas.errors_for`), so this file carries no
+//!    second schema implementation. The rules that span several objects are
+//!    checked here: `source_digest` recomputation, signoff binding, supersede
+//!    event identity, `CheckRecord` pairs and the typed expected outcome. The
+//!    negative regression tests prove each rule rejects a broken fixture.
 //! 2. It marks the resolver rows `#[ignore]` with a BLOCKED reason. Each one
 //!    loads its fixture and then stops with `unimplemented!`. They carry the
 //!    expected outcome and nothing else: this crate has no resolver, and this
@@ -21,12 +25,16 @@
 //!
 //! Digest recipe (ARCH-0003): SHA-256 hex of one compact UTF-8 JSON object whose
 //! only keys are `atoms`, `claim_assertions`, `claims` and `relations`, object
-//! keys sorted, array order as stored, provenance fields outside the hash. ARCH-0003
-//! gives the empty-set vector that `empty_claim_set_has_the_recorded_digest`
-//! asserts.
+//! keys sorted, array order as stored, provenance fields outside the hash.
+//! ARCH-0003 gives the empty-set vector that
+//! `empty_claim_set_has_the_recorded_digest` asserts.
+//!
+//! Running the registry validator needs `python3` (3.10 or newer), as the
+//! repository's other contract checks do.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -53,16 +61,25 @@ const TYPED_UNKNOWNS: [&str; 5] = [
     "missing_check_record",
 ];
 
-fn fixtures_dir() -> PathBuf {
+type Check = Result<(), String>;
+
+fn bot_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../protocol/authority-resolution/fixtures")
+        .join("../..")
+        .canonicalize()
+        .expect("apps/bot root exists")
+}
+
+fn fixtures_dir() -> PathBuf {
+    bot_root()
+        .join("protocol/authority-resolution/fixtures")
         .canonicalize()
         .expect("authority-resolution fixtures dir exists")
 }
 
-/// All fixtures as `(file stem, document)`, sorted by file name.
-fn load_fixtures() -> Vec<(String, Value)> {
-    let mut paths: Vec<PathBuf> = std::fs::read_dir(fixtures_dir())
+/// All fixtures in `dir` as `(file stem, document)`, sorted by file name.
+fn load_dir(dir: &Path) -> Vec<(String, Value)> {
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(dir)
         .expect("read fixtures dir")
         .map(|entry| entry.expect("dir entry").path())
         .filter(|p| p.extension().is_some_and(|ext| ext == "json"))
@@ -83,6 +100,10 @@ fn load_fixtures() -> Vec<(String, Value)> {
             (stem, doc)
         })
         .collect()
+}
+
+fn load_fixtures() -> Vec<(String, Value)> {
+    load_dir(&fixtures_dir())
 }
 
 fn fixture(stem: &str) -> Value {
@@ -138,48 +159,311 @@ fn domain_digest(domain: &Value) -> String {
         .collect()
 }
 
-fn keys(value: &Value) -> BTreeSet<&str> {
-    value
-        .as_object()
-        .expect("object")
-        .keys()
-        .map(String::as_str)
-        .collect()
-}
-
-fn assert_keys_within(value: &Value, allowed: &[&str], context: &str) {
-    let allowed: BTreeSet<&str> = allowed.iter().copied().collect();
-    let present = keys(value);
-    let extra: Vec<&&str> = present.difference(&allowed).collect();
-    assert!(
-        extra.is_empty(),
-        "{context}: keys not in the registry schema: {extra:?}"
-    );
-}
-
-fn assert_keys_required(value: &Value, required: &[&str], context: &str) {
-    let present = keys(value);
-    for key in required {
-        assert!(present.contains(key), "{context}: missing required `{key}`");
-    }
-}
-
-fn str_field<'a>(value: &'a Value, key: &str, context: &str) -> &'a str {
+fn text<'a>(value: &'a Value, key: &str, ctx: &str) -> Result<&'a str, String> {
     value
         .get(key)
         .and_then(Value::as_str)
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| panic!("{context}: `{key}` must be a non-empty string"))
+        .ok_or_else(|| format!("{ctx}: `{key}` must be a non-empty string"))
 }
 
-fn snapshots(doc: &Value) -> &Vec<Value> {
-    doc["snapshots"].as_array().expect("snapshots array")
+fn list<'a>(value: &'a Value, key: &str, ctx: &str) -> Result<&'a Vec<Value>, String> {
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .ok_or_else(|| format!("{ctx}: `{key}` must be an array"))
 }
 
-fn snapshot_addr(snap: &Value) -> &str {
-    snap["source_snapshot"]["snapshot_addr"]
-        .as_str()
-        .expect("snapshot_addr")
+fn snapshots(doc: &Value) -> Result<&Vec<Value>, String> {
+    list(doc, "snapshots", "fixture")
+}
+
+fn addr_of(snap: &Value) -> Result<&str, String> {
+    text(&snap["source_snapshot"], "snapshot_addr", "source_snapshot")
+}
+
+// ── Cross-object rules (registry shape is checked by the Python validator) ──
+
+fn check_synthetic(stem: &str, doc: &Value) -> Check {
+    if doc["synthetic"] != true {
+        return Err(format!("{stem}: must be marked synthetic"));
+    }
+    if doc["fixture_version"] != 1 {
+        return Err(format!("{stem}: fixture_version must be 1"));
+    }
+    if text(doc, "case_id", stem)? != stem {
+        return Err(format!("{stem}: case_id must equal the file name"));
+    }
+    let body = canonical_json(doc);
+    for forbidden in ["http://", "https://", "@", "/Users/"] {
+        if body.contains(forbidden) {
+            return Err(format!(
+                "{stem}: synthetic fixtures must not contain `{forbidden}`"
+            ));
+        }
+    }
+    for snap in snapshots(doc)? {
+        let uri = text(&snap["source_snapshot"], "source_uri", stem)?;
+        if !uri.starts_with("synthetic://") {
+            return Err(format!("{stem}: source_uri must be synthetic, got {uri}"));
+        }
+    }
+    Ok(())
+}
+
+/// Identifier uniqueness, references inside a domain, and `source_digest`.
+fn check_domains(stem: &str, doc: &Value) -> Check {
+    let product_id = text(doc, "product_id", stem)?;
+    for snap in snapshots(doc)? {
+        let addr = addr_of(snap)?;
+        let ctx = format!("{stem}/{addr}");
+        let domain = &snap["governed_domain"];
+        if text(domain, "product_id", &ctx)? != product_id {
+            return Err(format!("{ctx}: domain product_id differs from the fixture"));
+        }
+        if text(domain, "snapshot_addr", &ctx)? != addr {
+            return Err(format!(
+                "{ctx}: domain snapshot_addr differs from its snapshot"
+            ));
+        }
+
+        let mut claims = BTreeSet::new();
+        for claim in list(domain, "claims", &ctx)? {
+            if !claims.insert(text(claim, "claim_id", &ctx)?) {
+                return Err(format!("{ctx}: duplicate claim_id"));
+            }
+        }
+        let mut atoms = BTreeSet::new();
+        for atom in list(domain, "atoms", &ctx)? {
+            if !atoms.insert(text(atom, "atom_id", &ctx)?) {
+                return Err(format!("{ctx}: duplicate atom_id"));
+            }
+        }
+        let mut assertions = BTreeSet::new();
+        for assertion in list(domain, "claim_assertions", &ctx)? {
+            if !assertions.insert(text(assertion, "assertion_id", &ctx)?) {
+                return Err(format!("{ctx}: duplicate assertion_id"));
+            }
+            if !claims.contains(text(assertion, "claim_id", &ctx)?) {
+                return Err(format!("{ctx}: assertion cites an unknown claim"));
+            }
+            if !atoms.contains(text(assertion, "atom_id", &ctx)?) {
+                return Err(format!("{ctx}: assertion cites an unknown atom"));
+            }
+        }
+        for relation in list(domain, "relations", &ctx)? {
+            if !atoms.contains(text(relation, "from_atom_id", &ctx)?)
+                || !atoms.contains(text(relation, "to_atom_id", &ctx)?)
+            {
+                return Err(format!("{ctx}: relation cites an unknown atom"));
+            }
+            for claim_id in list(relation, "supporting_claim_ids", &ctx)? {
+                if !claims.contains(claim_id.as_str().unwrap_or_default()) {
+                    return Err(format!("{ctx}: relation cites an unknown supporting claim"));
+                }
+            }
+        }
+
+        if domain.get("source_digest").is_some()
+            && text(domain, "source_digest", &ctx)? != domain_digest(domain)
+        {
+            return Err(format!(
+                "{ctx}: source_digest must recompute from claims, atoms, claim_assertions, relations"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Replayed state against signoff and supersede payloads, and event identity.
+fn check_replay(stem: &str, doc: &Value) -> Check {
+    let by_addr: BTreeMap<&str, &Value> = snapshots(doc)?
+        .iter()
+        .map(|s| addr_of(s).map(|a| (a, s)))
+        .collect::<Result<_, _>>()?;
+    if by_addr.len() != snapshots(doc)?.len() {
+        return Err(format!("{stem}: duplicate snapshot_addr"));
+    }
+    for snap in snapshots(doc)? {
+        let addr = addr_of(snap)?;
+        let ctx = format!("{stem}/{addr}");
+        let state = text(snap, "replayed_state", &ctx)?;
+        if !REPLAYED_STATES.contains(&state) {
+            return Err(format!("{ctx}: unknown replayed_state `{state}`"));
+        }
+        let signoff = &snap["signoff"];
+        let supersede = &snap["supersede_snapshot"];
+
+        if state == "approved" || state == "superseded" {
+            if !signoff.is_object() {
+                return Err(format!("{ctx}: {state} needs a signoff"));
+            }
+            if text(signoff, "snapshot_addr", &ctx)? != addr {
+                return Err(format!("{ctx}: signoff names a different snapshot"));
+            }
+            if text(signoff, "domain_digest", &ctx)?
+                != text(&snap["governed_domain"], "source_digest", &ctx)?
+            {
+                return Err(format!(
+                    "{ctx}: a signoff is bound to its own domain digest"
+                ));
+            }
+        } else if !signoff.is_null() {
+            return Err(format!("{ctx}: {state} must have no signoff"));
+        }
+
+        if state == "superseded" {
+            if !supersede.is_object() {
+                return Err(format!("{ctx}: superseded needs a supersede event"));
+            }
+            if text(supersede, "snapshot_addr", &ctx)? != addr {
+                return Err(format!("{ctx}: supersede event names a different snapshot"));
+            }
+            // The event's source is the source of the snapshot it replaces.
+            // The successor may belong to another source (ARCH-0004 conflict
+            // resolution), so no same-source rule is applied to it.
+            if text(supersede, "source_uri", &ctx)?
+                != text(&snap["source_snapshot"], "source_uri", &ctx)?
+            {
+                return Err(format!(
+                    "{ctx}: supersede event source_uri differs from the source of the snapshot it replaces"
+                ));
+            }
+            let successor = text(supersede, "successor_snapshot_addr", &ctx)?;
+            if successor == addr || !by_addr.contains_key(successor) {
+                return Err(format!(
+                    "{ctx}: successor {successor} must be another snapshot in the fixture"
+                ));
+            }
+        } else if !supersede.is_null() {
+            return Err(format!(
+                "{ctx}: only a superseded snapshot has a supersede event"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn check_check_records(stem: &str, doc: &Value) -> Check {
+    let digests: BTreeSet<&str> = snapshots(doc)?
+        .iter()
+        .filter_map(|s| s["governed_domain"]["source_digest"].as_str())
+        .collect();
+    let mut seen = BTreeSet::new();
+    for record in list(doc, "check_records", stem)? {
+        let lesser = text(record, "domain_digest", stem)?;
+        let greater = text(record, "other_domain_digest", stem)?;
+        if lesser >= greater {
+            return Err(format!(
+                "{stem}: a pair is stored lexicographically and its digests differ"
+            ));
+        }
+        if !digests.contains(lesser) || !digests.contains(greater) {
+            return Err(format!("{stem}: check record cites an unknown digest"));
+        }
+        if !seen.insert((lesser, greater)) {
+            return Err(format!("{stem}: duplicate check record pair"));
+        }
+    }
+    Ok(())
+}
+
+fn check_expected(stem: &str, doc: &Value) -> Check {
+    if !text(doc, "status", stem)?.starts_with("BLOCKED") {
+        return Err(format!(
+            "{stem}: a fixture whose rows need the resolver is BLOCKED, never PASS"
+        ));
+    }
+    let expected = &doc["expected"];
+    let states: BTreeMap<&str, &str> = snapshots(doc)?
+        .iter()
+        .map(|s| Ok((addr_of(s)?, text(s, "replayed_state", stem)?)))
+        .collect::<Result<_, String>>()?;
+
+    let mut accounted: BTreeSet<&str> = BTreeSet::new();
+    let governing = list(expected, "governing", stem)?;
+    for addr in governing {
+        let addr = addr.as_str().unwrap_or_default();
+        if states.get(addr) != Some(&"approved") {
+            return Err(format!(
+                "{stem}: only an approved snapshot may govern ({addr})"
+            ));
+        }
+        if !accounted.insert(addr) {
+            return Err(format!("{stem}: {addr} listed twice"));
+        }
+    }
+    for entry in list(expected, "excluded", stem)? {
+        let addr = text(entry, "snapshot_addr", stem)?;
+        if !states.contains_key(addr) {
+            return Err(format!("{stem}: excluded {addr} is unknown"));
+        }
+        if !EXCLUSION_REASONS.contains(&text(entry, "reason", stem)?) {
+            return Err(format!("{stem}: reason must be a test-local label"));
+        }
+        if !accounted.insert(addr) {
+            return Err(format!("{stem}: {addr} listed twice"));
+        }
+    }
+    for unknown in list(expected, "typed_unknown", stem)? {
+        if !TYPED_UNKNOWNS.contains(&unknown.as_str().unwrap_or_default()) {
+            return Err(format!("{stem}: typed_unknown must be a test-local label"));
+        }
+    }
+    let unresolved = expected["unresolved"]
+        .as_bool()
+        .ok_or_else(|| format!("{stem}: `unresolved` must be a boolean"))?;
+    if unresolved {
+        if !governing.is_empty() {
+            return Err(format!("{stem}: unresolved means nothing governs"));
+        }
+    } else if accounted.len() != states.len() {
+        return Err(format!(
+            "{stem}: every snapshot is governing or excluded with a reason"
+        ));
+    }
+    Ok(())
+}
+
+// ── Registry validator (reuses the repository's schema machinery) ──────────
+
+fn run_registry_validator(dir: &Path) -> Result<String, String> {
+    let output = Command::new("python3")
+        .args(["-I", "scripts/validate_authority_resolution_fixtures.py"])
+        .arg(dir)
+        .current_dir(bot_root())
+        .output()
+        .map_err(|e| {
+            format!("python3 (3.10 or newer) is required to run the registry validator: {e}")
+        })?;
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    if output.status.success() {
+        Ok(combined)
+    } else {
+        Err(combined)
+    }
+}
+
+/// Writes `docs` as `<name>.json` into a fresh temp dir and validates it.
+fn validate_in_temp_dir(tag: &str, docs: &[(&str, &Value)]) -> Result<String, String> {
+    let dir =
+        std::env::temp_dir().join(format!("authority-resolution-{}-{tag}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    for (name, doc) in docs {
+        std::fs::write(
+            dir.join(format!("{name}.json")),
+            serde_json::to_vec_pretty(doc).expect("serialize"),
+        )
+        .expect("write fixture copy");
+    }
+    let result = run_registry_validator(&dir);
+    let _ = std::fs::remove_dir_all(&dir);
+    result
 }
 
 // ── Harness: these tests run and pass today ─────────────────────────────
@@ -220,431 +504,129 @@ fn fixtures_exist_and_are_synthetic() {
         "expected at least the two first fixtures"
     );
     for (stem, doc) in &fixtures {
-        assert_eq!(doc["synthetic"], true, "{stem}: must be marked synthetic");
-        assert_eq!(doc["fixture_version"], 1, "{stem}: fixture_version");
-        assert_eq!(str_field(doc, "case_id", stem), stem, "{stem}: case_id");
-        let text = canonical_json(doc);
-        for forbidden in ["http://", "https://", "@", "/Users/"] {
-            assert!(
-                !text.contains(forbidden),
-                "{stem}: synthetic fixtures must not contain `{forbidden}`"
-            );
-        }
-        for snap in snapshots(doc) {
-            let uri = str_field(&snap["source_snapshot"], "source_uri", stem);
-            assert!(
-                uri.starts_with("synthetic://"),
-                "{stem}: source_uri must be synthetic, got {uri}"
-            );
-        }
+        check_synthetic(stem, doc).unwrap();
     }
 }
 
 #[test]
-fn governed_domains_match_registry_shape_and_digest() {
+fn fixtures_validate_against_the_spec_registry_schemas() {
+    let output = run_registry_validator(&fixtures_dir()).unwrap_or_else(|e| panic!("{e}"));
+    assert!(output.contains("passed"), "{output}");
+}
+
+#[test]
+fn governed_domains_are_consistent_and_digests_recompute() {
     for (stem, doc) in load_fixtures() {
-        let product_id = str_field(&doc, "product_id", &stem).to_string();
-        for snap in snapshots(&doc) {
-            let addr = snapshot_addr(snap);
-            let ctx = format!("{stem}/{addr}");
-            let domain = &snap["governed_domain"];
-            assert_keys_within(
-                domain,
-                &[
-                    "product_id",
-                    "snapshot_addr",
-                    "source_digest",
-                    "route",
-                    "model_id",
-                    "prompt_id",
-                    "prompt_digest",
-                    "extract_error",
-                    "claims",
-                    "atoms",
-                    "claim_assertions",
-                    "relations",
-                ],
-                &ctx,
-            );
-            assert_keys_required(
-                domain,
-                &[
-                    "product_id",
-                    "snapshot_addr",
-                    "claims",
-                    "atoms",
-                    "claim_assertions",
-                    "relations",
-                ],
-                &ctx,
-            );
-            assert_eq!(str_field(domain, "product_id", &ctx), product_id, "{ctx}");
-            assert_eq!(str_field(domain, "snapshot_addr", &ctx), addr, "{ctx}");
-
-            // Completion fields come together, and exclude `extract_error`.
-            let completion = [
-                "source_digest",
-                "route",
-                "model_id",
-                "prompt_id",
-                "prompt_digest",
-            ];
-            let present: Vec<bool> = completion
-                .iter()
-                .map(|k| domain.get(*k).is_some())
-                .collect();
-            if domain.get("extract_error").is_some() {
-                assert!(
-                    present.iter().all(|p| !p),
-                    "{ctx}: extract_error excludes the completion fields"
-                );
-            } else if present.iter().any(|p| *p) {
-                assert!(
-                    present.iter().all(|p| *p),
-                    "{ctx}: completion fields are written together"
-                );
-                assert!(
-                    ["system_one", "openai_compatible"].contains(&str_field(domain, "route", &ctx)),
-                    "{ctx}: route"
-                );
-                assert_eq!(
-                    str_field(domain, "source_digest", &ctx),
-                    domain_digest(domain),
-                    "{ctx}: source_digest must recompute from claims, atoms, claim_assertions, relations"
-                );
-            } else {
-                assert!(
-                    domain["claims"].as_array().is_some_and(|c| c.is_empty()),
-                    "{ctx}: an uncompleted capture has an empty claim set"
-                );
-            }
-
-            // Item shapes and referential integrity.
-            let mut claim_ids = BTreeSet::new();
-            for claim in domain["claims"].as_array().expect("claims") {
-                assert_keys_within(claim, &["claim_id", "revision", "context_statement"], &ctx);
-                assert_keys_required(claim, &["claim_id", "revision", "context_statement"], &ctx);
-                assert!(claim["revision"].as_u64().is_some(), "{ctx}: revision");
-                assert!(
-                    claim_ids.insert(str_field(claim, "claim_id", &ctx)),
-                    "{ctx}: duplicate claim_id"
-                );
-            }
-            let mut atom_ids = BTreeSet::new();
-            for atom in domain["atoms"].as_array().expect("atoms") {
-                assert_keys_within(atom, &["atom_id", "atom_kind", "semantic_key"], &ctx);
-                assert_keys_required(atom, &["atom_id", "atom_kind", "semantic_key"], &ctx);
-                str_field(atom, "atom_kind", &ctx);
-                str_field(atom, "semantic_key", &ctx);
-                assert!(
-                    atom_ids.insert(str_field(atom, "atom_id", &ctx)),
-                    "{ctx}: duplicate atom_id"
-                );
-            }
-            let mut assertion_ids = BTreeSet::new();
-            for assertion in domain["claim_assertions"].as_array().expect("assertions") {
-                let fields = ["assertion_id", "claim_id", "atom_id", "polarity"];
-                assert_keys_within(assertion, &fields, &ctx);
-                assert_keys_required(assertion, &fields, &ctx);
-                assert!(
-                    assertion_ids.insert(str_field(assertion, "assertion_id", &ctx)),
-                    "{ctx}: duplicate assertion_id"
-                );
-                assert!(
-                    claim_ids.contains(str_field(assertion, "claim_id", &ctx)),
-                    "{ctx}: assertion cites an unknown claim"
-                );
-                assert!(
-                    atom_ids.contains(str_field(assertion, "atom_id", &ctx)),
-                    "{ctx}: assertion cites an unknown atom"
-                );
-                assert!(
-                    ["positive", "negative", "unknown"]
-                        .contains(&str_field(assertion, "polarity", &ctx)),
-                    "{ctx}: polarity"
-                );
-            }
-            for relation in domain["relations"].as_array().expect("relations") {
-                let fields = [
-                    "relation_id",
-                    "relation_kind",
-                    "from_atom_id",
-                    "to_atom_id",
-                    "supporting_claim_ids",
-                ];
-                assert_keys_within(relation, &fields, &ctx);
-                assert_keys_required(relation, &fields, &ctx);
-                str_field(relation, "relation_id", &ctx);
-                str_field(relation, "relation_kind", &ctx);
-                assert!(
-                    atom_ids.contains(str_field(relation, "from_atom_id", &ctx))
-                        && atom_ids.contains(str_field(relation, "to_atom_id", &ctx)),
-                    "{ctx}: relation cites an unknown atom"
-                );
-                for claim_id in relation["supporting_claim_ids"].as_array().expect("array") {
-                    assert!(
-                        claim_ids.contains(claim_id.as_str().expect("string")),
-                        "{ctx}: relation cites an unknown supporting claim"
-                    );
-                }
-            }
-        }
+        check_domains(&stem, &doc).unwrap();
     }
 }
 
 #[test]
-fn source_snapshots_signoffs_and_supersession_are_consistent() {
+fn replayed_states_signoffs_and_supersession_are_consistent() {
     for (stem, doc) in load_fixtures() {
-        let by_addr: BTreeMap<&str, &Value> = snapshots(&doc)
-            .iter()
-            .map(|s| (snapshot_addr(s), s))
-            .collect();
-        assert_eq!(
-            by_addr.len(),
-            snapshots(&doc).len(),
-            "{stem}: duplicate snapshot_addr"
-        );
-        for snap in snapshots(&doc) {
-            let addr = snapshot_addr(snap);
-            let ctx = format!("{stem}/{addr}");
-            let state = str_field(snap, "replayed_state", &ctx);
-            assert!(REPLAYED_STATES.contains(&state), "{ctx}: replayed_state");
-
-            let source = &snap["source_snapshot"];
-            assert_keys_within(
-                source,
-                &[
-                    "snapshot_addr",
-                    "snapshot_ref",
-                    "captured_at",
-                    "content",
-                    "content_hash",
-                    "capture_method",
-                    "source_uri",
-                ],
-                &ctx,
-            );
-            assert_keys_required(
-                source,
-                &["snapshot_addr", "snapshot_ref", "captured_at", "source_uri"],
-                &ctx,
-            );
-
-            let signoff = &snap["signoff"];
-            let supersede = &snap["supersede_snapshot"];
-            match state {
-                "approved" | "superseded" => {
-                    assert!(signoff.is_object(), "{ctx}: {state} needs a signoff");
-                    assert_keys_within(
-                        signoff,
-                        &[
-                            "snapshot_addr",
-                            "domain_digest",
-                            "daemon_id",
-                            "actor",
-                            "role",
-                            "person_id",
-                            "check_records",
-                        ],
-                        &ctx,
-                    );
-                    assert_keys_required(
-                        signoff,
-                        &[
-                            "snapshot_addr",
-                            "domain_digest",
-                            "daemon_id",
-                            "actor",
-                            "check_records",
-                        ],
-                        &ctx,
-                    );
-                    assert_eq!(str_field(signoff, "snapshot_addr", &ctx), addr, "{ctx}");
-                    assert_eq!(
-                        str_field(signoff, "domain_digest", &ctx),
-                        str_field(&snap["governed_domain"], "source_digest", &ctx),
-                        "{ctx}: a signoff is bound to its own domain digest"
-                    );
-                    str_field(signoff, "daemon_id", &ctx);
-                    match str_field(signoff, "actor", &ctx) {
-                        "manual" => {
-                            assert!(["owner", "member"].contains(&str_field(signoff, "role", &ctx)));
-                            str_field(signoff, "person_id", &ctx);
-                        }
-                        "policy" => assert!(
-                            signoff.get("role").is_none() && signoff.get("person_id").is_none(),
-                            "{ctx}: a policy signoff has no role or person"
-                        ),
-                        other => panic!("{ctx}: actor `{other}`"),
-                    }
-                }
-                _ => assert!(signoff.is_null(), "{ctx}: {state} must have no signoff"),
-            }
-            if state == "superseded" {
-                assert_keys_within(
-                    supersede,
-                    &[
-                        "source_uri",
-                        "snapshot_addr",
-                        "successor_snapshot_addr",
-                        "person_id",
-                        "daemon_id",
-                    ],
-                    &ctx,
-                );
-                assert_keys_required(
-                    supersede,
-                    &[
-                        "source_uri",
-                        "snapshot_addr",
-                        "successor_snapshot_addr",
-                        "person_id",
-                        "daemon_id",
-                    ],
-                    &ctx,
-                );
-                assert_eq!(str_field(supersede, "snapshot_addr", &ctx), addr, "{ctx}");
-                let successor = str_field(supersede, "successor_snapshot_addr", &ctx);
-                let successor_snap = by_addr.get(successor).unwrap_or_else(|| {
-                    panic!("{ctx}: successor {successor} is not in the fixture")
-                });
-                assert_eq!(
-                    str_field(supersede, "source_uri", &ctx),
-                    str_field(&successor_snap["source_snapshot"], "source_uri", &ctx),
-                    "{ctx}: a successor belongs to the same source"
-                );
-            } else {
-                assert!(
-                    supersede.is_null(),
-                    "{ctx}: only superseded has a supersede event"
-                );
-            }
-        }
+        check_replay(&stem, &doc).unwrap();
     }
 }
 
 #[test]
 fn check_records_are_ordered_pairs_over_known_digests() {
     for (stem, doc) in load_fixtures() {
-        let digests: BTreeSet<&str> = snapshots(&doc)
-            .iter()
-            .filter_map(|s| s["governed_domain"]["source_digest"].as_str())
-            .collect();
-        let mut seen = BTreeSet::new();
-        for record in doc["check_records"].as_array().expect("check_records") {
-            assert_keys_within(
-                record,
-                &[
-                    "domain_digest",
-                    "other_domain_digest",
-                    "conflict",
-                    "daemon_id",
-                ],
-                &stem,
-            );
-            assert_keys_required(
-                record,
-                &[
-                    "domain_digest",
-                    "other_domain_digest",
-                    "conflict",
-                    "daemon_id",
-                ],
-                &stem,
-            );
-            let lesser = str_field(record, "domain_digest", &stem);
-            let greater = str_field(record, "other_domain_digest", &stem);
-            assert!(
-                lesser < greater,
-                "{stem}: pair stored lexicographically, distinct"
-            );
-            assert!(
-                digests.contains(lesser) && digests.contains(greater),
-                "{stem}: unknown digest"
-            );
-            assert!(record["conflict"].is_boolean(), "{stem}: conflict");
-            str_field(record, "daemon_id", &stem);
-            assert!(seen.insert((lesser, greater)), "{stem}: duplicate pair");
-        }
+        check_check_records(&stem, &doc).unwrap();
     }
 }
 
 #[test]
 fn every_fixture_states_a_typed_expected_outcome() {
     for (stem, doc) in load_fixtures() {
-        assert!(
-            str_field(&doc, "status", &stem).starts_with("BLOCKED"),
-            "{stem}: a fixture whose rows need the resolver is BLOCKED, never PASS"
-        );
-        let expected = &doc["expected"];
-        assert_keys_within(
-            expected,
-            &["governing", "excluded", "unresolved", "typed_unknown"],
-            &stem,
-        );
-        assert_keys_required(
-            expected,
-            &["governing", "excluded", "unresolved", "typed_unknown"],
-            &stem,
-        );
-        let states: BTreeMap<&str, &str> = snapshots(&doc)
-            .iter()
-            .map(|s| {
-                (
-                    snapshot_addr(s),
-                    s["replayed_state"].as_str().expect("state"),
-                )
-            })
-            .collect();
+        check_expected(&stem, &doc).unwrap();
+    }
+}
 
-        let governing: Vec<&str> = expected["governing"]
-            .as_array()
-            .expect("governing array")
-            .iter()
-            .map(|v| v.as_str().expect("addr"))
-            .collect();
-        let mut accounted: BTreeSet<&str> = BTreeSet::new();
-        for addr in &governing {
-            assert_eq!(
-                states.get(addr).copied(),
-                Some("approved"),
-                "{stem}: only an approved snapshot may govern ({addr})"
-            );
-            assert!(accounted.insert(addr), "{stem}: {addr} listed twice");
-        }
-        for entry in expected["excluded"].as_array().expect("excluded array") {
-            assert_keys_within(entry, &["snapshot_addr", "reason"], &stem);
-            let addr = str_field(entry, "snapshot_addr", &stem);
-            assert!(
-                states.contains_key(addr),
-                "{stem}: excluded {addr} is unknown"
-            );
-            assert!(
-                EXCLUSION_REASONS.contains(&str_field(entry, "reason", &stem)),
-                "{stem}: reason must be a test-local label"
-            );
-            assert!(accounted.insert(addr), "{stem}: {addr} listed twice");
-        }
-        for unknown in expected["typed_unknown"].as_array().expect("typed_unknown") {
-            assert!(
-                TYPED_UNKNOWNS.contains(&unknown.as_str().expect("label")),
-                "{stem}: typed_unknown must be a test-local label"
-            );
-        }
-        let unresolved = expected["unresolved"].as_bool().expect("unresolved bool");
-        if unresolved {
-            assert!(
-                governing.is_empty(),
-                "{stem}: unresolved means nothing governs"
-            );
-        } else {
-            assert_eq!(
-                accounted.len(),
-                states.len(),
-                "{stem}: every snapshot is governing or excluded with a reason"
-            );
+// ── Negative regressions: a broken fixture must be rejected ─────────────
+
+fn failed_extract_variant(populated: bool) -> Value {
+    let mut doc = fixture("tracked-is-not-governing");
+    let domain = doc["snapshots"][0]["governed_domain"]
+        .as_object_mut()
+        .expect("domain object");
+    for key in [
+        "source_digest",
+        "route",
+        "model_id",
+        "prompt_id",
+        "prompt_digest",
+    ] {
+        domain.remove(key);
+    }
+    domain.insert(
+        "extract_error".into(),
+        serde_json::json!({"reason": "synthetic_timeout", "failed_at": "2026-01-10T00:01:00Z"}),
+    );
+    if !populated {
+        for key in ["claims", "atoms", "claim_assertions", "relations"] {
+            domain.insert(key.into(), serde_json::json!([]));
         }
     }
+    doc
+}
+
+#[test]
+fn registry_validator_accepts_a_failed_extract_with_an_empty_claim_set() {
+    let doc = failed_extract_variant(false);
+    validate_in_temp_dir("failed-empty", &[("failed-extract-empty", &doc)])
+        .unwrap_or_else(|e| panic!("a failed extract with empty arrays is valid: {e}"));
+}
+
+#[test]
+fn registry_validator_rejects_populated_claims_on_a_failed_extract() {
+    let doc = failed_extract_variant(true);
+    let err = validate_in_temp_dir("failed-populated", &[("failed-extract-populated", &doc)])
+        .expect_err("claims, atoms and assertions must be empty when extraction failed");
+    assert!(err.contains("maxItems"), "unexpected rejection: {err}");
+}
+
+#[test]
+fn supersede_event_must_name_the_source_of_the_snapshot_it_replaces() {
+    let mut doc = fixture("supersession-with-later-draft");
+    check_replay("control", &doc).expect("the unmodified fixture is consistent");
+    doc["snapshots"][0]["source_snapshot"]["source_uri"] =
+        Value::String("synthetic://policies/unrelated".into());
+    let err = check_replay("mutated", &doc).expect_err("event and replaced snapshot disagree");
+    assert!(
+        err.contains("supersede event source_uri"),
+        "unexpected rejection: {err}"
+    );
+}
+
+#[test]
+fn supersede_successor_may_belong_to_another_source() {
+    // Cross-source conflict resolution names a successor from another source
+    // (ARCH-0004); the identity check above must not forbid it.
+    let mut doc = fixture("supersession-with-later-draft");
+    doc["snapshots"][1]["source_snapshot"]["source_uri"] =
+        Value::String("synthetic://policies/other-source".into());
+    check_replay("cross-source", &doc).expect("a successor from another source is allowed");
+}
+
+#[test]
+fn a_tampered_digest_is_rejected() {
+    let mut doc = fixture("supersession-with-later-draft");
+    let digest = doc["snapshots"][1]["governed_domain"]["source_digest"]
+        .as_str()
+        .expect("digest")
+        .to_string();
+    let flipped = if digest.starts_with('0') { "1" } else { "0" };
+    doc["snapshots"][1]["governed_domain"]["source_digest"] =
+        Value::String(format!("{flipped}{}", &digest[1..]));
+    assert!(check_domains("tampered", &doc).is_err());
+}
+
+#[test]
+fn a_tracked_snapshot_listed_as_governing_is_rejected() {
+    let mut doc = fixture("tracked-is-not-governing");
+    doc["expected"]["governing"] = serde_json::json!(["snap_t1"]);
+    doc["expected"]["excluded"] = serde_json::json!([]);
+    assert!(check_expected("tracked-governs", &doc).is_err());
 }
 
 // ── Resolver rows: BLOCKED until the resolver lands (ARCH-0005) ─────────
