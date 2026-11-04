@@ -7,6 +7,7 @@
    * Connections. Parent coordinates daemon create/publish. Retry states are
    * presentation-only and never claim canonical Product lifecycle authority.
    */
+  import { untrack } from "svelte";
   import type { RegistrationOutcome } from "../lib/hosted-project-registration";
 
   type Props = {
@@ -23,6 +24,8 @@
     folderPhase?: "idle" | "starting" | "picking" | "ready" | "failed";
     folderName?: string;
     folderMessage?: string;
+    /** Seeds the name field when reopened onto a retry view (#54), where the operator never gets a form to type it into. */
+    initialDisplayName?: string;
     onselectfolder?: () => void;
     onresetfolder?: () => void;
     onsubmitcreate?: (input: { displayName: string; projectRef?: string }) => void;
@@ -38,6 +41,7 @@
     folderPhase,
     folderName = "",
     folderMessage = "",
+    initialDisplayName = "",
     onselectfolder,
     onresetfolder,
     onsubmitcreate,
@@ -49,7 +53,7 @@
   const folderStepActive = $derived(folderPhase !== undefined);
   const folderReady = $derived(!folderStepActive || folderPhase === "ready");
 
-  let displayName = $state("");
+  let displayName = $state(untrack(() => initialDisplayName));
 
   const published = $derived(result?.phase === "published" ? result : null);
   const retryable = $derived(
@@ -63,6 +67,13 @@
   const createEnabled = $derived(
     !busy && displayName.trim() !== "" && eventSubstrateConnected && folderReady,
   );
+  // publication_retry_needed already has a validated folder; only create_retry_needed needs one.
+  const retryEnabled = $derived(
+    !busy &&
+      displayName.trim() !== "" &&
+      eventSubstrateConnected &&
+      (folderReady || retryable?.phase === "publication_retry_needed"),
+  );
 
   function submitCreate(event: Event) {
     event.preventDefault();
@@ -72,9 +83,8 @@
   }
 
   function retryCreate() {
-    const name = displayName.trim();
-    if (!name || busy || !eventSubstrateConnected || !folderReady) return;
-    onsubmitcreate?.({ displayName: name });
+    if (!retryEnabled) return;
+    onsubmitcreate?.({ displayName: displayName.trim() });
   }
 </script>
 
@@ -131,7 +141,7 @@
           class="btn primary"
           onclick={retryCreate}
           data-testid="registration-retry"
-          disabled={busy || displayName.trim() === ""}
+          disabled={!retryEnabled}
         >
           {busy
             ? "Retrying…"
