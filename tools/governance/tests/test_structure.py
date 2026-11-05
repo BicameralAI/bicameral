@@ -9,7 +9,7 @@ import os
 import unittest
 
 import check_structure
-from tests.fixtures import BASE_MANIFEST, OWNERS, TempRepoTestCase
+from tests.fixtures import BASE_MANIFEST, OWNERS, REAL_DEFAULT_OWNERS, TempRepoTestCase
 
 
 def manifest_errors(manifest: dict) -> list[str]:
@@ -45,7 +45,7 @@ class ManifestSchemaTests(unittest.TestCase):
 
         text = (REPO_ROOT / check_structure.MANIFEST_PATH).read_text(encoding="utf-8")
         manifest = check_structure.parse_manifest(text)
-        self.assertEqual(list(manifest.default_owners), OWNERS)
+        self.assertEqual(list(manifest.default_owners), REAL_DEFAULT_OWNERS)
         self.assertEqual(manifest.architecture_records, "docs/architecture/records")
 
     def test_unknown_top_level_key(self) -> None:
