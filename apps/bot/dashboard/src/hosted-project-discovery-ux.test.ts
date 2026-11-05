@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/svelte";
+import { render, cleanup, fireEvent } from "@testing-library/svelte";
 import OperatorHome from "./pages/OperatorHome.svelte";
 import HostedProjectRegistration from "./pages/HostedProjectRegistration.svelte";
 import OperatorHomeSource from "./pages/OperatorHome.svelte?raw";
@@ -163,6 +163,100 @@ describe("HostedProjectRegistration legacy join removal", () => {
         ?.textContent,
     ).toContain("req_publish_missing");
   });
+
+  // #54: the auto-resume path reopens this view directly onto the retryable
+  // state (never through the create form), and the folder step never runs a
+  // folder pick in that session either. Neither condition may leave
+  // "Retry sharing" disabled or inert for a publish-only retry.
+  it("keeps a publication retry clickable and functional after an auto-resume reopen", async () => {
+    const submitted: Array<{ displayName: string; projectRef?: string }> = [];
+    const { container } = render(HostedProjectRegistration, {
+      props: {
+        result: {
+          status: "publication_retry_needed",
+          phase: "publication_retry_needed",
+          message: "The Product exists locally but is not shared yet.",
+          canRetry: true,
+        },
+        initialDisplayName: "Checkout Service",
+        folderPhase: "idle",
+        onsubmitcreate: (input: { displayName: string; projectRef?: string }) =>
+          submitted.push(input),
+      },
+    });
+
+    const retryButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="registration-retry"]',
+    );
+    expect(retryButton?.disabled).toBe(false);
+
+    await fireEvent.click(retryButton!);
+
+    expect(submitted).toEqual([{ displayName: "Checkout Service" }]);
+  });
+
+  it("keeps a create retry disabled until the folder is ready", async () => {
+    const submitted: Array<{ displayName: string; projectRef?: string }> = [];
+    const { container, rerender } = render(HostedProjectRegistration, {
+      props: {
+        result: {
+          status: "recovery_needed",
+          phase: "create_retry_needed",
+          message: "Retry the same Create intent safely.",
+          canRetry: true,
+        },
+        initialDisplayName: "Checkout Service",
+        folderPhase: "idle",
+        onsubmitcreate: (input: { displayName: string; projectRef?: string }) =>
+          submitted.push(input),
+      },
+    });
+
+    const retryButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="registration-retry"]',
+    );
+    expect(retryButton?.disabled).toBe(true);
+    await fireEvent.click(retryButton!);
+    expect(submitted).toEqual([]);
+
+    await rerender({ folderPhase: "ready" });
+
+    expect(retryButton?.disabled).toBe(false);
+    await fireEvent.click(retryButton!);
+    expect(submitted).toEqual([{ displayName: "Checkout Service" }]);
+  });
+
+  it.each(["publication_retry_needed", "create_retry_needed"] as const)(
+    "disables a %s retry while the event substrate is disconnected",
+    async (phase) => {
+      const submitted: Array<{ displayName: string; projectRef?: string }> = [];
+      const { container } = render(HostedProjectRegistration, {
+        props: {
+          result: {
+            status:
+              phase === "publication_retry_needed"
+                ? "publication_retry_needed"
+                : "recovery_needed",
+            phase,
+            message: "Retry needed.",
+            canRetry: true,
+          },
+          initialDisplayName: "Checkout Service",
+          folderPhase: "ready",
+          eventSubstrateConnected: false,
+          onsubmitcreate: (input: { displayName: string; projectRef?: string }) =>
+            submitted.push(input),
+        },
+      });
+
+      const retryButton = container.querySelector<HTMLButtonElement>(
+        '[data-testid="registration-retry"]',
+      );
+      expect(retryButton?.disabled).toBe(true);
+      await fireEvent.click(retryButton!);
+      expect(submitted).toEqual([]);
+    },
+  );
 });
 
 // ── Discovery contract eligibility field (AC5) ─────────────────────

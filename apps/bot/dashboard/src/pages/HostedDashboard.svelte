@@ -178,6 +178,7 @@
   let bindingProject = $state<ProjectEntry | null>(null);
   let registrationOpen = $state(false);
   let recoveryAttemptedFor = $state<string | null>(null);
+  let pendingCreateDisplayName = $state("");
 
   let joiningId = $state<string | null>(null);
   let joinFailures = $state<Record<string, ProductJoinFailureView>>({});
@@ -263,12 +264,14 @@
       return;
     }
     onregistrationreset?.();
+    pendingCreateDisplayName = "";
     registrationOpen = true;
     activeView = "operator-home";
   }
 
   function closeRegistration() {
     onregistrationreset?.();
+    pendingCreateDisplayName = "";
     registrationOpen = false;
   }
 
@@ -295,6 +298,7 @@
       recoveryAttemptedFor = bridgeState.cloudAccountId;
       const pending = getPendingHostedCreateInput(bridgeState.cloudAccountId);
       if (pending) {
+        pendingCreateDisplayName = pending.displayName;
         registrationOpen = true;
         oncreateproject(pending);
       }
@@ -386,6 +390,7 @@
             folderPhase={driveFolderPhase}
             folderName={driveFolderName}
             folderMessage={driveFolderMessage}
+            initialDisplayName={pendingCreateDisplayName}
             onselectfolder={() => ondrivefolderselect?.()}
             onresetfolder={() => ondrivefolderreset?.()}
             onsubmitcreate={(input) => oncreateproject?.(input)}
