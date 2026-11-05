@@ -15,7 +15,7 @@ For v0.1.28, terminal evidence must prove against exact Bot and Cloud candidate 
 3. exact Cloud client/scope binding, opaque state, PKCE S256, and the daemon loopback callback;
 4. real Google browser consent and authorization-code exchange through the production connection service;
 5. daemon-local provider credential custody and `ConnectionRegistry: connected` only after real provider completion;
-6. Cloud-first Picker/resource selection through the governed native-client + PKCE contract and `drive.file` boundary;
+6. Cloud-first Picker/resource selection through the governed native-client + PKCE contract and the `drive` scope boundary (ARCH-0007; formerly `drive.file`);
 7. exactly one real accessible Drive resource plus a real provider-backed Drive operation/readiness result;
 8. bounded still-valid-cache behavior and wrong-environment/stale/tampered/disabled/rotated configuration negative paths;
 9. sanitized teardown and an exact-component terminal receipt;
@@ -38,7 +38,7 @@ Mocks and fixtures may validate deterministic negative paths, receipt safety, an
 - rejects credential-bearing app-config extensions;
 - starts Google connection through the daemon production connection service;
 - verifies the generated Google authorization URL uses the exact Cloud client identity, opaque state, PKCE S256, the daemon loopback redirect, and exact Cloud-published scope set;
-- requires `drive.file` and rejects broader Drive scopes;
+- requires exactly the `https://www.googleapis.com/auth/drive` scope (ARCH-0007, #50; formerly `drive.file`) and rejects any other scope, whether broader, unrelated, or a redundant narrower Drive scope, recording `drive_scope_least_privilege: true`;
 - never persists the authorization URL, state value, PKCE challenge, raw client id, authorization code, or provider token;
 - writes only bounded/hash observations and leaves terminal-provider assertions false.
 

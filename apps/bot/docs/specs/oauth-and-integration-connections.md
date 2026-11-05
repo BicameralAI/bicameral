@@ -47,7 +47,7 @@ that flow, but successful OAuth does not by itself join a project.
 
 - **Provider**: external system identity, such as GitHub or Google.
 - **Connection**: user-level authorization grant for a provider.
-- **Capability**: what a connection can do, such as `github.repo.read`, `drive.file`, or `drive.docs.read`.
+- **Capability**: what a connection can do, such as `github.repo.read`, `drive`, or `drive.docs.read`.
 - **Consumer**: project event store, source integration, webhook receiver, or discovery picker that uses a connection.
 - **Resource selection**: choosing a repo, Drive folder/file, channel, workspace, or document after auth.
 - **Source binding**: project-level approved ingestion configuration for one external resource, such as a GitHub repo, Linear team, Slack channel, or Drive folder/document set.
@@ -84,7 +84,7 @@ connections:
     status: connected
     account_label: user@example.com
     capabilities:
-      - drive.file
+      - drive
       - drive.docs.read
     updated_at: 2026-06-13T00:00:00Z
     auth_method: oauth
@@ -360,12 +360,14 @@ Why:
 - fits a browser-based dashboard running on localhost
 
 Required capabilities:
-- For Drive event store: use the narrowest scope that can create/read/write Bicameral-owned event-store files.
+- For Drive event store: the Google `drive` scope (ARCH-0007). `drive.file` only exposes files the same OAuth client created for the same user, so another Shared Drive member's ledger files read as an HTTP 200 empty listing; that must never be taken as an empty ledger.
 - For Docs ingest: docs read capability and Drive metadata/listing capability as needed.
 
 Scope direction:
-- Prefer `drive.file` for event-store files created/opened by Bicameral.
-- Avoid broad `drive` or `drive.readonly`.
+- Request `https://www.googleapis.com/auth/drive` in place of `drive.file` for the Drive event store (ARCH-0007, #50). This is a broader grant: the token can see Drive files the user can access. The connector still reads and writes only the Product ledger folder the owner selected.
+- Do not request anything broader or unrelated to the event store; keep `drive.readonly` and Docs ingest scopes out of the event-store scope set.
+- Never assume a stored credential carries `drive`: a credential whose recorded granted scope lacks it projects `action_needed` and requires explicit re-consent.
+- Never grant Drive permissions automatically. Owner-managed sharing and Shared Drive membership remain the access boundary.
 - Keep Docs ingest scopes separate in capability metadata even if one Google token grants both.
 
 Legacy support:

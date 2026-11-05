@@ -166,13 +166,25 @@ fn store_with_envelope(
     expires_in: Option<u64>,
     refresh: Option<&str>,
 ) -> Arc<InMemorySecretsStore> {
+    store_with_scoped_envelope(
+        expires_in,
+        refresh,
+        Some(bicameral_config::GOOGLE_DRIVE_SCOPE),
+    )
+}
+
+fn store_with_scoped_envelope(
+    expires_in: Option<u64>,
+    refresh: Option<&str>,
+    scope: Option<&str>,
+) -> Arc<InMemorySecretsStore> {
     let store = Arc::new(InMemorySecretsStore::new());
     let envelope = bicameral_config::OAuthTokenEnvelopeV1::from_token_exchange(
         "test-access-token-value".into(),
         refresh.map(String::from),
         expires_in,
         Some("Bearer".into()),
-        None,
+        scope.map(String::from),
         chrono::Utc::now(),
     );
     store
@@ -190,7 +202,7 @@ fn oauth_config() -> GoogleOAuthConfig {
         client_id: "test-client-id".into(),
         client_secret: "test-client-secret".into(),
         redirect_uri: "http://localhost:3000/cb".into(),
-        scopes: vec!["https://www.googleapis.com/auth/drive.file".into()],
+        scopes: vec!["https://www.googleapis.com/auth/drive".into()],
     }
 }
 
@@ -297,7 +309,10 @@ fn token_provider_fails_closed() {
 }
 
 #[test]
-fn legacy_plain_token_passes_through() {
+fn legacy_plain_token_requires_reconnect_for_drive_scope() {
+    // ARCH-0007 / #50: a legacy plain token records no granted scope, so it
+    // is never assumed to carry `drive` and fails closed with the typed
+    // Authentication (reconnect) error instead of being passed through.
     let store = Arc::new(InMemorySecretsStore::new());
     store
         .write_secret(
@@ -307,10 +322,92 @@ fn legacy_plain_token_passes_through() {
         )
         .unwrap();
     let provider = KeyringGoogleAccessTokenProvider::new(store, None);
-    assert_eq!(
-        provider.access_token().unwrap(),
-        "legacy-plain-access-token"
+    let error = provider.access_token().unwrap_err();
+    assert_eq!(error.kind, DriveTransportErrorKind::Authentication);
+    assert!(error.safe_message.contains("Reconnect Google"));
+    assert!(!error.safe_message.contains("legacy-plain-access-token"));
+}
+
+/// ARCH-0007 / #50: a stored credential granted only `drive.file` (or
+/// with no recorded scope) yields the typed reconnect error before any
+/// provider request, whether or not it is expired; it never silently
+/// succeeds and never refreshes into an assumed broader grant.
+#[test]
+fn drive_file_only_credential_requires_reconnect_without_provider_calls() {
+    let server = StubServer::start(Box::new(|_| {
+        (
+            200,
+            serde_json::json!({
+                "access_token": "must-not-be-minted",
+                "expires_in": 3599,
+                "scope": bicameral_config::GOOGLE_DRIVE_SCOPE
+            })
+            .to_string()
+            .into_bytes(),
+        )
+    }));
+    for (expires_in, scope) in [
+        (
+            Some(3600),
+            Some("https://www.googleapis.com/auth/drive.file"),
+        ),
+        (Some(0), Some("https://www.googleapis.com/auth/drive.file")),
+        (Some(3600), None),
+    ] {
+        let provider = KeyringGoogleAccessTokenProvider::new(
+            store_with_scoped_envelope(expires_in, Some("test-refresh-token"), scope),
+            Some(oauth_config()),
+        )
+        .with_token_endpoint(format!("{}/token", server.base_url));
+        let error = provider.access_token().unwrap_err();
+        assert_eq!(error.kind, DriveTransportErrorKind::Authentication);
+        assert_eq!(
+            error.safe_message,
+            bicameral_runtime::drive_api_transport::DRIVE_SCOPE_NOT_GRANTED_MESSAGE
+        );
+    }
+    assert!(
+        server.recorded().is_empty(),
+        "scope gate must fail closed before any provider request"
     );
+}
+
+/// ARCH-0007 / #50: a refresh grant whose reported scope no longer
+/// includes `drive` is refused and the rotated envelope is not persisted.
+#[test]
+fn refresh_reporting_narrower_scope_is_refused_and_not_persisted() {
+    let server = StubServer::start(Box::new(|_| {
+        (
+            200,
+            serde_json::json!({
+                "access_token": "narrowed-access-token",
+                "expires_in": 3599,
+                "token_type": "Bearer",
+                "scope": "https://www.googleapis.com/auth/drive.file"
+            })
+            .to_string()
+            .into_bytes(),
+        )
+    }));
+    let store = store_with_envelope(Some(0), Some("test-refresh-token"));
+    let before = store
+        .read_secret(
+            bicameral_config::connections::connection_keys::GOOGLE_SOURCE_ID,
+            bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+        )
+        .unwrap();
+    let provider = KeyringGoogleAccessTokenProvider::new(store.clone(), Some(oauth_config()))
+        .with_token_endpoint(format!("{}/token", server.base_url));
+    let error = provider.access_token().unwrap_err();
+    assert_eq!(error.kind, DriveTransportErrorKind::Authentication);
+    assert!(!error.safe_message.contains("narrowed-access-token"));
+    let after = store
+        .read_secret(
+            bicameral_config::connections::connection_keys::GOOGLE_SOURCE_ID,
+            bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+        )
+        .unwrap();
+    assert_eq!(before, after, "narrowed refresh must not be persisted");
 }
 
 /// #1134: a token expiring inside the deterministic skew window refreshes
@@ -364,7 +461,7 @@ fn native_refresh_omits_client_secret_confidential_includes_it() {
         client_id: "native-client-id".into(),
         client_secret: String::new(),
         redirect_uri: "http://localhost:3000/cb".into(),
-        scopes: vec!["https://www.googleapis.com/auth/drive.file".into()],
+        scopes: vec!["https://www.googleapis.com/auth/drive".into()],
     };
     let provider = KeyringGoogleAccessTokenProvider::new(
         store_with_envelope(Some(0), Some("test-refresh-token")),
@@ -454,7 +551,7 @@ fn restart_health_operation_refreshes_envelope_then_performs_drive_io() {
         Some("durable-refresh-token".into()),
         Some(0),
         Some("Bearer".into()),
-        None,
+        Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
         chrono::Utc::now(),
     )
     .with_client_id(Some("envelope-native-client".into()));

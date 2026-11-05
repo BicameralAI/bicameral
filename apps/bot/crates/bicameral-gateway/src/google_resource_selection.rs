@@ -85,7 +85,8 @@ pub struct DriveFileMetadata {
 pub enum DriveProbeError {
     /// Credential rejected by the provider (401/403 auth class).
     CredentialRejected,
-    /// Resource does not exist or is not accessible under `drive.file`.
+    /// Resource does not exist or is not accessible to the connected
+    /// Google account under the granted `drive` scope.
     NotAccessible,
     /// Provider returned an error outside the auth/not-found classes.
     Provider { safe_message: String },
@@ -329,8 +330,10 @@ pub fn probe_error_state(error: &DriveProbeError) -> (ProviderResourceState, Str
 
 /// Build the system-browser Picker/OAuth URL for folder selection.
 ///
-/// Retains `drive.file` (no broad Drive scope), requests refreshable
-/// semantics, uses fresh daemon-generated PKCE S256 (#1135), and
+/// Requests the configured `drive` scope (ARCH-0007; formerly `drive.file`;
+/// the Picker remains the owner's explicit folder choice, not a grant
+/// mechanism), requests refreshable semantics, uses fresh daemon-generated
+/// PKCE S256 (#1135), and
 /// constrains the Picker to exactly one selectable folder
 /// (`trigger_onepick=true`, folder selection enabled; multi-select is
 /// never enabled).
@@ -797,6 +800,12 @@ async fn resolve_selection_outcome(
                 message: format!("Google token exchange failed: {message}"),
             };
         }
+        Err(crate::routes::GoogleTokenPersistError::InsufficientScope) => {
+            return SelectionOutcome::Failed {
+                state: ProviderResourceState::ActionNeeded,
+                message: crate::routes::GOOGLE_DRIVE_SCOPE_NOT_GRANTED_MESSAGE.into(),
+            };
+        }
         Err(crate::routes::GoogleTokenPersistError::UnusableBundle) => {
             return SelectionOutcome::Failed {
                 state: ProviderResourceState::ActionNeeded,
@@ -930,12 +939,13 @@ mod tests {
             client_id: "client-id".into(),
             client_secret: String::new(),
             redirect_uri: "http://localhost:3000/cb".into(),
-            scopes: vec!["https://www.googleapis.com/auth/drive.file".into()],
+            scopes: vec!["https://www.googleapis.com/auth/drive".into()],
         };
         let verifier = crate::google_oauth::generate_pkce_verifier();
         let challenge = crate::google_oauth::pkce_s256_challenge(&verifier);
         let url = picker_authorization_url(&config, "state-1", &challenge);
-        assert!(url.contains("drive.file"));
+        assert!(url.contains("scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&"));
+        assert!(!url.contains("drive.file"));
         assert!(!url.contains("drive.readonly"));
         assert!(url.contains("trigger_onepick=true"));
         assert!(url.contains("allow_folder_selection=true"));
@@ -1165,7 +1175,7 @@ mod tests {
             client_secret: "test-client-secret".into(),
             redirect_uri: "http://localhost:3000/api/v1/setup/google/resource-selection/callback"
                 .into(),
-            scopes: vec!["https://www.googleapis.com/auth/drive.file".into()],
+            scopes: vec!["https://www.googleapis.com/auth/drive".into()],
         }
     }
 
@@ -1209,7 +1219,7 @@ mod tests {
             "refresh_token": "stub-refresh-token",
             "expires_in": 3599,
             "token_type": "Bearer",
-            "scope": "https://www.googleapis.com/auth/drive.file"
+            "scope": "https://www.googleapis.com/auth/drive"
         })
     }
 
@@ -1298,7 +1308,8 @@ mod tests {
         let url = json["url"].as_str().unwrap();
         assert!(url.contains("trigger_onepick=true"));
         assert!(url.contains("allow_folder_selection=true"));
-        assert!(url.contains("drive.file"));
+        assert!(url.contains("scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&"));
+        assert!(!url.contains("drive.file"));
         let state_token = url
             .split("state=")
             .nth(1)
@@ -1635,8 +1646,8 @@ mod tests {
             "client_id": client_id,
             "environment": "production",
             "config_version": "google-production-1",
-            "scope_set_version": "drive-file-v1",
-            "scopes": ["https://www.googleapis.com/auth/drive.file"],
+            "scope_set_version": "drive-v1",
+            "scopes": ["https://www.googleapis.com/auth/drive"],
             "issued_at": (now - chrono::Duration::minutes(1)).to_rfc3339(),
             "expires_at": (now + chrono::Duration::minutes(30)).to_rfc3339(),
             "enabled": true,
@@ -1698,7 +1709,7 @@ mod tests {
         let (session_id, state_token) = start_selection(&app).await;
 
         // The start URL is PKCE-bound to the Cloud-published client.
-        // (start_selection already asserted drive.file + one-pick.)
+        // (start_selection already asserted the drive scope + one-pick.)
         let (status, json) = post_json(
             &app,
             "/api/v1/setup/google/resource-selection/callback",
@@ -1829,7 +1840,9 @@ mod tests {
 
         let (status, headers, html) = get_loopback(
             &app,
-            &format!("?state={state_token}&code=picker-code-1&scope=drive.file&picked_file_ids=folder-123"),
+            &format!(
+                "?state={state_token}&code=picker-code-1&scope=drive&picked_file_ids=folder-123"
+            ),
         )
         .await;
         assert_eq!(status, StatusCode::OK);

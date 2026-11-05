@@ -29,17 +29,18 @@ def valid_payload() -> dict[str, object]:
         "environment": "production",
         "config_version": "google-prod-1",
         "scope_set_version": "drive-v1",
-        "scopes": ["https://www.googleapis.com/auth/drive.file"],
+        "scopes": ["https://www.googleapis.com/auth/drive"],
         "issued_at": (now - timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
         "expires_at": (now + timedelta(minutes=30)).isoformat().replace("+00:00", "Z"),
         "enabled": True,
     }
 
 
+DRIVE = "https://www.googleapis.com/auth/drive"
 DRIVE_FILE = "https://www.googleapis.com/auth/drive.file"
 
 
-def valid_authorization_url(*, port: int = 30123, scope: str = DRIVE_FILE) -> str:
+def valid_authorization_url(*, port: int = 30123, scope: str = DRIVE) -> str:
     query = urlencode(
         {
             "client_id": CLIENT_ID,
@@ -61,7 +62,7 @@ def inspect_valid_authorization_url() -> dict[str, object]:
         valid_authorization_url(),
         expected_client_id=CLIENT_ID,
         expected_daemon_origin=DAEMON_ORIGIN,
-        expected_scopes=[DRIVE_FILE],
+        expected_scopes=[DRIVE],
     )
 
 
@@ -172,7 +173,7 @@ def test_authorization_url_rejects_redirect_port_drift() -> None:
             valid_authorization_url(port=3000),
             expected_client_id=CLIENT_ID,
             expected_daemon_origin=DAEMON_ORIGIN,
-            expected_scopes=[DRIVE_FILE],
+            expected_scopes=[DRIVE],
         )
 
 
@@ -183,7 +184,7 @@ def test_authorization_url_rejects_verifier_or_wrong_client() -> None:
             with_verifier,
             expected_client_id=CLIENT_ID,
             expected_daemon_origin=DAEMON_ORIGIN,
-            expected_scopes=[DRIVE_FILE],
+            expected_scopes=[DRIVE],
         )
 
     with pytest.raises(MODULE.EvidenceError, match="client_id does not match"):
@@ -191,7 +192,7 @@ def test_authorization_url_rejects_verifier_or_wrong_client() -> None:
             valid_authorization_url(),
             expected_client_id="different.apps.googleusercontent.com",
             expected_daemon_origin=DAEMON_ORIGIN,
-            expected_scopes=[DRIVE_FILE],
+            expected_scopes=[DRIVE],
         )
 
 
@@ -202,23 +203,23 @@ def test_scope_set_exact_equality_matrix() -> None:
     other = "https://www.googleapis.com/auth/userinfo.email"
 
     with pytest.raises(MODULE.EvidenceError, match="does not equal"):
-        inspect_url_with_scopes(other, [DRIVE_FILE])
+        inspect_url_with_scopes(other, [DRIVE])
 
     with pytest.raises(MODULE.EvidenceError, match="does not equal"):
-        inspect_url_with_scopes(f"{DRIVE_FILE} {other}", [DRIVE_FILE])
+        inspect_url_with_scopes(f"{DRIVE} {other}", [DRIVE])
 
     with pytest.raises(MODULE.EvidenceError, match="does not equal"):
-        inspect_url_with_scopes(DRIVE_FILE, [DRIVE_FILE, other])
+        inspect_url_with_scopes(DRIVE, [DRIVE, other])
 
     with pytest.raises(MODULE.EvidenceError, match="duplicate"):
-        inspect_url_with_scopes(f"{DRIVE_FILE} {DRIVE_FILE}", [DRIVE_FILE])
+        inspect_url_with_scopes(f"{DRIVE} {DRIVE}", [DRIVE])
 
     with pytest.raises(MODULE.EvidenceError, match="blank"):
-        inspect_url_with_scopes(f"{DRIVE_FILE}  {other}", [DRIVE_FILE, other])
+        inspect_url_with_scopes(f"{DRIVE}  {other}", [DRIVE, other])
 
-    evidence = inspect_url_with_scopes(f"{other} {DRIVE_FILE}", [DRIVE_FILE, other])
+    evidence = inspect_url_with_scopes(f"{other} {DRIVE}", [DRIVE, other])
     assert evidence["scope_set_matches_cloud"] is True
-    assert evidence["scopes_sorted"] == sorted([DRIVE_FILE, other])
+    assert evidence["scopes_sorted"] == sorted([DRIVE, other])
     assert str(evidence["scope_set_sha256"]).startswith("sha256:")
     assert evidence["scope_count"] == 2
 
@@ -227,22 +228,39 @@ def test_app_config_scope_policy_is_explicit_least_privilege() -> None:
     evidence = MODULE.validate_app_config(
         valid_payload(), expected_environment="production"
     )
-    assert evidence["scopes_sorted"] == [DRIVE_FILE]
-    assert evidence["drive_file_least_privilege"] is True
+    assert evidence["scopes_sorted"] == [DRIVE]
+    assert evidence["drive_scope_least_privilege"] is True
+    assert "drive_file_least_privilege" not in evidence
     assert str(evidence["scope_set_sha256"]).startswith("sha256:")
 
-    broad = valid_payload()
-    broad["scopes"] = [DRIVE_FILE, "https://www.googleapis.com/auth/drive"]
-    with pytest.raises(MODULE.EvidenceError, match="least-privilege"):
-        MODULE.validate_app_config(broad, expected_environment="production")
+    # Anything beyond the approved `drive` scope is rejected: broader,
+    # unrelated, or redundant narrower Drive scopes alike (ARCH-0007, #50).
+    for extra in (
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://mail.google.com/",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/documents.readonly",
+        DRIVE_FILE,
+        "https://www.googleapis.com/auth/drive.readonly",
+    ):
+        broader = valid_payload()
+        broader["scopes"] = [DRIVE, extra]
+        with pytest.raises(MODULE.EvidenceError, match="least-privilege"):
+            MODULE.validate_app_config(broader, expected_environment="production")
+
+    # The former drive.file-only set no longer satisfies the policy.
+    drive_file_only = valid_payload()
+    drive_file_only["scopes"] = [DRIVE_FILE]
+    with pytest.raises(MODULE.EvidenceError, match="required drive scope"):
+        MODULE.validate_app_config(drive_file_only, expected_environment="production")
 
     missing = valid_payload()
     missing["scopes"] = ["https://www.googleapis.com/auth/userinfo.email"]
-    with pytest.raises(MODULE.EvidenceError, match="drive.file"):
+    with pytest.raises(MODULE.EvidenceError, match="required drive scope"):
         MODULE.validate_app_config(missing, expected_environment="production")
 
     duplicated = valid_payload()
-    duplicated["scopes"] = [DRIVE_FILE, DRIVE_FILE]
+    duplicated["scopes"] = [DRIVE, DRIVE]
     with pytest.raises(MODULE.EvidenceError, match="duplicates"):
         MODULE.validate_app_config(duplicated, expected_environment="production")
 

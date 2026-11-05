@@ -19,9 +19,10 @@ pub mod schema;
 pub mod workspace;
 
 pub use connections::{
-    parse_stored_oauth_token, AuthMethod, ConnectionMetadata, ConnectionRegistry, ConnectionStatus,
-    GoogleOAuthConfig, InMemorySecretsStore, OAuthTokenEnvelopeV1, SecretsStore, StoredOAuthToken,
-    OAUTH_TOKEN_ENVELOPE_VERSION,
+    parse_stored_oauth_token, scope_grants_google_drive, AuthMethod, ConnectionMetadata,
+    ConnectionRegistry, ConnectionStatus, GoogleOAuthConfig, InMemorySecretsStore,
+    OAuthTokenEnvelopeV1, SecretsStore, StoredOAuthToken, GOOGLE_DRIVE_CAPABILITY,
+    GOOGLE_DRIVE_SCOPE, OAUTH_TOKEN_ENVELOPE_VERSION,
 };
 pub use google_client_credential::{
     GoogleClientCredentialEnvelopeError, GoogleClientCredentialEnvelopeV1,
