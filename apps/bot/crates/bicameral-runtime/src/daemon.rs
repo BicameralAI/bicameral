@@ -87,6 +87,26 @@ fn project_registrations_from_store(
     Ok(projected)
 }
 
+/// Startup hydration of the live registration cache. A registry read failure
+/// starts the daemon with an empty projection rather than refusing to start;
+/// the next successful refresh repairs it. Modelled as `restart` in
+/// `spec/product_registry.qnt`.
+fn hydrate_project_registrations(
+    router: &crate::project_registry::ProjectEventStoreRouter,
+    workspace_bindings_dir: Option<&Path>,
+) -> Vec<LocalProjectRegistration> {
+    match project_registrations_from_store(router, workspace_bindings_dir) {
+        Ok(registrations) => registrations,
+        Err(error) => {
+            tracing::warn!(
+                error = %error,
+                "Project registration hydration failed; starting with an empty hosted projection"
+            );
+            Vec::new()
+        }
+    }
+}
+
 /// Import routes from the daemon's explicitly configured Product store.
 ///
 /// This is the only compatibility reader for legacy
@@ -1581,28 +1601,18 @@ async fn run_inner(
 
     // Project registrations and workspace bindings are independent durable
     // operator-local records. Hydrate the live hosted projection from both.
-    match project_router.as_ref().map(|router| {
-        project_registrations_from_store(
+    if let Some(router) = project_router.as_ref() {
+        let registrations = hydrate_project_registrations(
             router,
             BicameralPaths::workspace_bindings_dir().as_deref(),
-        )
-    }) {
-        Some(Ok(registrations)) => {
-            let count = registrations.len();
-            *state
-                .project_registrations
-                .write()
-                .unwrap_or_else(|poisoned| poisoned.into_inner()) = registrations;
-            if count > 0 {
-                tracing::info!(count, "Hydrated durable project registrations");
-            }
-        }
-        None => {}
-        Some(Err(error)) => {
-            tracing::warn!(
-                error = %error,
-                "Project registration hydration failed; starting with an empty hosted projection"
-            );
+        );
+        let count = registrations.len();
+        *state
+            .project_registrations
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = registrations;
+        if count > 0 {
+            tracing::info!(count, "Hydrated durable project registrations");
         }
     }
 
@@ -1917,6 +1927,10 @@ async fn wait_for_exit_signal() -> anyhow::Result<DaemonExit> {
 mod tests {
     use super::*;
     use crate::event_store_adapters::MemoryAdapter;
+
+    /// Model-based conformance against spec/product_registry.qnt
+    /// (src/daemon/tests/registry_mbt.rs).
+    mod registry_mbt;
 
     #[tokio::test]
     async fn gateway_bind_failure_fails_the_daemon_instead_of_idling() {
@@ -2771,140 +2785,6 @@ mod tests {
     }
 
     #[test]
-    fn creation_allows_immediate_binding_and_persists_route_for_restart() {
-        let product_workspace = tempfile::tempdir().unwrap();
-        let operator_home = tempfile::tempdir().unwrap();
-        let product_events = product_workspace.path().join(".bicameral/events");
-        let route = crate::project_registry::EventStoreRoute::Git {
-            events_dir: product_events.clone(),
-            ci_merge_gate_configured: false,
-        };
-        let store: Arc<dyn crate::project_registry::ProjectRegistrationStore> =
-            Arc::new(crate::project_registry::FileProjectRegistrationStore::new(
-                operator_home.path().join("projects"),
-            ));
-
-        let create_dispatch = DaemonDispatch {
-            adapter: Arc::new(crate::event_store_adapters::GitAdapter::new(
-                &product_events,
-            )),
-            operator_scoped: false,
-            project_router: Some(Arc::new(
-                crate::project_registry::ProjectEventStoreRouter::new(store.clone()),
-            )),
-            current_event_store_route: Some(route),
-            commit_watcher: crate::commit_watcher::CommitWatcherStore::default(),
-            product_commit_watchers: crate::commit_watcher::ProductCommitWatcherStore::default(),
-            capability_readiness: None,
-            operational_logs: None,
-            workspace_bindings_dir: Some(operator_home.path().join("workspace-bindings")),
-            project_registrations: Arc::new(std::sync::RwLock::new(Vec::new())),
-            product_join_trust: None,
-            confirmation_challenges: Arc::new(
-                crate::confirmation_challenge_store::ConfirmationChallengeStore::new(),
-            ),
-            candidate_selection_authority: test_selection_fields().0,
-            product_currentness: test_selection_fields().1,
-            candidate_selection: test_selection_fields().2,
-            atomic_adapter: test_selection_fields().3,
-            projection_work_store: test_projection_work_store("fixture"),
-            candidates: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-            reviews: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-            proof_signer: None,
-        };
-        let create = ToolRequest::new(
-            ToolCommand::ProductCreate(ProductCreateParams {
-                idempotency_key: "create-persisted-route".into(),
-                product_display_name: "Persisted Route".into(),
-                event_store_descriptor: None,
-                asserted_cloud_account_id: Some("acct_route".into()),
-                team_display_name: None,
-                verified_domain: None,
-                event_store_hint: None,
-                required_connection: None,
-            }),
-            hosted_route_authority(),
-        );
-        let created = create_dispatch.dispatch(&create, Some(product_workspace.path()));
-        assert_eq!(
-            created.status,
-            bicameral_api::tool_request::ToolResponseStatus::Ok,
-            "{created:?}"
-        );
-        let product_id = created.result.unwrap()["result"]["product_id"]
-            .as_str()
-            .unwrap()
-            .to_string();
-
-        let mut bind = bicameral_api::fixtures::workspace_bind_request().for_product(&product_id);
-        let ToolCommand::WorkspaceBind(params) = &mut bind.command else {
-            unreachable!();
-        };
-        params.proposal.project_id = product_id.clone();
-        params.proposal.candidate_path = product_workspace.path().display().to_string();
-        bind.authority.workspace = Some(product_workspace.path().display().to_string());
-        let bound = create_dispatch.dispatch(&bind, Some(product_workspace.path()));
-        assert_eq!(
-            bound.status,
-            bicameral_api::tool_request::ToolResponseStatus::Ok,
-            "newly created Product must bind without a daemon restart: {bound:?}"
-        );
-        let retried = create_dispatch.dispatch(&create, Some(product_workspace.path()));
-        assert_eq!(
-            retried.status,
-            bicameral_api::tool_request::ToolResponseStatus::Ok,
-            "{retried:?}"
-        );
-        let registrations = create_dispatch.project_registrations.read().unwrap();
-        assert_eq!(registrations.len(), 1);
-        assert_eq!(registrations[0].name, product_id);
-        assert!(registrations[0].has_workspace_binding);
-        drop(registrations);
-
-        // New dispatch + unrelated default adapter models process restart from
-        // another cwd. Only the persisted operator route can find the Product.
-        let restarted = DaemonDispatch {
-            adapter: Arc::new(MemoryAdapter::new()),
-            operator_scoped: true,
-            project_router: Some(Arc::new(
-                crate::project_registry::ProjectEventStoreRouter::new(store),
-            )),
-            current_event_store_route: None,
-            commit_watcher: crate::commit_watcher::CommitWatcherStore::default(),
-            product_commit_watchers: crate::commit_watcher::ProductCommitWatcherStore::default(),
-            capability_readiness: None,
-            operational_logs: None,
-            workspace_bindings_dir: None,
-            project_registrations: Arc::new(std::sync::RwLock::new(Vec::new())),
-            product_join_trust: None,
-            confirmation_challenges: Arc::new(
-                crate::confirmation_challenge_store::ConfirmationChallengeStore::new(),
-            ),
-            candidate_selection_authority: test_selection_fields().0,
-            product_currentness: test_selection_fields().1,
-            candidate_selection: test_selection_fields().2,
-            atomic_adapter: test_selection_fields().3,
-            projection_work_store: test_projection_work_store("fixture"),
-            candidates: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-            reviews: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-            proof_signer: None,
-        };
-        let publish = ToolRequest::new(
-            ToolCommand::ProductPublish(ProductPublishParams {
-                product_id,
-                idempotency_key: "publish-persisted-route".into(),
-            }),
-            hosted_route_authority(),
-        );
-        let published = restarted.dispatch(&publish, None);
-        assert_eq!(
-            published.status,
-            bicameral_api::tool_request::ToolResponseStatus::Ok,
-            "{published:?}"
-        );
-    }
-
-    #[test]
     fn publish_returns_the_recorded_commit_proof_after_restart() {
         // bot#1087: the proof recorded with the operator route at create time
         // is what `product.publish` carries, including from a fresh process
@@ -3335,139 +3215,6 @@ mod tests {
         assert!(hosted[0].workspace_binding_readiness().code_grounding_ready);
         let serialized = serde_json::to_string(&hosted).unwrap();
         assert!(!serialized.contains("/private/work/acme"));
-    }
-
-    #[test]
-    fn unreadable_binding_keeps_registration_visible_as_repair_required() {
-        let adapter = MemoryAdapter::new();
-        let payload = ProjectRegistrationWrittenPayload {
-            product_id: "prd_repair".to_string(),
-            cloud_account_id: "acct_alice".to_string(),
-            registration_ref: "reg_repair".to_string(),
-            connection: ConnectionMetadata {
-                provider: RegisteredProvider::Github,
-                substrate: RegisteredSubstrate::Git,
-                account_label: None,
-                descriptor_ref: "descriptor:reg_repair".to_string(),
-            },
-            governance_policy_version: "gpv-1".to_string(),
-            written_at: Utc::now(),
-        };
-        adapter
-            .append(EventStoreEntry::new(
-                EventType::ProjectRegistrationWritten,
-                serde_json::to_value(payload).unwrap(),
-                "daemon".to_string(),
-            ))
-            .unwrap();
-
-        let binding_dir = tempfile::tempdir().unwrap();
-        std::fs::write(binding_dir.path().join("prd_repair.json"), b"not-json").unwrap();
-
-        let event_dir = tempfile::tempdir().unwrap();
-        let router = migrate_test_router(&adapter, event_dir.path());
-        let registrations = project_registrations_from_store(&router, Some(binding_dir.path()))
-            .expect("a damaged binding must not hide the durable registration");
-        assert_eq!(registrations.len(), 1);
-        assert_eq!(registrations[0].name, "prd_repair");
-        assert_eq!(
-            registrations[0].setup_state,
-            "local_workspace_repair_required"
-        );
-        assert!(!registrations[0].has_workspace_binding);
-    }
-
-    #[test]
-    fn successful_workspace_bind_updates_live_hosted_readiness() {
-        let adapter = Arc::new(MemoryAdapter::new());
-        let payload = ProjectRegistrationWrittenPayload {
-            product_id: "prd_live".to_string(),
-            cloud_account_id: "acct_alice".to_string(),
-            registration_ref: "reg_live".to_string(),
-            connection: ConnectionMetadata {
-                provider: RegisteredProvider::Github,
-                substrate: RegisteredSubstrate::Git,
-                account_label: None,
-                descriptor_ref: "descriptor:reg_live".to_string(),
-            },
-            governance_policy_version: "gpv-1".to_string(),
-            written_at: Utc::now(),
-        };
-        adapter
-            .append(EventStoreEntry::new(
-                EventType::ProjectRegistrationWritten,
-                serde_json::to_value(payload).unwrap(),
-                "daemon".to_string(),
-            ))
-            .unwrap();
-
-        let candidate = tempfile::tempdir().unwrap();
-        let binding_dir = tempfile::tempdir().unwrap();
-        let event_dir = tempfile::tempdir().unwrap();
-        let router = migrate_test_router(adapter.as_ref(), event_dir.path());
-        let registrations = Arc::new(std::sync::RwLock::new(
-            project_registrations_from_store(&router, Some(binding_dir.path())).unwrap(),
-        ));
-        assert!(!registrations.read().unwrap()[0].has_workspace_binding);
-
-        let dispatch = DaemonDispatch {
-            adapter,
-            operator_scoped: false,
-            project_router: Some(router),
-            current_event_store_route: Some(crate::project_registry::EventStoreRoute::Git {
-                events_dir: event_dir.path().to_path_buf(),
-                ci_merge_gate_configured: false,
-            }),
-            commit_watcher: crate::commit_watcher::CommitWatcherStore::default(),
-            product_commit_watchers: crate::commit_watcher::ProductCommitWatcherStore::default(),
-            capability_readiness: None,
-            operational_logs: None,
-            workspace_bindings_dir: Some(binding_dir.path().to_path_buf()),
-            project_registrations: registrations.clone(),
-            product_join_trust: None,
-            confirmation_challenges: Arc::new(
-                crate::confirmation_challenge_store::ConfirmationChallengeStore::new(),
-            ),
-            candidate_selection_authority: test_selection_fields().0,
-            product_currentness: test_selection_fields().1,
-            candidate_selection: test_selection_fields().2,
-            atomic_adapter: test_selection_fields().3,
-            projection_work_store: test_projection_work_store("fixture"),
-            candidates: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-            reviews: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-            proof_signer: None,
-        };
-        let request = ToolRequest::new(
-            ToolCommand::WorkspaceBind(WorkspaceBindRequest {
-                proposal: WorkspaceBindingProposal {
-                    project_id: "prd_live".to_string(),
-                    display: ProjectSafeDisplayMetadata {
-                        display_name: "Live Product".to_string(),
-                        project_slug: None,
-                        candidate_label: None,
-                    },
-                    candidate_path: candidate.path().display().to_string(),
-                    source_surface: WorkspaceBindingSourceSurface::Mcp,
-                    reason: "operator confirmed".to_string(),
-                    confidence: 1.0,
-                },
-                confirmed: true,
-                required_daemon_capability: Some(DAEMON_WORKSPACE_BINDING_CAPABILITY),
-                expected_current_state: Some(WorkspaceBindingState::LocalWorkspaceUnbound),
-            }),
-            bicameral_api::fixtures::authority_mcp("agent-796", "session-796", "/workspace"),
-        );
-
-        let response = dispatch.dispatch(&request, Some(candidate.path()));
-        assert_eq!(
-            response.status,
-            bicameral_api::tool_request::ToolResponseStatus::Ok,
-            "{response:?}"
-        );
-
-        let live = registrations.read().unwrap();
-        assert!(live[0].has_workspace_binding);
-        assert_eq!(live[0].setup_state, "normal");
     }
 
     #[test]
