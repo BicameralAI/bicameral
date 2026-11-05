@@ -177,9 +177,14 @@ export function mapCloudProjectItem(item: CloudProjectListItem): ProjectEntry {
     id: item.project_id,
     name: item.display_name,
     event_store_kind: "github",
-    event_store_label: item.daemon_compatible
-      ? "Cloud project"
-      : "Cloud project (update the local daemon)",
+    // Only `upgrade_required` is Cloud's evaluated "daemon too old" verdict.
+    // `daemon_compatible: false` also covers rows Cloud cannot evaluate (a
+    // directory row with no paired daemon), which is "unknown", not a reason to
+    // tell the operator to update (bot#1347).
+    event_store_label:
+      item.binding_readiness === "upgrade_required"
+        ? "Cloud project (update the local daemon)"
+        : "Cloud project",
     readiness,
     team_id: item.team_id,
     eligibility: item.discovery_eligibility,
