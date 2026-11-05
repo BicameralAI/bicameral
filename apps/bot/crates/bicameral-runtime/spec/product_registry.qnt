@@ -31,9 +31,21 @@
  * concurrency between requests (dispatch handles one request at a time per
  * cache write; the RwLock makes each refresh atomic).
  *
- * Model-based test driver: src/daemon/tests/registry_mbt.rs replays the traces in
- * tests/fixtures/product_registry_mbt/ against a real DaemonDispatch.
- * Regenerate traces with spec/regen_traces.sh after changing this file.
+ * Model-based test: src/daemon/tests/registry_mbt.rs runs `quint run` on this
+ * spec (fixed seed, 40 traces) and replays every trace against a real
+ * DaemonDispatch. Traces are generated into a temp dir, never committed.
+ * CI runs it in .github/workflows/bot-registry-model.yml when this spec or the
+ * modelled Rust files change.
+ *
+ * Run locally (from apps/bot):
+ *   npm install -g @informalsystems/quint@0.33.0
+ *   cargo test -p bicameral-runtime --lib registry_mbt -- --ignored
+ * Explore other sequences: PRODUCT_REGISTRY_MBT_SEED=0x1234 (same command).
+ * Check the spec alone (from this directory):
+ *   quint run product_registry.qnt --main=product_registry_2 --invariant=safety
+ *
+ * When changing the modelled code, update this spec first; never edit the
+ * spec to make a failing replay pass.
  */
 module product_registry {
   // ── Types ────────────────────────────────────────────────────────────────
