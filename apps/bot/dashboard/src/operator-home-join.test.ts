@@ -195,14 +195,17 @@ describe("OperatorHome join failure state", () => {
     expect(row.getAttribute("data-membership")).toBe("available");
   });
 
-  it("offers no retry for a non-retryable failure", () => {
+  it.each([
+    ["wrong_domain", "isn’t open to your email domain"],
+    ["product_not_registered", "not set up on this device"],
+  ] as const)("offers no retry or Join action for %s", (code, message) => {
     const target = FIXTURE_PROJECTS_DOMAIN_MIX.find(
       (p) => p.membership === "available",
     )!;
     const { container } = render(OperatorHome, {
       props: {
         projects: FIXTURE_PROJECTS_DOMAIN_MIX,
-        joinFailures: { [target.id]: failureView("wrong_domain") },
+        joinFailures: { [target.id]: failureView(code) },
       },
     });
     const row = [
@@ -212,6 +215,7 @@ describe("OperatorHome join failure state", () => {
     expect(row.querySelector('[data-testid="join-action"]')).toBeNull();
     expect(
       row.querySelector('[data-testid="join-failure"]')?.textContent,
-    ).toContain("isn’t open to your email domain");
+    ).toContain(message);
+    expect(row.getAttribute("data-membership")).toBe("available");
   });
 });

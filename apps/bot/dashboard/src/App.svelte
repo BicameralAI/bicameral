@@ -54,7 +54,6 @@
     restartHostedPairing,
   } from "./lib/hosted-handoff";
   import { onHostedDaemonDisconnected } from "./lib/hosted-daemon-connection";
-  import { appShellVersionLabel } from "./lib/app-version";
   import {
     fetchMcpReadiness,
     type McpReadinessView,
@@ -888,7 +887,6 @@ function handleDaemonPairingRecovery() {
       .map((p) => p[0]?.toUpperCase() ?? "")
       .join("") || "?",
   );
-  const shellVersion = appShellVersionLabel();
 </script>
 
 <div
@@ -925,11 +923,6 @@ function handleDaemonPairingRecovery() {
         </g>
       </svg>
       <span class="brand-name">bicameral</span>
-      {#if hostedMode}
-        <span class="brand-version" data-testid="app-shell-version"
-          >{shellVersion}</span
-        >
-      {/if}
     </span>
     {#if devMode}
       <span
@@ -1171,15 +1164,6 @@ function handleDaemonPairingRecovery() {
   .top-bar-compact .brand-name {
     font-size: 0.8125rem;
     font-weight: 600;
-  }
-
-  .brand-version {
-    margin-left: 0.25rem;
-    font-family: var(--font-mono);
-    font-size: 0.625rem;
-    font-weight: 500;
-    color: var(--ink-400);
-    letter-spacing: 0.02em;
   }
 
   .hosted-label {

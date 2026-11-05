@@ -627,6 +627,14 @@ pub struct UnopenableEventStore {
     reason: String,
 }
 
+impl UnopenableEventStore {
+    pub(crate) fn google_drive_route(error: EventStoreError) -> Self {
+        Self {
+            reason: format!("google_drive_api route is unopenable: {error}"),
+        }
+    }
+}
+
 impl bicameral_api::event_store::EventStoreAdapter for UnopenableEventStore {
     fn append(
         &self,
@@ -698,9 +706,7 @@ pub fn open_google_drive_api_route(
             }
         }
         Err(error) => {
-            let unopenable = Arc::new(UnopenableEventStore {
-                reason: format!("google_drive_api route is unopenable: {error}"),
-            });
+            let unopenable = Arc::new(UnopenableEventStore::google_drive_route(error));
             crate::event_store_adapters::DualEventStoreAdapter {
                 event_store: unopenable.clone(),
                 atomic: unopenable,
