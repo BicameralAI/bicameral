@@ -220,6 +220,13 @@ struct ResolvedRequestRoute {
     workspace_root: Option<PathBuf>,
 }
 
+/// A route a verified `product.join` resolved from the joiner's selected Drive
+/// folder, held until the join is granted.
+struct PendingJoinRoute {
+    record: crate::project_registry::ProjectRouteRecord,
+    adapter: Arc<dyn bicameral_api::event_store::EventStoreAdapter>,
+}
+
 impl crate::dispatch::CandidateSnapshotProvider
     for bicameral_gateway::live_projection_work::LiveProjectionWorkStore
 {
@@ -419,20 +426,43 @@ impl DaemonDispatch {
                     Ok(product_id) => product_id,
                     Err(response) => return *response,
                 };
-                let mut routed_request = request.clone();
-                routed_request.product_id = Some(product_id);
-                let route = match self.resolve_request_route(&routed_request, workspace_root) {
-                    Ok(route) => route,
+                // An operator-scoped daemon has no route to a Product another
+                // operator created. The joiner supplies the Product's Drive
+                // folder; it becomes a route only after validation + readback,
+                // and is persisted only once the join is granted.
+                let pending_route = match self.joined_product_route(
+                    request,
+                    params,
+                    &product_id,
+                    create_transport.clone(),
+                ) {
+                    Ok(pending) => pending,
                     Err(response) => return *response,
                 };
+                let mut routed_request = request.clone();
+                routed_request.product_id = Some(product_id);
+                let route = match &pending_route {
+                    Some(pending) => ResolvedRequestRoute {
+                        adapter: pending.adapter.clone(),
+                        workspace_root: None,
+                    },
+                    None => match self.resolve_request_route(&routed_request, workspace_root) {
+                        Ok(route) => route,
+                        Err(response) => return *response,
+                    },
+                };
                 let ctx = crate::product_join::ProductJoinDispatchContext { trust };
-                return crate::dispatch::dispatch_with_product_join(
+                let response = crate::dispatch::dispatch_with_product_join(
                     &routed_request,
                     route.adapter.as_ref(),
                     route.workspace_root.as_deref(),
                     watcher_observation.as_ref(),
                     &ctx,
                 );
+                return match pending_route {
+                    Some(pending) => self.persist_joined_product_route(request, response, pending),
+                    None => response,
+                };
             }
         }
 
@@ -1014,6 +1044,113 @@ impl DaemonDispatch {
             adapter,
             workspace_root,
         })
+    }
+
+    /// Resolve a route for a verified join whose Product this daemon has not
+    /// registered (spec/onboarding.qnt: JoinNotBlockedByRegistration).
+    ///
+    /// Returns `Ok(None)` when the normal registry route applies (already
+    /// registered, no registry, or a registry read error the normal path
+    /// reports). Otherwise the request must carry a Google Drive descriptor
+    /// that the gateway stamped as selected through this daemon's own folder
+    /// selection, and replaying that folder's ledger must yield a
+    /// `CreateProduct` for exactly the ticket's Product. The signed ticket
+    /// authorizes the Product id; the ledger readback proves the folder is that
+    /// Product's ledger. Nothing is written here.
+    fn joined_product_route(
+        &self,
+        request: &ToolRequest,
+        params: &bicameral_api::product_join::ProductJoinCommandParams,
+        product_id: &str,
+        transport: Option<Arc<dyn crate::drive_api_event_store::DriveApiTransport>>,
+    ) -> Result<Option<PendingJoinRoute>, Box<ToolResponse>> {
+        let Some(router) = &self.project_router else {
+            return Ok(None);
+        };
+        match router.store().find_product(product_id) {
+            Ok(None) => {}
+            Ok(Some(_)) | Err(_) => return Ok(None),
+        }
+        let Some(descriptor) = &params.event_store_descriptor else {
+            return Err(Box::new(ToolResponse::rejected(
+                request.request_id,
+                format!(
+                    "product_not_registered: '{product_id}' has no route on this device; select the Product's Google Drive folder and join again"
+                ),
+            )));
+        };
+        let event_store =
+            crate::product_creation::validated_google_drive_route(request, descriptor).map_err(
+                |rejection| Box::new(ToolResponse::rejected(request.request_id, rejection.into())),
+            )?;
+        let adapter = event_store.open_with_drive_transport(transport);
+        let ledger = crate::product_creation::replay_products(adapter.as_ref()).map_err(|error| {
+            Box::new(ToolResponse::error(
+                request.request_id,
+                format!(
+                    "product_event_store_unreadable: the selected Google Drive folder could not be read: {error}; check access to the folder and join again"
+                ),
+            ))
+        })?;
+        let Some(record) = ledger.by_id.get(product_id) else {
+            return Err(Box::new(ToolResponse::rejected(
+                request.request_id,
+                format!(
+                    "product_route_mismatch: the selected Google Drive folder does not hold Product '{product_id}'; select the folder the Product was shared from and join again"
+                ),
+            )));
+        };
+        Ok(Some(PendingJoinRoute {
+            record: crate::project_registry::ProjectRouteRecord::from_joined_product(
+                record,
+                event_store,
+                &params.signed_ticket.ticket.registration_ref,
+            ),
+            adapter,
+        }))
+    }
+
+    /// Persist a join-resolved route once the join is granted. A rejected or
+    /// failed join registers nothing, so a refused joiner never gains a route.
+    fn persist_joined_product_route(
+        &self,
+        request: &ToolRequest,
+        response: ToolResponse,
+        pending: PendingJoinRoute,
+    ) -> ToolResponse {
+        let granted = response.status == bicameral_api::tool_request::ToolResponseStatus::Ok
+            && response
+                .result
+                .as_ref()
+                .and_then(|value| {
+                    serde_json::from_value::<bicameral_api::product_join::ProductJoinResult>(
+                        value.clone(),
+                    )
+                    .ok()
+                })
+                .is_some_and(|result| {
+                    result.outcome == bicameral_api::product_join::JoinOutcome::Granted
+                });
+        if !granted {
+            return response;
+        }
+        let Some(router) = &self.project_router else {
+            return response;
+        };
+        match router.store().write(&pending.record) {
+            Ok(()) => {
+                self.refresh_project_registrations();
+                response
+            }
+            // Membership is canonical in the Product ledger; joining again is
+            // idempotent (already a member) and retries this write.
+            Err(error) => ToolResponse::error(
+                request.request_id,
+                format!(
+                    "daemon_unavailable: the join was granted but the Product's route could not be saved on this device: {error}; join again to finish setup"
+                ),
+            ),
+        }
     }
 
     fn record_product_completion(
@@ -2131,6 +2268,7 @@ mod tests {
             signed_ticket,
             local_actor_ref: confirmed_actor.clone(),
             requested_at: now,
+            event_store_descriptor: None,
         };
         let mut authority = hosted_route_authority();
         authority.actor_id = confirmed_actor;
@@ -2540,12 +2678,324 @@ mod tests {
             response.status,
             bicameral_api::tool_request::ToolResponseStatus::Rejected
         );
-        assert!(response
-            .message
-            .as_deref()
-            .unwrap_or_default()
-            .contains("product_not_registered"));
+        let message = response.message.as_deref().unwrap_or_default();
+        assert!(message.starts_with("product_not_registered"), "{message}");
+        assert!(
+            message.contains("select the Product's Google Drive folder"),
+            "a joiner without a route must be told how to recover: {message}"
+        );
         assert!(adapter.replay().unwrap().is_empty());
+    }
+
+    // ── Join registers another operator's Product (spec/onboarding.qnt:
+    //    JoinNotBlockedByRegistration; FIX_JOIN_ROUTE) ─────────────────
+
+    const OWNER_FOLDER: &str = "1OwnerProductFolder";
+    const UNRELATED_FOLDER: &str = "1UnrelatedFolder";
+
+    /// In-memory Google Drive with one object namespace per folder. Records
+    /// every folder touched so tests can prove "no provider I/O".
+    struct MemoryDriveFile {
+        folder: String,
+        file_id: String,
+        name: String,
+        bytes: Vec<u8>,
+    }
+
+    #[derive(Default)]
+    struct MemoryDriveTransport {
+        files: std::sync::Mutex<Vec<MemoryDriveFile>>,
+        touched: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl MemoryDriveTransport {
+        fn object(file_id: &str, name: &str) -> DriveRemoteObject {
+            DriveRemoteObject {
+                file_id: file_id.into(),
+                name: name.into(),
+                version: Some(format!("rev-{file_id}")),
+            }
+        }
+
+        fn touched(&self) -> Vec<String> {
+            self.touched.lock().unwrap().clone()
+        }
+    }
+
+    impl DriveApiTransport for MemoryDriveTransport {
+        fn list_children(
+            &self,
+            folder_id: &str,
+        ) -> Result<Vec<DriveRemoteObject>, DriveTransportError> {
+            self.touched.lock().unwrap().push(folder_id.into());
+            Ok(self
+                .files
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|file| file.folder == folder_id)
+                .map(|file| Self::object(&file.file_id, &file.name))
+                .collect())
+        }
+
+        fn find_children_by_name(
+            &self,
+            folder_id: &str,
+            name: &str,
+        ) -> Result<Vec<DriveRemoteObject>, DriveTransportError> {
+            Ok(self
+                .list_children(folder_id)?
+                .into_iter()
+                .filter(|object| object.name == name)
+                .collect())
+        }
+
+        fn create_json_file(
+            &self,
+            folder_id: &str,
+            name: &str,
+            body: &[u8],
+        ) -> Result<DriveRemoteObject, DriveTransportError> {
+            self.touched.lock().unwrap().push(folder_id.into());
+            let mut files = self.files.lock().unwrap();
+            let file_id = format!("file-{}", files.len() + 1);
+            files.push(MemoryDriveFile {
+                folder: folder_id.into(),
+                file_id: file_id.clone(),
+                name: name.into(),
+                bytes: body.to_vec(),
+            });
+            Ok(Self::object(&file_id, name))
+        }
+
+        fn download_file(&self, file_id: &str) -> Result<Vec<u8>, DriveTransportError> {
+            self.files
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|file| file.file_id == file_id)
+                .map(|file| file.bytes.clone())
+                .ok_or_else(|| {
+                    DriveTransportError::new(DriveTransportErrorKind::NotFound, "object missing")
+                })
+        }
+
+        fn probe_folder(&self, _: &str) -> Result<(), DriveTransportError> {
+            Ok(())
+        }
+    }
+
+    /// The owner's daemon creates a Product in its Drive folder; returns the
+    /// canonical Product id. `domain` sets the Product's auto-join policy.
+    fn owner_creates_product_in_drive(
+        transport: &Arc<MemoryDriveTransport>,
+        domain: &str,
+    ) -> String {
+        let adapter = crate::drive_api_event_store::DriveApiAdapter::new(
+            OWNER_FOLDER,
+            transport.clone() as Arc<dyn DriveApiTransport>,
+        )
+        .unwrap();
+        let actor = bicameral_api::product_creation::HostedActorContext {
+            actor_id: "bridge:acct_owner".into(),
+            cloud_account_id: "acct_owner".into(),
+            verified_domain: Some(domain.into()),
+            paired: true,
+            authorized: true,
+        };
+        let params = ProductCreateParams {
+            idempotency_key: "owner-create".into(),
+            product_display_name: "Shared Product".into(),
+            event_store_descriptor: google_descriptor(OWNER_FOLDER),
+            asserted_cloud_account_id: Some("acct_owner".into()),
+            team_display_name: None,
+            verified_domain: Some(domain.into()),
+            event_store_hint: None,
+            required_connection: None,
+        };
+        crate::product_creation::create_product(&params, Some(&actor), &adapter, Utc::now())
+            .expect("owner creates the Product")
+            .result
+            .product_id
+    }
+
+    /// A joiner's operator daemon that has never registered `product_id`.
+    fn joiner_dispatch(
+        trust: crate::product_join::ProductJoinTrust,
+    ) -> (DaemonDispatch, tempfile::TempDir) {
+        let unrelated = tempfile::tempdir().unwrap();
+        let dispatch =
+            operator_join_dispatch("prd_unrelated", unrelated.path().to_path_buf(), trust);
+        (dispatch, unrelated)
+    }
+
+    fn with_folder(mut request: ToolRequest, folder: &str, stamped: Option<&str>) -> ToolRequest {
+        let ToolCommand::ProductJoin(params) = &mut request.command else {
+            unreachable!();
+        };
+        params.event_store_descriptor = google_descriptor(folder);
+        if let Some(stamped) = stamped {
+            request.authority.audit_metadata.insert(
+                DESCRIPTOR_VALIDATION_METADATA_KEY.into(),
+                serde_json::Value::String("valid".into()),
+            );
+            request.authority.audit_metadata.insert(
+                bicameral_api::product_registration::VALIDATED_EVENT_STORE_FOLDER_ID_METADATA_KEY
+                    .into(),
+                serde_json::Value::String(stamped.into()),
+            );
+        }
+        request
+    }
+
+    fn member_events(transport: &Arc<MemoryDriveTransport>) -> usize {
+        let adapter = crate::drive_api_event_store::DriveApiAdapter::new(
+            OWNER_FOLDER,
+            transport.clone() as Arc<dyn DriveApiTransport>,
+        )
+        .unwrap();
+        adapter
+            .replay()
+            .unwrap()
+            .iter()
+            .filter(|entry| entry.event_type == EventType::ProductMemberAdded)
+            .count()
+    }
+
+    #[test]
+    fn join_with_a_validated_folder_registers_the_product_and_grants_membership() {
+        let transport = Arc::new(MemoryDriveTransport::default());
+        let product_id = owner_creates_product_in_drive(&transport, "acme.test");
+        let (request, trust, _) = hosted_join_fixture(&product_id);
+        let (dispatch, _dir) = joiner_dispatch(trust);
+        let request = with_folder(request, OWNER_FOLDER, Some(OWNER_FOLDER));
+
+        let response =
+            dispatch.dispatch_with_create_transport(&request, None, Some(transport.clone()));
+
+        assert_eq!(
+            response.status,
+            bicameral_api::tool_request::ToolResponseStatus::Ok,
+            "{response:?}"
+        );
+        let result: ProductJoinResult = serde_json::from_value(response.result.unwrap()).unwrap();
+        assert_eq!(result.outcome, JoinOutcome::Granted);
+        assert_eq!(result.granted_role, Some(GrantedRole::ProductMember));
+        assert_eq!(member_events(&transport), 1);
+
+        let record = dispatch
+            .project_router
+            .as_ref()
+            .unwrap()
+            .store()
+            .find_product(&product_id)
+            .unwrap()
+            .expect("the joined Product is now routable on this device");
+        assert_eq!(
+            record.event_store,
+            crate::project_registry::EventStoreRoute::GoogleDriveApi {
+                folder_id: OWNER_FOLDER.into()
+            }
+        );
+        assert_eq!(record.registration.registration_ref, "reg_joiner");
+        assert_eq!(
+            record.registration.connection.provider,
+            RegisteredProvider::Google
+        );
+        assert!(record.first_event_commit_proof.is_none());
+    }
+
+    #[test]
+    fn join_with_an_unvalidated_folder_is_rejected_without_provider_io() {
+        let transport = Arc::new(MemoryDriveTransport::default());
+        let product_id = owner_creates_product_in_drive(&transport, "acme.test");
+        let touched_before = transport.touched().len();
+        let (request, trust, _) = hosted_join_fixture(&product_id);
+        let (dispatch, _dir) = joiner_dispatch(trust);
+
+        for request in [
+            // Browser-supplied folder with no daemon validation stamp.
+            with_folder(request.clone(), OWNER_FOLDER, None),
+            // Stamp for a different folder than the descriptor carries.
+            with_folder(request, OWNER_FOLDER, Some(UNRELATED_FOLDER)),
+        ] {
+            let response =
+                dispatch.dispatch_with_create_transport(&request, None, Some(transport.clone()));
+            assert_eq!(
+                response.status,
+                bicameral_api::tool_request::ToolResponseStatus::Rejected
+            );
+            let message = response.message.unwrap_or_default();
+            assert!(
+                message.starts_with("product_event_store_unvalidated"),
+                "{message}"
+            );
+        }
+        assert_eq!(transport.touched().len(), touched_before, "no provider I/O");
+        assert_eq!(member_events(&transport), 0);
+        assert!(dispatch
+            .project_router
+            .as_ref()
+            .unwrap()
+            .store()
+            .find_product(&product_id)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn join_rejects_a_validated_folder_that_does_not_hold_the_ticket_product() {
+        let transport = Arc::new(MemoryDriveTransport::default());
+        let product_id = owner_creates_product_in_drive(&transport, "acme.test");
+        let (request, trust, _) = hosted_join_fixture(&product_id);
+        let (dispatch, _dir) = joiner_dispatch(trust);
+        // The joiner validated a real folder, but not this Product's ledger.
+        let request = with_folder(request, UNRELATED_FOLDER, Some(UNRELATED_FOLDER));
+
+        let response =
+            dispatch.dispatch_with_create_transport(&request, None, Some(transport.clone()));
+
+        assert_eq!(
+            response.status,
+            bicameral_api::tool_request::ToolResponseStatus::Rejected
+        );
+        let message = response.message.unwrap_or_default();
+        assert!(message.starts_with("product_route_mismatch"), "{message}");
+        assert_eq!(member_events(&transport), 0);
+        assert!(dispatch
+            .project_router
+            .as_ref()
+            .unwrap()
+            .store()
+            .find_product(&product_id)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn a_refused_join_registers_no_route() {
+        let transport = Arc::new(MemoryDriveTransport::default());
+        // The Product admits a different domain than the joiner's ticket.
+        let product_id = owner_creates_product_in_drive(&transport, "other.test");
+        let (request, trust, _) = hosted_join_fixture(&product_id);
+        let (dispatch, _dir) = joiner_dispatch(trust);
+        let request = with_folder(request, OWNER_FOLDER, Some(OWNER_FOLDER));
+
+        let response =
+            dispatch.dispatch_with_create_transport(&request, None, Some(transport.clone()));
+
+        let result: ProductJoinResult =
+            serde_json::from_value(response.result.expect("typed join result")).unwrap();
+        assert_eq!(result.outcome, JoinOutcome::Rejected);
+        assert_eq!(member_events(&transport), 0);
+        assert!(dispatch
+            .project_router
+            .as_ref()
+            .unwrap()
+            .store()
+            .find_product(&product_id)
+            .unwrap()
+            .is_none());
     }
 
     #[test]

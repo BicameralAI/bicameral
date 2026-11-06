@@ -767,14 +767,28 @@ pub(crate) fn operator_create_route(
     request: &ToolRequest,
     params: &ProductCreateParams,
 ) -> Result<crate::project_registry::EventStoreRoute, &'static str> {
+    let Some(descriptor) = &params.event_store_descriptor else {
+        return Err(OPERATOR_CREATE_DESCRIPTOR_REQUIRED);
+    };
+    validated_google_drive_route(request, descriptor)
+}
+
+/// Turn a browser-transported Google Drive descriptor into a route, only when
+/// the gateway stamped this exact folder as validated by this daemon.
+///
+/// Shared by operator-scoped `product.create` and `product.join`. It proves
+/// only that the operator selected the folder through the daemon-owned flow;
+/// callers that need the folder to hold a specific Product (join) must read
+/// its ledger back before trusting the route.
+pub(crate) fn validated_google_drive_route(
+    request: &ToolRequest,
+    descriptor: &ProductEventStoreDescriptor,
+) -> Result<crate::project_registry::EventStoreRoute, &'static str> {
     use bicameral_api::product_registration::{
         DescriptorValidation, DESCRIPTOR_VALIDATION_METADATA_KEY,
         VALIDATED_EVENT_STORE_FOLDER_ID_METADATA_KEY,
     };
 
-    let Some(descriptor) = &params.event_store_descriptor else {
-        return Err(OPERATOR_CREATE_DESCRIPTOR_REQUIRED);
-    };
     let ProductEventStoreDescriptor::Google { folder_id } = descriptor;
     if !is_plausible_drive_folder_id(folder_id) {
         return Err(OPERATOR_CREATE_DESCRIPTOR_INVALID);

@@ -198,6 +198,16 @@ pub struct ProductJoinCommandParams {
     pub local_actor_ref: String,
     /// When the surface created the request.
     pub requested_at: DateTime<Utc>,
+    /// Google Drive folder holding the Product's event ledger, selected by the
+    /// joiner through the daemon-owned folder selection flow.
+    ///
+    /// An operator-scoped daemon has no route to a Product another operator
+    /// created. The browser transports this descriptor; it is routing input
+    /// only. The daemon uses it solely when the gateway stamped the same folder
+    /// as validated, and registers the route only after reading the folder's
+    /// ledger back and finding the ticket's Product in it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event_store_descriptor: Option<crate::product_creation::ProductEventStoreDescriptor>,
 }
 
 // ---------------------------------------------------------------------------
