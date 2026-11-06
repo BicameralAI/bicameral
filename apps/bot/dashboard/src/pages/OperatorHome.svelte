@@ -34,6 +34,12 @@
     joiningId?: string | null;
     /** Per-row typed join failure, keyed by project id. */
     joinFailures?: Record<string, ProductJoinFailureView>;
+    /** Daemon-owned Drive folder selection state, for joins that need one. */
+    joinFolderPhase?: "idle" | "starting" | "picking" | "ready" | "failed";
+    /** Display name of the selected Drive folder, when ready. */
+    joinFolderName?: string;
+    /** Start the daemon-owned Drive folder selection for a join. */
+    onjoinselectfolder?: (project: ProjectEntry) => void;
     /** Navigate to Products home. */
     onproducts?: () => void;
     /** Navigate to operator Settings (Storage + Agent host). */
@@ -61,6 +67,9 @@
     onjoin,
     joiningId = null,
     joinFailures = {},
+    joinFolderPhase = "idle",
+    joinFolderName = "",
+    onjoinselectfolder,
     onproducts,
     onsettings,
     onopensettings,
@@ -427,7 +436,32 @@
                     </td>
                     <td class="col-updated" data-label="Updated" aria-label="Update time unavailable">—</td>
                     <td class="col-action" data-label="Action">
-                      {#if failure && failure.retryable}
+                      {#if failure && failure.selectFolder && joinFolderPhase !== "ready"}
+                        <button
+                          class="row-action join"
+                          data-testid="join-select-folder"
+                          data-action="select-folder"
+                          aria-label={`Choose the Google Drive folder for ${project.name}`}
+                          disabled={joinFolderPhase === "starting" || joinFolderPhase === "picking"}
+                          onclick={() => onjoinselectfolder?.(project)}
+                        >
+                          {joinFolderPhase === "starting" || joinFolderPhase === "picking"
+                            ? "Waiting for folder…"
+                            : "Choose folder"}
+                        </button>
+                      {:else if failure && failure.selectFolder}
+                        <button
+                          class="row-action join"
+                          data-testid="join-retry"
+                          data-action="join"
+                          aria-label={`Join ${project.name} using ${joinFolderName}`}
+                          aria-busy={joining}
+                          disabled={joining}
+                          onclick={() => onjoin?.(project)}
+                        >
+                          {joining ? "Joining…" : `Join with ${joinFolderName}`}
+                        </button>
+                      {:else if failure && failure.retryable}
                         <button
                           class="row-action join"
                           data-testid="join-retry"

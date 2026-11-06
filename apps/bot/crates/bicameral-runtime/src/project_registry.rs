@@ -79,6 +79,15 @@ impl EventStoreRoute {
         self.open_dual().event_store
     }
 
+    /// [`Self::open`] with an explicit, process-local Drive transport (tests
+    /// and the join readback seam). `None` uses the operator's OS credentials.
+    pub(crate) fn open_with_drive_transport(
+        &self,
+        transport: Option<Arc<dyn DriveApiTransport>>,
+    ) -> Arc<dyn EventStoreAdapter> {
+        self.open_dual_with_drive_transport(transport).event_store
+    }
+
     /// Open the route for a canonical create, retaining the provider-confirmed
     /// append seam when the substrate is the real Google Drive API.
     ///
@@ -270,6 +279,29 @@ impl ProjectRouteRecord {
             event_store,
             first_event_commit_proof: None,
         }
+    }
+
+    /// Build the route a joining operator records for a Product another
+    /// operator created.
+    ///
+    /// `record` must come from replaying the route's own ledger, so the
+    /// registration describes the Product that ledger actually holds.
+    /// `registration_ref` is the opaque reference from the verified join
+    /// ticket. A joined route carries no commit proof: only the creator's
+    /// daemon mints one.
+    pub fn from_joined_product(
+        record: &crate::product_creation::ProductRecord,
+        event_store: EventStoreRoute,
+        registration_ref: &str,
+    ) -> Self {
+        let google = matches!(event_store, EventStoreRoute::GoogleDriveApi { .. });
+        let mut route = Self::from_product_record(record, event_store);
+        route.registration.registration_ref = registration_ref.to_string();
+        if google {
+            route.registration.connection.provider = RegisteredProvider::Google;
+        }
+        route.registration.registered_at = chrono::Utc::now();
+        route
     }
 
     /// Build a route while migrating a canonical Product already present in

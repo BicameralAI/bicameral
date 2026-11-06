@@ -195,9 +195,46 @@ describe("OperatorHome join failure state", () => {
     expect(row.getAttribute("data-membership")).toBe("available");
   });
 
+  it("asks a joiner without a route to choose the Product's Drive folder", async () => {
+    const target = FIXTURE_PROJECTS_DOMAIN_MIX.find(
+      (p) => p.membership === "available",
+    )!;
+    const onjoinselectfolder = vi.fn();
+    const { container, rerender } = render(OperatorHome, {
+      props: {
+        projects: FIXTURE_PROJECTS_DOMAIN_MIX,
+        joinFailures: { [target.id]: failureView("product_not_registered") },
+        onjoinselectfolder,
+      },
+    });
+    const row = () =>
+      [...container.querySelectorAll('[data-membership="available"]')].find(
+        (r) => r.textContent?.includes(target.name),
+      )!;
+    const choose = row().querySelector<HTMLButtonElement>(
+      '[data-testid="join-select-folder"]',
+    );
+    expect(choose?.textContent).toContain("Choose folder");
+    expect(row().querySelector('[data-testid="join-retry"]')).toBeNull();
+    choose!.click();
+    expect(onjoinselectfolder).toHaveBeenCalledTimes(1);
+
+    // Once the daemon validated a folder, the row offers to join with it.
+    await rerender({
+      projects: FIXTURE_PROJECTS_DOMAIN_MIX,
+      joinFailures: { [target.id]: failureView("product_not_registered") },
+      joinFolderPhase: "ready",
+      joinFolderName: "Shared Product",
+      onjoinselectfolder,
+    });
+    expect(row().querySelector('[data-testid="join-select-folder"]')).toBeNull();
+    expect(
+      row().querySelector('[data-testid="join-retry"]')?.textContent,
+    ).toContain("Join with Shared Product");
+  });
+
   it.each([
     ["wrong_domain", "isn’t open to your email domain"],
-    ["product_not_registered", "not set up on this device"],
   ] as const)("offers no retry or Join action for %s", (code, message) => {
     const target = FIXTURE_PROJECTS_DOMAIN_MIX.find(
       (p) => p.membership === "available",

@@ -562,6 +562,7 @@ mod tests {
             signed_ticket: signed,
             local_actor_ref: confirmed_actor.clone(),
             requested_at: Utc::now(),
+            event_store_descriptor: None,
         };
         let mut audit = serde_json::Map::new();
         audit.insert(

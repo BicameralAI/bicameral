@@ -405,6 +405,9 @@
           onjoin={handleJoin}
           {joiningId}
           {joinFailures}
+          joinFolderPhase={driveFolderPhase}
+          joinFolderName={driveFolderName}
+          onjoinselectfolder={() => ondrivefolderselect?.()}
           onsettings={() => openSettings("storage")}
           onopensettings={openSettings}
           {eventSubstrateConnected}

@@ -7566,6 +7566,11 @@ struct ProductJoinBridgeRequest {
     #[serde(default)]
     request_id: Option<String>,
     signed_ticket: bicameral_api::product_join::SignedProductJoinTicket,
+    /// Drive folder the joiner selected for the Product's ledger. Routing
+    /// input only: it is usable by the runtime only when a live daemon-owned
+    /// selection session holds that exact folder (see step 5).
+    #[serde(default)]
+    event_store_descriptor: Option<bicameral_api::product_creation::ProductEventStoreDescriptor>,
 }
 
 /// POST /api/v1/hosted-bridge/product-join — same-domain Product Member
@@ -7631,11 +7636,18 @@ async fn hosted_bridge_product_join(
         signed_ticket: body.signed_ticket,
         local_actor_ref: confirmed_actor.clone(),
         requested_at: chrono::Utc::now(),
+        event_store_descriptor: body.event_store_descriptor,
     };
+    let command = bicameral_api::tool_request::ToolCommand::ProductJoin(params);
 
     // 5. Derive daemon-owned authority from the validated session. The paired
     //    Cloud account id is published in audit metadata under a daemon-set key
     //    so the runtime can bind the ticket account to the confirmed pairing.
+    //    A joiner whose daemon has no route to the Product selects its Drive
+    //    folder first; the folder is stamped as validated exactly as for
+    //    `product.create` (#1264), only from a live `Ready` selection session.
+    let validated_event_store_folder =
+        crate::google_resource_selection::validated_event_store_folder(&state, &command).await;
     let authority = bicameral_api::tool_request::AuthorityContext {
         actor_id: confirmed_actor,
         auth_method: bicameral_api::tool_request::AuthMethod::HostedBridge,
@@ -7656,14 +7668,26 @@ async fn hosted_bridge_product_join(
                 bicameral_api::product_join::PAIRED_CLOUD_ACCOUNT_METADATA_KEY.into(),
                 serde_json::Value::String(session.cloud_account_id.clone()),
             );
+            if let Some(folder_id) = validated_event_store_folder {
+                m.insert(
+                    bicameral_api::product_registration::DESCRIPTOR_VALIDATION_METADATA_KEY.into(),
+                    serde_json::Value::String(
+                        bicameral_api::product_registration::DescriptorValidation::Valid
+                            .as_str()
+                            .to_string(),
+                    ),
+                );
+                m.insert(
+                    bicameral_api::product_registration::VALIDATED_EVENT_STORE_FOLDER_ID_METADATA_KEY
+                        .into(),
+                    serde_json::Value::String(folder_id),
+                );
+            }
             m
         },
     };
 
-    let tool_request = bicameral_api::tool_request::ToolRequest::new(
-        bicameral_api::tool_request::ToolCommand::ProductJoin(params),
-        authority,
-    );
+    let tool_request = bicameral_api::tool_request::ToolRequest::new(command, authority);
 
     // 6. Dispatch through the injected runtime (daemon supplies trust anchors).
     let dispatch = match &state.runtime_dispatch {
@@ -13970,6 +13994,139 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .starts_with("bridge:"),);
+        }
+
+        /// Echoes the `product.join` descriptor and the daemon-set folder
+        /// validation stamp so route tests can observe what reaches runtime.
+        struct JoinEchoDispatch;
+
+        impl crate::state::RuntimeDispatch for JoinEchoDispatch {
+            fn dispatch(
+                &self,
+                request: &bicameral_api::tool_request::ToolRequest,
+                _workspace_root: Option<&std::path::Path>,
+            ) -> bicameral_api::tool_request::ToolResponse {
+                let bicameral_api::tool_request::ToolCommand::ProductJoin(params) =
+                    &request.command
+                else {
+                    panic!("expected product.join");
+                };
+                let meta = &request.authority.audit_metadata;
+                bicameral_api::tool_request::ToolResponse::success(
+                    request.request_id,
+                    serde_json::json!({
+                        "descriptor": params.event_store_descriptor,
+                        "validation": meta.get(
+                            bicameral_api::product_registration::DESCRIPTOR_VALIDATION_METADATA_KEY,
+                        ),
+                        "validated_folder": meta.get(
+                            bicameral_api::product_registration::VALIDATED_EVENT_STORE_FOLDER_ID_METADATA_KEY,
+                        ),
+                    }),
+                )
+            }
+
+            fn capabilities(&self) -> serde_json::Value {
+                serde_json::json!({})
+            }
+        }
+
+        async fn post_join_with_folder(app: Router, folder_id: &str) -> serde_json::Value {
+            let now = chrono::Utc::now();
+            let body = serde_json::json!({
+                "signed_ticket": {
+                    "ticket": {
+                        "issuer": "https://cloud.example",
+                        "audience": "daemon:prd_x",
+                        "product_id": "prd_x",
+                        "cloud_account_id": "acct-test-123",
+                        "verified_domain": "acme.example",
+                        "issued_at": now,
+                        "expiry": now + chrono::Duration::minutes(5),
+                        "nonce": "nonce-1",
+                        "registration_ref": "reg"
+                    },
+                    "key_id": "k",
+                    "signature": "c2ln"
+                },
+                "event_store_descriptor": { "provider": "google", "folder_id": folder_id }
+            });
+            let resp = app
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/api/v1/hosted-bridge/product-join")
+                        .header("content-type", "application/json")
+                        .header("x-bridge-session-token", "tok")
+                        .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body: serde_json::Value = serde_json::from_slice(
+                &axum::body::to_bytes(resp.into_body(), usize::MAX)
+                    .await
+                    .unwrap(),
+            )
+            .unwrap();
+            body["result"].clone()
+        }
+
+        #[tokio::test]
+        async fn product_join_stamps_a_folder_only_from_a_live_ready_selection() {
+            use crate::google_resource_selection::{ResourceSelectionSession, SelectionOutcome};
+
+            let mut state = AppState::new(test_audit());
+            state.runtime_dispatch = Some(std::sync::Arc::new(JoinEchoDispatch));
+            let app = Router::new()
+                .merge(hosted_bridge_routes())
+                .with_state(state.clone());
+            insert_valid_session(&state, "tok").await;
+
+            // No selection session: the descriptor reaches runtime unstamped,
+            // so runtime treats it as unvalidated routing input.
+            let result = post_join_with_folder(app.clone(), "folder-abc").await;
+            assert_eq!(result["descriptor"]["folder_id"], "folder-abc");
+            assert!(result["validation"].is_null());
+            assert!(result["validated_folder"].is_null());
+
+            state.resource_selection_sessions.write().await.insert(
+                "rsel-1".into(),
+                ResourceSelectionSession {
+                    session_id: "rsel-1".into(),
+                    state_token: "state-1".into(),
+                    created_at: chrono::Utc::now(),
+                    outcome: SelectionOutcome::Ready(
+                        bicameral_api::provider_resource::ProviderResourceDescriptor {
+                            provider: "google".into(),
+                            resource_kind: "drive_folder".into(),
+                            folder_id: "folder-abc".into(),
+                            folder_display_name: "Bicameral Events".into(),
+                            drive_id: None,
+                            mime_type: "application/vnd.google-apps.folder".into(),
+                            can_add_children: true,
+                            can_list_children: Some(true),
+                        },
+                    ),
+                    google_oauth_config: bicameral_config::GoogleOAuthConfig {
+                        client_id: "c".into(),
+                        client_secret: "s".into(),
+                        redirect_uri: "http://localhost/cb".into(),
+                        scopes: vec![],
+                    },
+                    pkce_verifier: "v".into(),
+                },
+            );
+
+            let result = post_join_with_folder(app.clone(), "folder-abc").await;
+            assert_eq!(result["validation"], "valid");
+            assert_eq!(result["validated_folder"], "folder-abc");
+
+            // A different folder than the live selection is never stamped.
+            let result = post_join_with_folder(app, "folder-other").await;
+            assert!(result["validation"].is_null());
+            assert!(result["validated_folder"].is_null());
         }
 
         #[tokio::test]

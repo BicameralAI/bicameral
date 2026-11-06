@@ -280,15 +280,26 @@ async function handleHostedProductJoin(
   if (!accessToken || !preview || !sessionToken) {
     return { status: "failed", failure: failureView("unavailable") };
   }
+  // A Product another operator created has no route on this device yet. The
+  // joiner selects its shared Drive folder with the same daemon-owned folder
+  // selection Create uses; the daemon registers the route only after it
+  // validated that selection and found this Product in the folder.
+  const eventStoreFolderId =
+    driveFolderPhase === "ready" ? driveFolder?.folder_id : undefined;
   const outcome = await runProductJoin({
     preview,
     accessToken,
     sessionToken,
     apiBase: handoff?.cloud_api_base,
+    eventStoreFolderId,
     transport: defaultProductJoinTransport,
   });
   if (outcome.status === "granted") {
     await loadHostedProjectDiscovery();
+  } else if (outcome.failure.selectFolder && eventStoreFolderId) {
+    // The folder that was sent is wrong, unreadable, or no longer validated:
+    // drop it so the row asks for a fresh choice instead of resending it.
+    handleDriveFolderReset();
   }
   return outcome;
 }

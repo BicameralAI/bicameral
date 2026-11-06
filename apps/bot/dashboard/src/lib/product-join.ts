@@ -47,6 +47,8 @@ export type ProductJoinRecovery =
   | "unavailable"
   | "cloud_unavailable"
   | "product_not_registered"
+  | "product_folder_mismatch"
+  | "product_folder_unreadable"
   | "join_failed"
   | "join_not_configured";
 
@@ -56,6 +58,13 @@ export type ProductJoinFailureView = {
   message: string;
   /** Whether a plain retry can plausibly succeed (safe to retry regardless). */
   retryable: boolean;
+  /**
+   * The retry needs the Product's Google Drive folder first. This device has
+   * no route to a Product another operator created; the joiner selects the
+   * shared folder through Bicameral's folder selection and joins again
+   * (spec/onboarding.qnt: JoinNotBlockedByRegistration).
+   */
+  selectFolder?: boolean;
 };
 
 /**
@@ -118,9 +127,26 @@ export const PRODUCT_JOIN_FAILURE_COPY: Record<
   product_not_registered: {
     code: "product_not_registered",
     message:
-      "Your local app responded, but this product is not set up on this device. " +
-      "Product setup needs repair before joining can finish.",
-    retryable: false,
+      "This product’s files are in a Google Drive folder shared with you. " +
+      "Choose that folder, then join again.",
+    retryable: true,
+    selectFolder: true,
+  },
+  product_folder_mismatch: {
+    code: "product_folder_mismatch",
+    message:
+      "That folder doesn’t hold this product. " +
+      "Choose the folder the product was shared from, then join again.",
+    retryable: true,
+    selectFolder: true,
+  },
+  product_folder_unreadable: {
+    code: "product_folder_unreadable",
+    message:
+      "Bicameral couldn’t open that folder. " +
+      "Check that it’s shared with you, then choose it again.",
+    retryable: true,
+    selectFolder: true,
   },
   join_failed: {
     code: "join_failed",
@@ -200,12 +226,21 @@ export function recoveryFromJoinError(
     typeof body === "object" && body !== null &&
     "status" in body && (body.status === "rejected" || body.status === "error")
   ) {
+    const daemonMessage =
+      "message" in body && typeof body.message === "string" ? body.message : "";
+    // Folder-route failures from a join that this device has no route for.
+    // An unvalidated folder means the folder choice expired: choose again.
     if (
-      body.status === "rejected" &&
-      "message" in body && typeof body.message === "string" &&
-      body.message.startsWith("product_not_registered:")
+      daemonMessage.startsWith("product_not_registered:") ||
+      daemonMessage.startsWith("product_event_store_unvalidated:")
     ) {
       return "product_not_registered";
+    }
+    if (daemonMessage.startsWith("product_route_mismatch:")) {
+      return "product_folder_mismatch";
+    }
+    if (daemonMessage.startsWith("product_event_store_unreadable:")) {
+      return "product_folder_unreadable";
     }
     return "join_failed";
   }
@@ -244,6 +279,8 @@ export type SubmitProductJoinInput = {
   signedTicket: SignedProductJoinTicket;
   /** Bridge session token for the paired daemon. */
   sessionToken: string;
+  /** Daemon-validated Drive folder holding the Product, when selected. */
+  eventStoreFolderId?: string;
   signal?: AbortSignal;
 };
 
@@ -272,6 +309,7 @@ export const defaultProductJoinTransport: ProductJoinTransport = {
     submitProductJoin({
       sessionToken: input.sessionToken,
       signedTicket: input.signedTicket,
+      eventStoreFolderId: input.eventStoreFolderId,
       signal: input.signal,
     }),
 };
@@ -287,6 +325,12 @@ export type RunProductJoinOptions = {
   accessToken: string;
   sessionToken: string;
   apiBase?: string;
+  /**
+   * Drive folder the joiner selected for this Product. Only needed when the
+   * paired daemon has no route to the Product yet; the daemon uses it only if
+   * it validated the selection itself and the folder holds this Product.
+   */
+  eventStoreFolderId?: string;
   transport: ProductJoinTransport;
   signal?: AbortSignal;
 };
@@ -321,6 +365,7 @@ export async function runProductJoin(
     result = await opts.transport.submitProductJoin({
       signedTicket,
       sessionToken: opts.sessionToken,
+      eventStoreFolderId: opts.eventStoreFolderId,
       signal: opts.signal,
     });
   } catch (error) {

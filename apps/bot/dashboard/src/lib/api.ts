@@ -442,6 +442,11 @@ export async function requestProductJoinTicket(
 export type SubmitProductJoinOptions = {
   sessionToken: string;
   signedTicket: SignedProductJoinTicket;
+  /**
+   * Drive folder the joiner selected for the Product's ledger. Routing input
+   * only: the daemon uses it only when its own folder selection validated it.
+   */
+  eventStoreFolderId?: string;
   signal?: AbortSignal;
 };
 
@@ -466,6 +471,14 @@ export async function submitProductJoin(
         request_id:
           globalThis.crypto?.randomUUID?.() ?? `req_${Date.now()}`,
         signed_ticket: opts.signedTicket,
+        ...(opts.eventStoreFolderId
+          ? {
+              event_store_descriptor: {
+                provider: "google",
+                folder_id: opts.eventStoreFolderId,
+              },
+            }
+          : {}),
       }),
       signal: opts.signal,
     },

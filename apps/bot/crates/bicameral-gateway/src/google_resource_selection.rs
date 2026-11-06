@@ -372,17 +372,19 @@ pub(crate) fn stored_desktop_credential(
     Some(envelope.client_secret)
 }
 
-// ── Descriptor validation for operator-scoped create (#1264) ──────
+// ── Descriptor validation for operator-scoped create/join (#1264) ──
 
-/// Return the Google Drive folder id carried by a `product.create` command
-/// when, and only when, this daemon holds a live `Ready` selection session
-/// for exactly that folder.
+/// Return the Google Drive folder id carried by a `product.create` or
+/// `product.join` command when, and only when, this daemon holds a live
+/// `Ready` selection session for exactly that folder.
 ///
-/// This is the only way a hosted `product.create` descriptor becomes
-/// daemon-validated: the browser can transport the descriptor it read from
-/// the redacted projection, but a folder the daemon never validated, a
-/// selection that expired, a failed selection, or a different folder all
-/// resolve to `None` and the runtime fails closed.
+/// This is the only way a hosted descriptor becomes daemon-validated: the
+/// browser can transport the descriptor it read from the redacted projection,
+/// but a folder the daemon never validated, a selection that expired, a failed
+/// selection, or a different folder all resolve to `None` and the runtime
+/// fails closed. For a join, validation only proves the joiner selected that
+/// folder; the runtime still reads the folder's ledger back and requires the
+/// ticket's Product in it before registering a route.
 pub async fn validated_event_store_folder(
     state: &AppState,
     command: &bicameral_api::tool_request::ToolCommand,
@@ -390,11 +392,12 @@ pub async fn validated_event_store_folder(
     use bicameral_api::product_creation::ProductEventStoreDescriptor;
     use bicameral_api::tool_request::ToolCommand;
 
-    let ToolCommand::ProductCreate(params) = command else {
-        return None;
+    let descriptor = match command {
+        ToolCommand::ProductCreate(params) => params.event_store_descriptor.as_ref(),
+        ToolCommand::ProductJoin(params) => params.event_store_descriptor.as_ref(),
+        _ => None,
     };
-    let Some(ProductEventStoreDescriptor::Google { folder_id }) = &params.event_store_descriptor
-    else {
+    let Some(ProductEventStoreDescriptor::Google { folder_id }) = descriptor else {
         return None;
     };
     let now = Utc::now();
@@ -1077,6 +1080,66 @@ mod tests {
             },
         );
         assert_eq!(validated_event_store_folder(&state, &publish).await, None);
+    }
+
+    fn join_command(folder_id: Option<&str>) -> bicameral_api::tool_request::ToolCommand {
+        let now = Utc::now();
+        bicameral_api::tool_request::ToolCommand::ProductJoin(
+            bicameral_api::product_join::ProductJoinCommandParams {
+                request_id: "join-1".into(),
+                signed_ticket: bicameral_api::product_join::SignedProductJoinTicket {
+                    ticket: bicameral_api::product_join::ProductJoinTicket {
+                        issuer: "https://cloud.example".into(),
+                        audience: "daemon:prd_x".into(),
+                        product_id: "prd_x".into(),
+                        cloud_account_id: "acct".into(),
+                        verified_domain: "acme.example".into(),
+                        issued_at: now,
+                        expiry: now + chrono::Duration::minutes(5),
+                        nonce: "nonce-1".into(),
+                        registration_ref: "reg".into(),
+                        provider_hint: None,
+                        substrate_hint: None,
+                    },
+                    key_id: "k".into(),
+                    signature: "c2ln".into(),
+                },
+                local_actor_ref: "bridge:acct".into(),
+                requested_at: now,
+                event_store_descriptor: folder_id.map(|id| {
+                    bicameral_api::product_creation::ProductEventStoreDescriptor::Google {
+                        folder_id: id.into(),
+                    }
+                }),
+            },
+        )
+    }
+
+    #[tokio::test]
+    async fn join_descriptor_is_stamped_only_for_a_live_ready_session_for_that_folder() {
+        let now = Utc::now();
+        let mut session = test_session(now);
+        session.outcome = SelectionOutcome::Ready(ready_descriptor("folder-abc"));
+        let state = state_with_session(session).await;
+        assert_eq!(
+            validated_event_store_folder(&state, &join_command(Some("folder-abc"))).await,
+            Some("folder-abc".to_string())
+        );
+        assert_eq!(
+            validated_event_store_folder(&state, &join_command(Some("folder-other"))).await,
+            None
+        );
+        assert_eq!(
+            validated_event_store_folder(&state, &join_command(None)).await,
+            None
+        );
+
+        let state = state_with_session(test_session(now)).await;
+        assert_eq!(
+            validated_event_store_folder(&state, &join_command(Some("folder-abc"))).await,
+            None,
+            "a pending selection must not validate a join"
+        );
     }
 
     #[test]

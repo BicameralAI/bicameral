@@ -250,10 +250,35 @@ describe("runProductJoin", () => {
     }
   });
 
-  it("does not offer plain retry for domain or local registration failures", () => {
+  it("offers retry for every failure except an excluded email domain", () => {
     for (const [code, view] of Object.entries(PRODUCT_JOIN_FAILURE_COPY)) {
-      expect(view.retryable).toBe(!["wrong_domain", "product_not_registered"].includes(code));
+      expect(view.retryable).toBe(code !== "wrong_domain");
     }
+  });
+
+  it("asks for the Product's Drive folder only for folder-route failures", () => {
+    const folderCodes = [
+      "product_not_registered",
+      "product_folder_mismatch",
+      "product_folder_unreadable",
+    ];
+    for (const [code, view] of Object.entries(PRODUCT_JOIN_FAILURE_COPY)) {
+      expect(view.selectFolder === true, code).toBe(folderCodes.includes(code));
+    }
+  });
+
+  it("forwards the selected Drive folder to the daemon hop", async () => {
+    const seen: (string | undefined)[] = [];
+    const recording: ProductJoinTransport = {
+      requestJoinTicket: async () => SIGNED_TICKET,
+      submitProductJoin: async (input) => {
+        seen.push(input.eventStoreFolderId);
+        return grantedResult();
+      },
+    };
+    await runProductJoin({ ...base, transport: recording });
+    await runProductJoin({ ...base, eventStoreFolderId: "1SharedFolder", transport: recording });
+    expect(seen).toEqual([undefined, "1SharedFolder"]);
   });
 
   it("converts a Cloud ticket hop error to cloud_unavailable (not offline local app)", async () => {
@@ -332,12 +357,13 @@ describe("recoveryFromJoinError", () => {
 describe("live product join transport", () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it("does not report an HTTP 200 registration rejection as an unreachable app", async () => {
+  it("asks for the shared Drive folder when this device has no route to the Product", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify(SIGNED_TICKET)))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         status: "rejected",
-        message: "product_not_registered: 'prod_1' is absent from the operator registry",
+        message:
+          "product_not_registered: 'prod_1' has no route on this device; select the Product's Google Drive folder and join again",
       })));
 
     const outcome = await runProductJoin({
@@ -350,9 +376,57 @@ describe("live product join transport", () => {
     expect(outcome.status).toBe("failed");
     if (outcome.status === "failed") {
       expect(outcome.failure.code).toBe("product_not_registered");
-      expect(outcome.failure.message).toContain("not set up on this device");
+      expect(outcome.failure.retryable).toBe(true);
+      expect(outcome.failure.selectFolder).toBe(true);
+      expect(outcome.failure.message).toContain("Choose that folder");
       expect(outcome.failure.message).not.toMatch(/unreachable|couldn.t reach|prod_1|registry/i);
     }
+  });
+
+  it.each([
+    ["rejected", "product_event_store_unvalidated: the selected Google Drive folder was not validated by this daemon", "product_not_registered"],
+    ["rejected", "product_route_mismatch: the selected Google Drive folder does not hold Product 'prod_1'", "product_folder_mismatch"],
+    ["error", "product_event_store_unreadable: the selected Google Drive folder could not be read", "product_folder_unreadable"],
+  ] as const)("maps a %s folder-route failure to a folder choice (%s)", async (status, message, code) => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(SIGNED_TICKET)))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status, message })));
+
+    const outcome = await runProductJoin({
+      preview: PREVIEW,
+      accessToken: "cloud-token",
+      sessionToken: "bridge-token",
+      eventStoreFolderId: "1SharedFolder",
+      transport: defaultProductJoinTransport,
+    });
+
+    expect(outcome.status).toBe("failed");
+    if (outcome.status === "failed") {
+      expect(outcome.failure.code).toBe(code);
+      expect(outcome.failure.selectFolder).toBe(true);
+      expect(outcome.failure.message).not.toMatch(/prod_1|daemon|validated/i);
+    }
+  });
+
+  it("sends the selected folder as an event-store descriptor", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ request_id: "r", status: "ok", result: grantedResult() }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    const { submitProductJoin } = await import("./lib/api");
+    await submitProductJoin({
+      sessionToken: "bridge-token",
+      signedTicket: SIGNED_TICKET,
+      eventStoreFolderId: "1SharedFolder",
+    });
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      request_id: expect.any(String),
+      signed_ticket: SIGNED_TICKET,
+      event_store_descriptor: { provider: "google", folder_id: "1SharedFolder" },
+    });
   });
 
   it.each(["rejected", "error"])("keeps an HTTP 200 %s response distinct from transport loss", async (status) => {
