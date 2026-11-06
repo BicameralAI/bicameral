@@ -498,6 +498,52 @@ describe("createHostedProject", () => {
     expect(testStorage.length).toBe(0);
   });
 
+  // Found by spec/onboarding.qnt (FailedMeansNothingCreated): the daemon can
+  // append the CreateProduct event and then fail to persist its route. Its
+  // error asks for a same-key retry; a fresh key would create a second Product.
+  it("keeps the create key when the daemon errors after the canonical append", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        request_id: "req_create",
+        status: "error",
+        message:
+          "daemon_unavailable: canonical Product was created but its operator route could not be persisted: disk full; retry product.create with the same idempotency key",
+        responded_at: "2026-07-13T17:00:00Z",
+      }),
+    );
+
+    const { createHostedProject } = await import(
+      "./lib/hosted-project-registration"
+    );
+    const options = createOptions();
+    const failed = await createHostedProject(options);
+    expect(failed.phase).toBe("create_retry_needed");
+    expect(failed.canRetry).toBe(true);
+    expect(testStorage.length).toBe(1);
+    const firstKey = (
+      requestBody(spy.mock.calls[0] as unknown[]).command as {
+        params: { idempotency_key: string };
+      }
+    ).params.idempotency_key;
+
+    spy.mockReset();
+    spy
+      .mockResolvedValueOnce(jsonResponse(createToolResponse(false)))
+      .mockResolvedValueOnce(jsonResponse(publishToolResponse()))
+      .mockResolvedValueOnce(jsonResponse(cloudReceipt(), 201))
+      .mockResolvedValueOnce(jsonResponse(setupProjection()));
+
+    const recovered = await createHostedProject(options);
+    expect(recovered.phase).toBe("published");
+    const secondKey = (
+      requestBody(spy.mock.calls[0] as unknown[]).command as {
+        params: { idempotency_key: string };
+      }
+    ).params.idempotency_key;
+    expect(secondKey).toBe(firstKey);
+    expect(testStorage.length).toBe(0);
+  });
+
   it("reports honest partial success when local setup is not yet available", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse(createToolResponse()))

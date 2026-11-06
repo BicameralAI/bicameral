@@ -930,13 +930,25 @@ export async function createHostedProject(
       );
     }
 
-    if (response.status !== "ok") {
+    if (response.status === "rejected") {
       // Product-create typed denials append no event by contract, so the intent
       // marker can be cleared rather than misrepresenting a canonical Product.
       clearPendingHostedCreate(cloudAccountId, storage);
       return failed(
         response.message ?? "The daemon rejected Product creation.",
         response.status,
+      );
+    }
+
+    if (response.status !== "ok") {
+      // A daemon `error` can follow the canonical append: the route may fail to
+      // persist, or the commit proof may fail to mint after provider
+      // confirmation. Those errors ask for a retry with the same idempotency
+      // key. Clearing the marker here would mint a new key on the next Create
+      // and produce a second Product, so keep it and let the retry converge.
+      return createRetryNeeded(
+        pending,
+        response.message ?? "The daemon could not confirm Product creation.",
       );
     }
 
