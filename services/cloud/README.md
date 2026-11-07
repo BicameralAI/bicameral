@@ -3,7 +3,7 @@
 
 # Bicameral Cloud
 
-### The optional hosted optimization layer for Bicameral
+### Hosted identity, dashboard and coordination for Bicameral
 
 <p align="center">
   <strong>
@@ -21,9 +21,9 @@
 
 </div>
 
-**Bicameral Cloud** is the optional hosted optimization layer for Bicameral: organization-scale code graph, conflict oracle, expensive indexing, and grounding optimization.
+**Bicameral Cloud** provides hosted UI, authentication, pairing and Product discovery/coordination. It is not the canonical approval authority. See the [current product model and status](../../README.md#how-bicameral-works) before treating component features or tests as a complete user journey.
 
-It is not the default control plane and not the canonical decision store. The public local bot owns local workflow, review, and materialization. Cloud returns evidence, signals, suggestions, and advisories.
+Hosted Supabase authentication currently enforces design-partner eligibility. Self-host setup below describes development prerequisites, not a qualified general-access alternative. Earlier code-graph/conflict-oracle positioning is not the current product-readiness contract.
 
 ## Table of Contents
 
@@ -42,25 +42,17 @@ It is not the default control plane and not the canonical decision store. The pu
 
 ## Key Features
 
-- **Hosted code graph** -- indexes branches, worktrees, repos, symbols, dependencies, and history at organization scale.
-- **Conflict oracle** -- predicts cross-branch and cross-repo conflicts before teams discover them late.
-- **Blast-radius analysis** -- estimates affected systems, deploy paths, owners, and dependencies.
-- **Grounding optimization** -- improves binding quality, latency, and recall beyond local-only scans.
-- **Substrate-neutral output** -- returns `ConflictSignal`, `GroundingSuggestion`, `CodeGraphEvidence`, `DependencyRisk`, and advisory `GovernanceResult` objects.
+- **Hosted dashboard** -- serves a provenance-bound Bot dashboard bundle.
+- **Identity and pairing** -- authenticates eligible users and coordinates connection to their local daemon.
+- **Product discovery and Join tickets** -- provides authenticated coordination; the daemon validates requests and owns canonical transitions.
+- **Tenant boundaries** -- enforces team access. A successful login or pairing response alone does not prove a usable Product or completed Join.
 
 ## High-level Architecture
 
 ```text
-bicameral-bot local daemon
-        | advisory query
-        v
-bicameral-cloud
-  hosted code graph
-  conflict oracle
-  grounding optimizer
-        | evidence / signals / advisories
-        v
-bicameral-bot governance policy + review
+Browser -> Cloud-hosted dashboard and identity
+        -> authenticated pairing / Product discovery
+        -> local daemon validation, policy and canonical transitions
 ```
 
 ## Local Setup

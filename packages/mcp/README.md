@@ -10,6 +10,9 @@
 
 </div>
 
+> [!IMPORTANT]
+> This page documents retained MCP tools, not completion of the current governed-domain workflow. See the [current product model and status](../../README.md#how-bicameral-works). Legacy Decision/preflight tool names do not create separate approval authority; changing those interfaces requires contract compatibility work, not a documentation-only rename.
+
 `bicameral-mcp` is the MCP transport client for the local Bicameral daemon. It exposes agent-friendly tools, maps them into canonical `ToolRequest` envelopes, sends those requests to the daemon, and returns daemon-authored `ToolResponse` payloads.
 
 MCP is not the daemon, Decision Ledger, code graph, dashboard, integration runtime, setup wizard, telemetry sink, or canonical governance authority. Edge surfaces propose; the daemon decides what becomes canonical.

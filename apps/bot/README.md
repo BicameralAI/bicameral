@@ -2,6 +2,9 @@
   <h1 align="center">Bicameral Bot</h1>
 </p>
 
+> [!IMPORTANT]
+> **Component and legacy-workflow reference.** Start with the [current product model and status](../../README.md#how-bicameral-works). Accepted ARCH-0003/0004/0005 use snapshot-bound GovernedDomains and signoff, not separate Decision objects. The code-grounding, preflight and candidate-promotion descriptions below reflect retained interfaces and earlier scope; they are not evidence that the current governed lifecycle is complete. The linked quickstart is legacy, and monorepo changes are not automatically included in the public installer.
+
 <p align="center">
   <strong>The local daemon at your team's trust boundary — it captures implementation-constraining decisions from the tools you already use, grounds them in your actual code, and routes ambiguity to a human <em>before</em> any claim becomes authority.</strong>
 </p>
