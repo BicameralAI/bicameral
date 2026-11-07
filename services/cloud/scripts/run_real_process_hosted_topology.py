@@ -43,7 +43,7 @@ TERMINAL_ACCEPTANCE_SURFACE = (
     'data-testid="join-retry"',
     'data-testid="daemon-disconnect-scrim"',
     "Local daemon disconnected",
-    "Go to pairing",
+    "Reconnect device",
     "bicameral_hosted_product_create_v1:",
     "/api/v1/hosted-bridge/command",
     "/api/v1/hosted-bridge/product-join",
@@ -71,6 +71,11 @@ GENERATED_DASHBOARD_METADATA = frozenset({"version.json", "release-identity.json
 
 class TopologyError(RuntimeError):
     """A sanitized orchestration failure."""
+
+
+class _NoLoopbackRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args: object, **kwargs: object) -> None:
+        return None
 
 
 @dataclass
@@ -311,9 +316,21 @@ def _http(
         context = None
         if url.startswith("https://") and not verify_tls:
             context = ssl._create_unverified_context()  # noqa: S323 # nosec B323 # opt-in only via verify_tls=False for local/self-signed journey targets; TLS verified by default
-        with urllib.request.urlopen(  # nosec B310 # internal process-harness request; scheme is not attacker-controlled
-            request, timeout=timeout, context=context
-        ) as response:
+        if urllib.parse.urlsplit(url).hostname in {"127.0.0.1", "localhost"}:
+            # Local bearer requests must not follow redirects or host proxies.
+            opener = urllib.request.build_opener(
+                urllib.request.ProxyHandler({}),
+                _NoLoopbackRedirect(),
+                urllib.request.HTTPSHandler(context=context),
+            )
+            response_context = opener.open(request, timeout=timeout)
+        else:
+            response_context = urllib.request.urlopen(  # nosec B310 # harness-owned URLs
+                request,
+                timeout=timeout,
+                context=context,
+            )
+        with response_context as response:
             return HttpResult(
                 status=response.status,
                 body=response.read(),
@@ -584,8 +601,22 @@ def _start_daemon(
     name: str,
     port: int,
     log_dir: Path,
+    cloud_port: int,
 ) -> ManagedProcess:
-    env = {**os.environ, "HOME": str(home), "RUST_LOG": "info"}
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key.lower() not in {"http_proxy", "https_proxy", "all_proxy", "no_proxy"}
+    }
+    env.update(
+        {
+            "HOME": str(home),
+            "RUST_LOG": "info",
+            "BICAMERAL_CLOUD_ORIGIN": f"http://127.0.0.1:{cloud_port}",
+            "NO_PROXY": "127.0.0.1,localhost",
+            "no_proxy": "127.0.0.1,localhost",
+        }
+    )
     managed = _start_process(
         name,
         [str(binary), "--workspace", str(workspace), "gateway", "start"],
@@ -1273,7 +1304,9 @@ def _prepare_cloud_runtime(
         try:
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            raise TopologyError("vendored Cloud dashboard provenance is malformed") from exc
+            raise TopologyError(
+                "vendored Cloud dashboard provenance is malformed"
+            ) from exc
         if not isinstance(metadata, dict):
             raise TopologyError("vendored Cloud dashboard provenance is malformed")
         if metadata.get("bot_commit") != bot_commit:
@@ -1374,6 +1407,7 @@ def _start_cloud(
     product_join_signing: dict[str, str] | None = None,
     tls_key: Path | None = None,
     tls_certificate: Path | None = None,
+    tls_port: int | None = None,
 ) -> ManagedProcess:
     env = {
         **os.environ,
@@ -1408,14 +1442,16 @@ def _start_cloud(
         "--no-access-log",
     ]
     if tls_key is not None and tls_certificate is not None:
-        command.extend(
-            [
-                "--ssl-keyfile",
-                str(tls_key),
-                "--ssl-certfile",
-                str(tls_certificate),
-            ]
-        )
+        if tls_port is None or tls_port == port:
+            raise TopologyError("Cloud TLS requires a separate loopback port")
+        command = [
+            str(python),
+            str(cloud_root / "scripts/serve_topology_cloud.py"),
+            str(port),
+            str(tls_port),
+            str(tls_key),
+            str(tls_certificate),
+        ]
     managed = _start_process(
         "cloud",
         command,
@@ -1424,17 +1460,12 @@ def _start_cloud(
         log_dir=log_dir,
     )
     try:
-        if tls_key is None:
-            _wait_http(
-                f"http://127.0.0.1:{port}/health",
-                timeout=30,
-                label="Cloud",
-            )
-        else:
+        _wait_http(f"http://127.0.0.1:{port}/health", timeout=30, label="Cloud")
+        if tls_port is not None:
             deadline = time.monotonic() + 30
             while time.monotonic() < deadline:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                    if sock.connect_ex(("127.0.0.1", port)) == 0:
+                    if sock.connect_ex(("127.0.0.1", tls_port)) == 0:
                         break
                 time.sleep(0.1)
             else:
@@ -1516,7 +1547,34 @@ def _daemon_capabilities(port: int) -> dict[str, object]:
     return {str(key): value for key, value in payload.items()}
 
 
-def _start_daemon_pairing(port: int, cloud_account_id: str) -> tuple[str, str]:
+def _pairing_tenancy(cloud_port: int, access_token: str) -> tuple[str, str]:
+    if not access_token.strip():
+        raise TopologyError("pairing requires a non-empty user credential")
+    result = _http(
+        "POST",
+        f"http://127.0.0.1:{cloud_port}/api/v1/auth/pairing-tenancy",
+        headers={"authorization": f"Bearer {access_token}"},
+    )
+    _expect_status(result, [200], "Cloud pairing tenancy")
+    payload = result.json()
+    if not isinstance(payload, dict) or any(
+        not isinstance(payload.get(key), str) or not payload[key].strip()
+        for key in ("user_id", "team_id")
+    ):
+        raise TopologyError("Cloud pairing tenancy omitted its user or team")
+    return payload["user_id"], payload["team_id"]
+
+
+def _start_daemon_pairing(
+    port: int,
+    cloud_account_id: str,
+    *,
+    access_token: str,
+    cloud_port: int,
+) -> tuple[str, str, str]:
+    user_id, team_id = _pairing_tenancy(cloud_port, access_token)
+    if user_id != cloud_account_id:
+        raise TopologyError("Cloud pairing tenancy did not match the requested account")
     pending = _http(
         "POST",
         f"http://127.0.0.1:{port}/api/v1/hosted-bridge/pair",
@@ -1524,6 +1582,8 @@ def _start_daemon_pairing(port: int, cloud_account_id: str) -> tuple[str, str]:
         payload={
             "origin": TRUSTED_BRIDGE_ORIGIN,
             "cloud_account_id": cloud_account_id,
+            "team_id": team_id,
+            "cloud_access_token": access_token,
             "csrf_token": secrets.token_urlsafe(24),
             "client_protocol_version": HOSTED_BRIDGE_PROTOCOL_VERSION,
         },
@@ -1541,7 +1601,7 @@ def _start_daemon_pairing(port: int, cloud_account_id: str) -> tuple[str, str]:
         raise TopologyError("daemon pairing response omitted its request handle")
     if not isinstance(poll_proof, str) or not poll_proof:
         raise TopologyError("daemon pairing response omitted its poll proof")
-    return request_handle, poll_proof
+    return request_handle, poll_proof, team_id
 
 
 def _approve_daemon_pairing(port: int, request_handle: str) -> None:
@@ -1580,9 +1640,95 @@ def _approve_daemon_pairing(port: int, request_handle: str) -> None:
         raise TopologyError("daemon did not approve the local pairing request")
 
 
-def _pair_daemon(port: int, cloud_account_id: str) -> tuple[str, bytes]:
-    request_handle, poll_proof = _start_daemon_pairing(port, cloud_account_id)
+def _verify_pairing_enrollment(
+    *,
+    home: Path,
+    request_handle: str,
+    cloud_account_id: str,
+    team_id: str,
+    cloud_port: int,
+    audit_token: str,
+) -> None:
+    try:
+        payload = json.loads((home / ".bicameral/pairings/pairings.json").read_text())
+        records = payload["pairings"].values()
+        matching = [
+            record
+            for record in records
+            if record.get("restore_request_handle") == request_handle
+        ]
+    except (OSError, ValueError, KeyError, AttributeError, TypeError) as exc:
+        raise TopologyError("daemon durable pairing evidence was unavailable") from exc
+    if len(matching) != 1:
+        raise TopologyError("daemon did not persist exactly one approved pairing")
+    record = matching[0]
+    if (
+        record.get("cloud_account_id") != cloud_account_id
+        or record.get("team_id") != team_id
+        or record.get("approved_origin") != TRUSTED_BRIDGE_ORIGIN
+        or record.get("revoked") is not False
+        or any(
+            not isinstance(record.get(key), str) or not record[key].strip()
+            for key in ("pairing_id", "daemon_instance_id")
+        )
+        or re.fullmatch(r"enrolled:2\d\d", str(record.get("enrollment_status"))) is None
+    ):
+        raise TopologyError(
+            "approved daemon pairing did not enroll the expected identity"
+        )
+    # The synthetic team creator can read the audit for both users; the peer's
+    # domain eligibility deliberately does not grant team-audit membership.
+    result = _http(
+        "GET",
+        f"http://127.0.0.1:{cloud_port}/api/v1/teams/"
+        f"{urllib.parse.quote(team_id, safe='')}/audit"
+        "?action=pairing.identity_enrolled",
+        headers={"authorization": f"Bearer {audit_token}"},
+    )
+    _expect_status(result, [200], "Cloud identity enrollment audit")
+    audit = result.json()
+    events = audit.get("events") if isinstance(audit, dict) else None
+    if not isinstance(events, list) or not any(
+        isinstance(event, dict)
+        and event.get("action") == "pairing.identity_enrolled"
+        and event.get("actor_id") == cloud_account_id
+        and event.get("team_id") == team_id
+        and isinstance(event.get("detail"), dict)
+        and event["detail"].get("pairing_id") == record.get("pairing_id")
+        and event["detail"].get("daemon_instance_id")
+        == record.get("daemon_instance_id")
+        and re.fullmatch(
+            r"sha256:[0-9a-f]{64}", str(event["detail"].get("identity_key_id"))
+        )
+        for event in events
+    ):
+        raise TopologyError("Cloud did not confirm this pairing's identity enrollment")
+
+
+def _pair_daemon(
+    port: int,
+    cloud_account_id: str,
+    *,
+    access_token: str,
+    cloud_port: int,
+    home: Path,
+    audit_token: str,
+) -> tuple[str, bytes]:
+    request_handle, poll_proof, team_id = _start_daemon_pairing(
+        port,
+        cloud_account_id,
+        access_token=access_token,
+        cloud_port=cloud_port,
+    )
     _approve_daemon_pairing(port, request_handle)
+    _verify_pairing_enrollment(
+        home=home,
+        request_handle=request_handle,
+        cloud_account_id=cloud_account_id,
+        team_id=team_id,
+        cloud_port=cloud_port,
+        audit_token=audit_token,
+    )
 
     query = urllib.parse.urlencode(
         {
@@ -1763,11 +1909,15 @@ def _open_paired_browser_page(
     access_token: str,
     hosted_origin: str,
     daemon_port: int,
+    cloud_port: int,
+    home: Path,
+    audit_token: str,
     setup_page: object | None = None,
     secret_values: list[str] | None = None,
 ) -> object:
-    """Drive the production /dashboard authentication and pairing handoff."""
+    """Drive the production /connect authentication and pairing handoff."""
 
+    user_id, team_id = _pairing_tenancy(cloud_port, access_token)
     page = context.new_page()  # type: ignore[attr-defined]
     stub = _supabase_session_stub(access_token)
     daemon_origin = f"http://localhost:{daemon_port}"
@@ -1807,7 +1957,7 @@ def _open_paired_browser_page(
     )
     if setup_page is not None:
         setup_page(page)  # type: ignore[operator]
-    # The current Cloud dashboard begins the pending-pairing request as soon as
+    # The current Cloud connect page begins the pending-pairing request as soon as
     # its authenticated session is ready. Capture that production request
     # during navigation; there is no separate legacy #pair-btn click.
     with page.expect_response(  # type: ignore[attr-defined]
@@ -1817,7 +1967,7 @@ def _open_paired_browser_page(
         )
     ) as pending_response:
         page.goto(  # type: ignore[attr-defined]
-            f"{hosted_origin}/dashboard", wait_until="networkidle"
+            f"{hosted_origin}/connect", wait_until="networkidle"
         )
     pending = pending_response.value
     if pending.status != 202:
@@ -1833,8 +1983,16 @@ def _open_paired_browser_page(
     if not isinstance(request_handle, str) or not request_handle:
         raise TopologyError("browser pairing response omitted its request handle")
     _approve_daemon_pairing(daemon_port, request_handle)
+    _verify_pairing_enrollment(
+        home=home,
+        request_handle=request_handle,
+        cloud_account_id=user_id,
+        team_id=team_id,
+        cloud_port=cloud_port,
+        audit_token=audit_token,
+    )
     page.wait_for_url(  # type: ignore[attr-defined]
-        f"{hosted_origin}/app", timeout=20_000
+        re.compile(re.escape(hosted_origin) + r"/app(?:\?.*)?$"), timeout=20_000
     )
     _wait_for_selector(
         page,
@@ -1901,8 +2059,8 @@ def _run_terminal_user_journey(
     rendered, the paired daemon is terminated, a real daemon-bound request then
     fails at the network layer, and the SPA must raise exactly one blocking
     "Local daemon disconnected" dialog over the preserved, inert prior screen
-    before "Go to pairing" clears the stale hosted handoff and loads the
-    canonical Cloud /dashboard pairing surface.
+    before "Reconnect device" clears the stale hosted handoff and loads the
+    canonical Cloud /connect pairing surface.
     """
 
     from playwright.sync_api import Error as PlaywrightError
@@ -1965,6 +2123,9 @@ def _run_terminal_user_journey(
             owner_page = _open_paired_browser_page(
                 owner_context,
                 access_token=owner_token,
+                cloud_port=ports["cloud"],
+                home=homes[0],
+                audit_token=owner_token,
                 hosted_origin=hosted_origin,
                 daemon_port=ports["daemon_a"],
                 setup_page=lose_first_create,
@@ -2007,7 +2168,7 @@ def _run_terminal_user_journey(
                             )
                         response = _http(
                             "POST",
-                            f"https://127.0.0.1:{ports['cloud']}/api/v1/products",
+                            f"https://127.0.0.1:{ports['cloud_tls']}/api/v1/products",
                             headers={
                                 "authorization": authorization,
                                 "content-type": "application/json",
@@ -2028,6 +2189,9 @@ def _run_terminal_user_journey(
             owner_page = _open_paired_browser_page(
                 owner_context,
                 access_token=owner_token,
+                cloud_port=ports["cloud"],
+                home=homes[0],
+                audit_token=owner_token,
                 hosted_origin=hosted_origin,
                 daemon_port=ports["daemon_a"],
                 setup_page=lose_first_cloud_publication,
@@ -2052,6 +2216,9 @@ def _run_terminal_user_journey(
             owner_page = _open_paired_browser_page(
                 owner_context,
                 access_token=owner_token,
+                cloud_port=ports["cloud"],
+                home=homes[0],
+                audit_token=owner_token,
                 hosted_origin=hosted_origin,
                 daemon_port=ports["daemon_a"],
                 secret_values=secret_values,
@@ -2109,6 +2276,7 @@ def _run_terminal_user_journey(
                 workspace=workspaces[1],
                 home=homes[1],
                 name="daemon-b-join-ready",
+                cloud_port=ports["cloud"],
                 port=ports["daemon_b"],
                 log_dir=log_dir,
             )
@@ -2185,6 +2353,9 @@ def _run_terminal_user_journey(
             peer_page = _open_paired_browser_page(
                 peer_context,
                 access_token=peer_token,
+                cloud_port=ports["cloud"],
+                home=homes[1],
+                audit_token=owner_token,
                 hosted_origin=hosted_origin,
                 daemon_port=ports["daemon_b"],
                 setup_page=lose_first_join,
@@ -2211,7 +2382,9 @@ def _run_terminal_user_journey(
                     "expected exactly one dialog on lost join response, saw "
                     f"{join_dialogs}"
                 )
-            peer_page.get_by_role("button", name="Go to pairing").wait_for(
+            peer_page.get_by_role(
+                "dialog", name="Local daemon disconnected", exact=True
+            ).get_by_role("button", name="Reconnect device", exact=True).wait_for(
                 state="visible", timeout=10_000
             )
             if not join_response_lost["observed"]:
@@ -2271,14 +2444,16 @@ def _run_terminal_user_journey(
                 f"http://localhost:{ports['daemon_b']}"
                 "/api/v1/hosted-bridge/product-join"
             )
-            peer_page.get_by_role("button", name="Go to pairing").click()
-            peer_page.wait_for_url(f"{hosted_origin}/dashboard", timeout=20_000)
+            peer_page.get_by_role(
+                "dialog", name="Local daemon disconnected", exact=True
+            ).get_by_role("button", name="Reconnect device", exact=True).click()
+            peer_page.wait_for_url(f"{hosted_origin}/connect", timeout=20_000)
             _wait_for_selector(
                 peer_page,
-                "#status-card",
+                "#experience #card",
                 state="visible",
                 timeout=20_000,
-                label="join-recovery dashboard pairing surface",
+                label="join-recovery connect pairing surface",
             )
             if (
                 peer_page.evaluate(
@@ -2303,6 +2478,9 @@ def _run_terminal_user_journey(
             reloaded = _open_paired_browser_page(
                 peer_context,
                 access_token=peer_token,
+                cloud_port=ports["cloud"],
+                home=homes[1],
+                audit_token=owner_token,
                 hosted_origin=hosted_origin,
                 daemon_port=ports["daemon_b"],
                 secret_values=secret_values,
@@ -2357,6 +2535,9 @@ def _run_terminal_user_journey(
             disconnect_page = _open_paired_browser_page(
                 disconnect_context,
                 access_token=owner_token,
+                cloud_port=ports["cloud"],
+                home=homes[0],
+                audit_token=owner_token,
                 hosted_origin=hosted_origin,
                 daemon_port=ports["daemon_a"],
                 secret_values=secret_values,
@@ -2407,7 +2588,9 @@ def _run_terminal_user_journey(
                     "expected exactly one daemon-disconnect dialog, saw "
                     f"{visible_dialogs}"
                 )
-            pairing_action = disconnect_page.get_by_role("button", name="Go to pairing")
+            pairing_action = disconnect_page.get_by_role(
+                "dialog", name="Local daemon disconnected", exact=True
+            ).get_by_role("button", name="Reconnect device", exact=True)
             pairing_action.wait_for(state="visible", timeout=10_000)
 
             scrim_visible = disconnect_page.locator(
@@ -2441,13 +2624,13 @@ def _run_terminal_user_journey(
             screenshots += 1
 
             pairing_action.click()
-            disconnect_page.wait_for_url(f"{hosted_origin}/dashboard", timeout=20_000)
+            disconnect_page.wait_for_url(f"{hosted_origin}/connect", timeout=20_000)
             _wait_for_selector(
                 disconnect_page,
-                "#status-card",
+                "#experience #card",
                 state="visible",
                 timeout=20_000,
-                label="disconnect-recovery dashboard pairing surface",
+                label="disconnect-recovery connect pairing surface",
             )
             handoff_after = disconnect_page.evaluate(
                 "() => window.sessionStorage.getItem('bicameral_hosted_bridge')"
@@ -2667,13 +2850,31 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--use-vendored-dashboard",
         action="store_true",
-        help="exercise Cloud's committed SPA bytes and require them to equal the exact Bot build",
+        help=(
+            "exercise Cloud's committed SPA bytes and require them to equal "
+            "the exact Bot build"
+        ),
+    )
+    parser.add_argument(
+        "--disposable-host-confirmed",
+        action="store_true",
+        help=(
+            "confirm a disposable OS account/VM including its credential store; "
+            "a temporary HOME alone does not isolate the daemon signing key"
+        ),
     )
     return parser.parse_args()
 
 
 def main() -> int:
     args = _parse_args()
+    if not args.disposable_host_confirmed:
+        print(
+            "Full topology requires --disposable-host-confirmed: use a disposable "
+            "OS account/VM with its own credential store, not just a temporary HOME.",
+            file=sys.stderr,
+        )
+        return 2
     if args.terminal_user_journey and sys.version_info[:2] != (3, 11):
         raise TopologyError("terminal user journey must be launched with Python 3.11")
     cloud_root = Path(__file__).resolve().parents[1]
@@ -2696,6 +2897,7 @@ def main() -> int:
     ports = _allocate_ports(
         (
             "cloud",
+            "cloud_tls",
             "daemon_a",
             "daemon_b",
             "supabase_api",
@@ -2870,6 +3072,7 @@ def main() -> int:
             product_join_signing=signing,
             tls_key=tls_key,
             tls_certificate=tls_certificate,
+            tls_port=ports["cloud_tls"] if args.terminal_user_journey else None,
         )
         processes.append(cloud_process)
         cloud_behavior, browser_payloads = _validate_cloud(
@@ -2877,7 +3080,7 @@ def main() -> int:
             owner_token=owner_token,
             expected_dashboard=dashboard,
             base_url=(
-                f"https://127.0.0.1:{ports['cloud']}"
+                f"https://127.0.0.1:{ports['cloud_tls']}"
                 if args.terminal_user_journey
                 else None
             ),
@@ -2910,6 +3113,7 @@ def main() -> int:
             workspace=workspaces[0],
             home=homes[0],
             name="daemon-a",
+            cloud_port=ports["cloud"],
             port=ports["daemon_a"],
             log_dir=log_dir,
         )
@@ -2919,6 +3123,7 @@ def main() -> int:
             workspace=workspaces[1],
             home=homes[1],
             name="daemon-b",
+            cloud_port=ports["cloud"],
             port=ports["daemon_b"],
             log_dir=log_dir,
         )
@@ -2926,8 +3131,22 @@ def main() -> int:
         capabilities_a = _daemon_capabilities(ports["daemon_a"])
         capabilities_b = _daemon_capabilities(ports["daemon_b"])
 
-        bridge_a, pair_payload_a = _pair_daemon(ports["daemon_a"], owner_id)
-        bridge_b, pair_payload_b = _pair_daemon(ports["daemon_b"], peer_id)
+        bridge_a, pair_payload_a = _pair_daemon(
+            ports["daemon_a"],
+            owner_id,
+            access_token=owner_token,
+            cloud_port=ports["cloud"],
+            home=homes[0],
+            audit_token=owner_token,
+        )
+        bridge_b, pair_payload_b = _pair_daemon(
+            ports["daemon_b"],
+            peer_id,
+            access_token=peer_token,
+            cloud_port=ports["cloud"],
+            home=homes[1],
+            audit_token=owner_token,
+        )
         if bridge_a == bridge_b:
             raise TopologyError("daemon bridge sessions were not isolated")
 
@@ -2991,6 +3210,7 @@ def main() -> int:
             workspace=workspaces[0],
             home=homes[0],
             name="daemon-a-restarted",
+            cloud_port=ports["cloud"],
             port=ports["daemon_a"],
             log_dir=log_dir,
         )
@@ -3033,13 +3253,20 @@ def main() -> int:
                 bot_binary=bot_binary,
                 log_dir=log_dir,
                 signing=signing,
-                hosted_origin=(f"https://app.bicameral-ai.com:{ports['cloud']}"),
+                hosted_origin=(f"https://app.bicameral-ai.com:{ports['cloud_tls']}"),
                 daemon_a=daemon_a,
                 daemon_b=daemon_b,
                 processes=processes,
                 secret_values=secret_values,
             )
-            bridge_b, pair_payload_b = _pair_daemon(ports["daemon_b"], peer_id)
+            bridge_b, pair_payload_b = _pair_daemon(
+                ports["daemon_b"],
+                peer_id,
+                access_token=peer_token,
+                cloud_port=ports["cloud"],
+                home=homes[1],
+                audit_token=owner_token,
+            )
 
         restart_evidence: dict[str, object] = {
             "schema_version": 1,
@@ -3157,6 +3384,7 @@ def main() -> int:
                             len(supported_a) if isinstance(supported_a, list) else 0
                         ),
                         "bridge_paired": True,
+                        "cloud_identity_enrolled": True,
                         "bridge_session_fingerprint": _sha256_bytes(bridge_a.encode()),
                     },
                     "daemon_b": {
@@ -3166,6 +3394,7 @@ def main() -> int:
                             len(supported_b) if isinstance(supported_b, list) else 0
                         ),
                         "bridge_paired": True,
+                        "cloud_identity_enrolled": True,
                         "bridge_session_fingerprint": _sha256_bytes(bridge_b.encode()),
                     },
                     "mcp": {
