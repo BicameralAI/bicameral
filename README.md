@@ -5,11 +5,11 @@
   </picture>
 </p>
 
-<h3 align="center">The decision ledger for engineering and product teams</h3>
+<h3 align="center">Human-governed context for engineering and product teams</h3>
 
 <p align="center">
-  Capture the decisions that constrain your code, ground them in the code itself,<br>
-  and keep a human in the loop before any claim becomes authority.
+  Preserve product intent as source-backed, reviewable context,<br>
+  so agents can distinguish approved guidance from unreviewed claims.
 </p>
 
 <p align="center">
@@ -38,47 +38,54 @@
 
 Teams rarely fail because nobody wrote a decision down. They fail because product intent, architectural constraints and implementation drift apart while work is happening. The decision is in a ticket, the rationale is in a meeting, and the agent writing the code sees only a slice of it, then proceeds confidently.
 
-Bicameral treats those decisions as first-class, reviewable records:
+Bicameral's accepted design makes the source and its approval explicit:
 
-- **Grounded, not just documented.** Decisions link to source excerpts and to the code, symbols and diffs they constrain.
-- **Authority is enforced, not asserted.** Integrations and agents can *propose* candidates and evidence. Only a reviewed transition in the local runtime makes something canonical.
-- **Local first.** The most sensitive context (code, branches, conversations) stays at your team's trust boundary. Hosted services are optional and advisory.
-- **Auditable.** Canonical decisions are replayable, attributable and reviewable.
+- **Source-backed.** One immutable `SourceSnapshot` has one `GovernedDomain` containing its extracted claims and relations. Code can be supporting evidence; code-search rank does not establish authority.
+- **Human-governed.** Only an approved domain governs. Approval follows Product policy and exact conflict checks; a missing or failed check is not a no-conflict result.
+- **Explicit trust boundaries.** The local runtime owns canonical transitions. Hosted identity, provider access and semantic processing have separate configuration and consent requirements; local execution does not imply that all processing is offline.
+- **Replayable.** Approval and source provenance must survive restart and reconstruction. A newer snapshot does not inherit the previous snapshot's approval or checks.
 
 ## How Bicameral works
 
-Bicameral is one product made of separately testable components with a strict authority boundary:
+The target workflow is:
+
+```text
+Source -> immutable snapshot -> extracted claims -> conflict checks
+       -> human-governed approval -> reliable recall
+```
+
+[ARCH-0003](docs/architecture/records/ARCH-0003-governed-domain-is-one-source-snapshot.md), [ARCH-0004](docs/architecture/records/ARCH-0004-signoff-is-the-governed-domain.md) and [ARCH-0005](docs/architecture/records/ARCH-0005-replay-stable-governed-context-reads.md) define this model. Signoff is the approved state of a domain, not a separate `Decision` object. Full runtime enforcement and end-to-end qualification remain work in progress; the component map below is not a claim that this entire workflow is available today.
 
 ```mermaid
 flowchart LR
     subgraph edge["Edge: proposes"]
-        I["Integrations<br/>Jira · Linear · Slack · meetings"]
+        I["Integrations<br/>source evidence"]
         M["MCP<br/>agent sessions"]
     end
     subgraph local["Your trust boundary: decides"]
         R["Local runtime<br/>validation · review · governance"]
-        L[("Decision ledger")]
+        L[("Event substrate<br/>snapshots and approval history")]
         D["Dashboard"]
     end
-    C["Cloud (optional)<br/>advisory code-graph services"]
+    C["Cloud<br/>hosted UI, identity and coordination"]
 
-    I -- "evidence, candidates" --> R
+    I -- "source evidence" --> R
     M -- "typed tool requests" --> R
-    R -- "reviewed decisions" --> L
+    R -- "canonical transitions" --> L
     D -. "review" .-> R
-    R -. "advisory queries, with consent" .-> C
+    C -. "authenticated requests" .-> R
 ```
 
 | Component | Role | Authority |
 | --- | --- | --- |
-| **Local runtime** | Daemon and gateway. Validates typed objects, applies governance policy, grounds claims in local code, keeps review state and the audit trail. | **Owns canonical state** |
-| **Dashboard** | Human review surface for candidates and decisions. | Acts through the runtime |
-| **MCP** | Agent-facing tools that map agent actions to typed requests. | Proposes only |
-| **Integrations** | Provider-neutral adapters that turn source activity into evidence and candidates. | Proposes only |
-| **Cloud** (optional) | Hosted advisory services, with explicit consent and tenant separation, plus a self-host path. | Advisory only |
+| **Local runtime** | Daemon and gateway: validation, policy, canonical writes and replay. | **Owns canonical transitions** |
+| **Dashboard** | Human interaction and state display. | Acts through the runtime |
+| **MCP** | Agent-facing tools that map actions to typed requests and preserve returned evidence. | No independent approval authority |
+| **Integrations** | Source adapters supplying evidence. | No independent approval authority |
+| **Cloud** | Hosted UI, identity, pairing and Product discovery/coordination. | Does not approve domains |
 | **Installer** | Installation and distribution. | None |
 
-This is the architecture of the consolidated repository. Each component enforces its boundaries with its own tests; the boundaries are not yet recorded as repository-level architecture records.
+Legacy component names and wire contracts remain in the source during this transition. Their presence does not reinstate the retired Decision model or establish current workflow conformance.
 
 ## Current status
 
@@ -86,14 +93,20 @@ This is the architecture of the consolidated repository. Each component enforces
 | --- | --- |
 | Repository governance: structure manifest, CODEOWNERS generation, architecture records, CI check | **In place** in this repository |
 | Foundational architecture records [ARCH-0001](docs/architecture/records/ARCH-0001-architecture-records-and-canonical-index.md) and [ARCH-0002](docs/architecture/records/ARCH-0002-repository-structure-and-structure-manifest.md) | **Accepted**; they govern architecture records, the architecture index, repository layout and code ownership |
-| License | **Apache-2.0** decided as the outbound license (J-03). Publication waits on the rights evidence in the [migration record](migration/README.md#rights-evidence), including the MCP and Integrations copyright holders' agreement |
+| Product model | **Accepted:** snapshot/domain identity, signoff and governed reads (ARCH-0003/0004/0005). Execution contracts and runtime completion remain tracked by [#39](https://github.com/BicameralAI/bicameral/issues/39), [#40](https://github.com/BicameralAI/bicameral/issues/40) and [#42](https://github.com/BicameralAI/bicameral/issues/42) |
+| Public source and license | **Public**, with an Apache-2.0 root license. Owner publication acceptance and remaining rights, history and security follow-through are recorded in [#22](https://github.com/BicameralAI/bicameral/issues/22) |
 | Product components (runtime, dashboard, MCP, integrations, cloud, installer) | **Imported** as source snapshots with their existing build and test procedures; see the [migration inventory](migration/README.md) |
-| Releases, deployments, public contributions | **Not from this repository yet.** Release and deploy workflows remain inactive here until moved with authorization |
-| Verification | Every component's own build and test suite passes here. **Not yet verified:** the full real-process Cloud + runtime + MCP Create/Join journey (blocked by a test-harness defect, [#21](https://github.com/BicameralAI/bicameral/issues/21)); native macOS builds; the Windows PowerShell 5.1 installer lifecycle; operator-service lanes. Details: [verification ledger](migration/README.md#verification-ledger) |
+| Releases and deployments | **No unified product release from this repository.** The public installer selects separately published component artifacts, not current `main`. Installer-site publication is not product-release qualification |
+| Public contributions | Maintainers and invited contributors only during the transition; unsolicited external PRs are not yet accepted. See [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Verification | Component results are recorded at specific revisions in the [verification ledger](migration/README.md#verification-ledger). The full Create/Join topology ([#21](https://github.com/BicameralAI/bicameral/issues/21)) and governed lifecycle ([#41](https://github.com/BicameralAI/bicameral/issues/41)) are not qualified. Native macOS, Windows PowerShell 5.1 installer lifecycle and operator-service evidence also remain incomplete |
 
 ## Getting started
 
-Each component builds and tests as it did in its own repository, from its own directory:
+**Trying the product:** [the installer](installer/README.md) selects the existing component release; monorepo fixes do not reach that release automatically. Hosted signup currently requires design-partner eligibility. Self-hosting needs explicit identity, provider and signing configuration; starting a development server alone does not establish a working user journey. See [Cloud setup](services/cloud/README.md#local-setup).
+
+The [legacy quickstart](apps/bot/QUICKSTART.md) describes the earlier candidate-promotion workflow, not an executable guide to the current governed-domain lifecycle. A replacement walkthrough must be validated against the exact released composition before it is presented as working end to end.
+
+**Developing the source:** the following are component checks, not installation or user-journey acceptance. Use each component's specified toolchain and a separate Python virtual environment:
 
 ```bash
 git clone https://github.com/BicameralAI/bicameral.git
@@ -110,7 +123,7 @@ cd bicameral
 python3 tools/governance/check.py                                   # repository governance checks
 ```
 
-None of these needs Bicameral credentials or private infrastructure. Each component's README has its development guide, and the exact CI commands are the `run:` steps in [`.github/workflows/`](.github/workflows/) (named `<component>-*.yml`). [`.github/workflows/installer-pages.yml`](.github/workflows/installer-pages.yml) publishes [`installer/site/`](installer/site/) to https://install.bicameral-ai.com.
+These checks are intended for isolated development without live provider credentials. Do not substitute a production account or normal OS keyring for a disposable test environment. Each component's README has its development guide, and the exact CI commands are the `run:` steps in [`.github/workflows/`](.github/workflows/) (named `<component>-*.yml`). [`.github/workflows/installer-pages.yml`](.github/workflows/installer-pages.yml) publishes [`installer/site/`](installer/site/) to https://install.bicameral-ai.com.
 
 ## Repository structure
 
@@ -121,7 +134,7 @@ The layout is declared in [`governance/structure.json`](governance/structure.jso
 | [`apps/bot/`](apps/bot/) | Local runtime: Rust daemon, gateway, protocol, dashboard | `bicameral-bot` |
 | [`packages/mcp/`](packages/mcp/) | MCP tool surface | `bicameral-mcp` |
 | [`packages/integrations/`](packages/integrations/) | Source adapters and mods | `bicameral-integrations` |
-| [`services/cloud/`](services/cloud/) | Optional hosted service and self-host configuration | `bicameral-cloud` |
+| [`services/cloud/`](services/cloud/) | Hosted UI, identity, coordination and self-host configuration | `bicameral-cloud` |
 | [`installer/`](installer/) | Installation scripts and install site | `bicameral-install` |
 | [`docs/architecture/`](docs/architecture/) | Architecture records and the generated index | |
 | [`governance/`](governance/) | Structure manifest | |
@@ -141,7 +154,7 @@ Components keep their own internal layout, including their own `docs/` and pre-c
 
 - **Reporting.** Do not file vulnerabilities as public issues. Follow [SECURITY.md](SECURITY.md).
 - **CI.** The `governance` check runs on every pull request with a read-only token, no secrets, no dependency installation and a commit-pinned checkout action.
-- **Review.** [GOVERNANCE.md](GOVERNANCE.md) requires every change to `main` to arrive by pull request with an independent code-owner approval. Enforcement by a repository ruleset is pending setup by a repository administrator.
+- **Review.** [GOVERNANCE.md](GOVERNANCE.md) requires every change to `main` to arrive by pull request with an independent code-owner approval. Repository rules are configured; evidence and remaining enforcement checks are tracked in [#22](https://github.com/BicameralAI/bicameral/issues/22). Configuration alone is not proof that every rejection path has been exercised.
 - **SOC 2.** Bicameral is **preparing for a SOC 2 Type 1 examination** (Security and Confidentiality). No examination has been completed, no report has been issued, and Bicameral does not claim SOC 2 compliance or certification. [Details →](SECURITY.md#compliance-posture)
 
 ## Development and testing
@@ -171,7 +184,7 @@ Contributions use a Developer Certificate of Origin sign-off (`git commit -s`); 
 
 ## License and attribution
 
-Bicameral's decided outbound license is the [Apache License 2.0](LICENSE) (J-03). MCP and Integrations, previously BSL 1.1, enter it only once each copyright holder agrees; the evidence still needed is listed in [`migration/README.md`](migration/README.md#rights-evidence).
+The repository carries the [Apache License 2.0](LICENSE) (J-03). The owner's [publication acceptance](https://github.com/BicameralAI/bicameral/issues/22#issuecomment-6380066910), rights/provenance evidence and remaining follow-through are recorded in [#22](https://github.com/BicameralAI/bicameral/issues/22) and the [migration record](migration/README.md#rights-evidence). Public visibility does not by itself close the remaining evidence items.
 
 Components are imported as curated source snapshots with their provenance and any third-party notices preserved, without importing unrelated source histories. Navigator, Atlas, FinOps, TARA, related Qortara/Cortera development-support products and MythologIQ's Event Radar are separate products. They are not part of Bicameral and are not licensed by this repository.
 

@@ -1,6 +1,9 @@
-# Quickstart
+# Quickstart (legacy candidate workflow)
 
-Get from zero to your first reviewed Decision in under 15 minutes.
+> [!WARNING]
+> This walkthrough describes the earlier DecisionCandidate promotion path, not the current snapshot/GovernedDomain lifecycle. It is retained for reference, not presented as a verified first-use path for current source or releases. Start with the [current product status](../../README.md#current-status); full lifecycle acceptance is tracked in [#41](https://github.com/BicameralAI/bicameral/issues/41).
+>
+> Local workspace initialization is not complete onboarding. The hosted steps below require an account and design-partner eligibility; provider consent and host configuration are separate. No current time-to-first-result claim is made.
 
 > **Alpha note:** Bicameral Bot is in early alpha. The public binary and user-level
 > service path currently support Linux and macOS. Windows packaging, self-update,
