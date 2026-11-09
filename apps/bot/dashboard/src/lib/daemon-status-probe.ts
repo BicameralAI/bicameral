@@ -11,12 +11,11 @@
  *   monitor leaves the displayed state alone. A reachable daemon that returns a
  *   typed error is not a stopped daemon.
  *
- * Requests go through the shared transport unchanged; this file adds no
- * transport classification of its own.
+ * Fetch directly so the monitor owns state changes after its lifetime check.
+ * The shared transport's global disconnect notifications must not run here.
  */
 
 import { hostedGatewayBase } from "./api";
-import { fetchFromHostedDaemon } from "./hosted-daemon-connection";
 import type { LivenessResult } from "./daemon-liveness";
 
 function isTransportFailure(error: unknown): boolean {
@@ -30,7 +29,7 @@ export async function probeDaemonStatus(
 ): Promise<LivenessResult> {
   let response: Response;
   try {
-    response = await fetchFromHostedDaemon(
+    response = await fetch(
       `${hostedGatewayBase()}/api/v1/hosted-bridge/status`,
       { headers: { "x-bridge-session-token": sessionToken } },
     );
