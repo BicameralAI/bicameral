@@ -18,6 +18,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OWNERS = ["@jinhongkuan", "@Knapp-Kevin"]
+# Default owners in the real governance/structure.json. Root governance files
+# stay owned by OWNERS only.
+REAL_DEFAULT_OWNERS = ["@jinhongkuan", "@Knapp-Kevin", "@silongtan"]
 
 BASE_MANIFEST = {
     "version": 1,

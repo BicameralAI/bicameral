@@ -2,7 +2,8 @@
   "version": 1,
   "default_owners": [
     "@jinhongkuan",
-    "@Knapp-Kevin"
+    "@Knapp-Kevin",
+    "@silongtan"
   ],
   "canonical": {
     "architecture_records": "docs/architecture/records"
