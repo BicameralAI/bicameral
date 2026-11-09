@@ -1,0 +1,72 @@
+{
+  "fixture_version": 1,
+  "case_id": "tracked-is-not-governing",
+  "issue": "BicameralAI/bicameral#55",
+  "synthetic": true,
+  "status": "BLOCKED (resolver not implemented; ARCH-0005)",
+  "description": "A completed domain that was only tracked, never signed off, must not govern. ARCH-0004 state: tracked.",
+  "product_id": "prod_synthetic_alpha",
+  "snapshots": [
+    {
+      "replayed_state": "tracked",
+      "source_snapshot": {
+        "snapshot_addr": "snap_t1",
+        "snapshot_ref": "synthetic-ref-t1",
+        "captured_at": "2026-01-10T00:00:00Z",
+        "source_uri": "synthetic://policies/refunds",
+        "capture_method": "manual"
+      },
+      "governed_domain": {
+        "product_id": "prod_synthetic_alpha",
+        "snapshot_addr": "snap_t1",
+        "claims": [
+          {
+            "claim_id": "c1",
+            "revision": 0,
+            "context_statement": "Refunds within 30 days are allowed."
+          }
+        ],
+        "atoms": [
+          {
+            "atom_id": "a1",
+            "atom_kind": "policy_action",
+            "semantic_key": "refund.window_30_days"
+          }
+        ],
+        "claim_assertions": [
+          {
+            "assertion_id": "s1",
+            "claim_id": "c1",
+            "atom_id": "a1",
+            "polarity": "positive"
+          }
+        ],
+        "relations": [],
+        "source_digest": "c54f4ba922229ab8466036cd7110ca0f3706369f95002d303ce0fe177d27875f",
+        "route": "system_one",
+        "model_id": "synthetic-model",
+        "prompt_id": "synthetic-prompt-1",
+        "prompt_digest": "synthetic-prompt-digest-1"
+      },
+      "signoff": null,
+      "supersede_snapshot": null
+    }
+  ],
+  "check_records": [],
+  "query": {
+    "product_id": "prod_synthetic_alpha",
+    "scope": "synthetic-scope-a",
+    "as_of": null
+  },
+  "expected": {
+    "governing": [],
+    "excluded": [
+      {
+        "snapshot_addr": "snap_t1",
+        "reason": "not_approved"
+      }
+    ],
+    "unresolved": false,
+    "typed_unknown": []
+  }
+}
