@@ -98,6 +98,7 @@ module SignoffCommands {
   var pending: Set[Cmd]
   var lastCmd: Cmd
   var lastReply: str
+  var lastWasDuplicate: bool  // diagnostic, not part of the recorded reply
 
   // ── Pure layer ───────────────────────────────────────────────────────────
 
@@ -206,6 +207,7 @@ module SignoffCommands {
       pending' = Set(),
       lastCmd' = noCmd,
       lastReply' = "",
+      lastWasDuplicate' = false,
     }
   }
 
@@ -215,6 +217,7 @@ module SignoffCommands {
     pending' = pending.union(Set(c)),
     standing' = standing, versions' = versions, policyHistory' = policyHistory,
     log' = log, outcomes' = outcomes, lastCmd' = lastCmd, lastReply' = lastReply,
+    lastWasDuplicate' = lastWasDuplicate,
   }
 
   /// Retry of a command id already decided, with the same payload.
@@ -222,7 +225,8 @@ module SignoffCommands {
     outcomes.keys().contains(c.id),
     outcomes.get(c.id).cmd == c,
     lastCmd' = c,
-    lastReply' = if (outcomes.get(c.id).reply == "accepted") "duplicate:accepted" else "duplicate:refused",
+    lastReply' = outcomes.get(c.id).reply,
+    lastWasDuplicate' = true,
     standing' = standing, versions' = versions, policyHistory' = policyHistory,
     log' = log, outcomes' = outcomes, pending' = pending,
   }
@@ -233,6 +237,7 @@ module SignoffCommands {
     outcomes.get(c.id).cmd != c,
     lastCmd' = c,
     lastReply' = "idempotency_conflict",
+    lastWasDuplicate' = false,
     standing' = standing, versions' = versions, policyHistory' = policyHistory,
     log' = log, outcomes' = outcomes, pending' = pending,
   }
@@ -246,6 +251,7 @@ module SignoffCommands {
       outcomes' = outcomes.put(c.id, { cmd: c, reply: reason }),
       lastCmd' = c,
       lastReply' = reason,
+      lastWasDuplicate' = false,
       standing' = standing, versions' = versions, policyHistory' = policyHistory,
       log' = log, pending' = pending,
     }
@@ -264,6 +270,7 @@ module SignoffCommands {
     outcomes' = outcomes.put(c.id, { cmd: c, reply: "accepted" }),
     lastCmd' = c,
     lastReply' = "accepted",
+    lastWasDuplicate' = false,
     pending' = pending,
   }
 
@@ -285,6 +292,7 @@ module SignoffCommands {
       pending' = pending.exclude(Set(c)),
       standing' = standing, versions' = versions, policyHistory' = policyHistory,
       log' = log, outcomes' = outcomes, lastCmd' = lastCmd, lastReply' = lastReply,
+      lastWasDuplicate' = lastWasDuplicate,
     },
   }
 
@@ -374,8 +382,8 @@ module SignoffCommands {
   }
 
   // ── Witnesses ────────────────────────────────────────────────────────────
-  val wAccepted: bool = lastReply == "accepted"
-  val wDuplicate: bool = lastReply == "duplicate:accepted"
+  val wAccepted: bool = lastReply == "accepted" and not(lastWasDuplicate)
+  val wDuplicate: bool = lastReply == "accepted" and lastWasDuplicate
   val wIdConflict: bool = lastReply == "idempotency_conflict"
   val wStale: bool = lastReply == "stale"
   val wMemberClaimedOwnerRefused: bool =
@@ -400,4 +408,38 @@ module SignoffCommands3 {
     CmdIds = 1.to(30),
     MaxPending = 3,
   ).*
+
+  val track: Cmd = {
+    ...noCmd, id: 1, kind: "track", actor: "p1", src: "s1",
+    expected: Sources.mapBy(_ => 0), expectedPolicy: 0,
+  }
+
+  run acceptedRetryTest = init.then(sendNow(track)).expect(wAccepted)
+    .then(sendNow(track)).expect(and {
+      lastReply == "accepted", lastReply == outcomes.get(1).reply,
+      wDuplicate, not(wAccepted), log.length() == 1, outcomes.keys().size() == 1, Safety,
+    })
+
+  action retryRefused(c: Cmd, reason: str): bool =
+    sendNow(c).expect(lastReply == reason)
+      .then(sendNow(c)).expect(and {
+        lastReply == reason, lastReply == outcomes.get(c.id).reply,
+        not(wAccepted), not(wDuplicate), log.length() == 0, outcomes.keys().size() == 1, Safety,
+      })
+
+  run unauthorizedRetryTest = init.then(retryRefused({
+    ...track, kind: "setPolicy", actor: "p2", claimedRole: "owner",
+  }, "unauthorized"))
+
+  run staleRetryTest = init.then(retryRefused({
+    ...track, expected: Sources.mapBy(_ => 1),
+  }, "stale"))
+
+  run illegalRetryTest = init.then(retryRefused({ ...track, kind: "untrack" }, "illegal"))
+
+  run changedPayloadTest = init.then(sendNow(track))
+    .then(sendNow({ ...track, kind: "untrack" })).expect(and {
+      wIdConflict, not(wDuplicate), outcomes.get(1).cmd == track,
+      outcomes.get(1).reply == "accepted", log.length() == 1, Safety,
+    })
 }
