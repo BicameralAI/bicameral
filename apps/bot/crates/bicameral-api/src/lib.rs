@@ -52,6 +52,7 @@ pub mod review;
 pub mod semantic;
 pub mod semantic_recall;
 pub mod source;
+pub mod spec_registry;
 pub mod staged_preflight;
 #[path = "tool_request.rs"]
 mod tool_request_legacy;
