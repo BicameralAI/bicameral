@@ -119,6 +119,9 @@ function Invoke-WebRequest {
     if (-not $Caught.Contains('TEST_UNINSTALL_DOWNLOAD_FAILED')) { throw "Download failure was masked: $Caught" }
     if (Test-Path -LiteralPath $global:BicameralTestFetchedUninstall) { throw 'Failed download leaked temporary script.' }
     Write-Host 'PASS: uninstall download failure stops execution and cleans temporary script'
+    # The failed-uninstaller case leaves a non-zero native exit code, and the
+    # CI step wrapper exits with $LASTEXITCODE. All checks passed at this point.
+    $global:LASTEXITCODE = 0
 } finally {
     Remove-Variable -Name BicameralTestDownloads,BicameralTestMockManifest,BicameralTestFetchedUninstall,BicameralTestGuidanceInvoked -Scope Global -ErrorAction SilentlyContinue
     Remove-Item -Path Env:BICAMERAL_TEST_MARKER,Env:BICAMERAL_TEST_STUB,Env:BICAMERAL_TEST_EXIT -ErrorAction SilentlyContinue
