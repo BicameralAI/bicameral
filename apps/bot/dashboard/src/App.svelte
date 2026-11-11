@@ -28,7 +28,9 @@
   import type { ProviderResourceDescriptor } from "./lib/types";
   import type { ProjectEntry } from "./lib/project-fixtures";
   import type { HostedBridgeUIState } from "./lib/hosted-bridge-types";
-  import { bridgeStateToConnectStatus } from "./lib/connect-status";
+  import { hostedConnectionStatus } from "./lib/connect-status";
+  import { startDaemonLiveness } from "./lib/daemon-liveness";
+  import { probeDaemonStatus } from "./lib/daemon-status-probe";
   import {
     pairWithDaemon,
     pollBridgeStatus,
@@ -181,6 +183,23 @@ let bridgeState = $state<HostedBridgeUIState>(
 
   $effect(() => {
     if (appShell) appShell.toggleAttribute("inert", daemonDisconnected);
+  });
+
+  // Liveness (bicameral#52): while a bridge session is live, poll the existing
+  // status route so an idle page notices a stopped daemon without a reload, and
+  // so a reachable daemon clears a disconnect that some other request raised.
+  // Only the session token is read here: the monitor writes the flag, it never
+  // tracks it, so this effect does not re-run on disconnect or recovery.
+  $effect(() => {
+    const sessionToken = bridgeSessionToken;
+    if (bridgeState.kind !== "paired" || !sessionToken) return;
+    return startDaemonLiveness({
+      probe: () => probeDaemonStatus(sessionToken),
+      current: () => (daemonDisconnected ? "down" : "up"),
+      onChange: (state) => {
+        daemonDisconnected = state === "down";
+      },
+    });
   });
 
   // Create/Join registration state (cloud#66). The token lives here (handoff),
@@ -850,7 +869,9 @@ function handleDaemonPairingRecovery() {
   });
 
   /** Hosted shell chrome: connection pill + profile avatar (single global header). */
-  const hostedConnectStatus = $derived(bridgeStateToConnectStatus(bridgeState));
+  const hostedConnectStatus = $derived(
+    hostedConnectionStatus(bridgeState, daemonDisconnected),
+  );
   const hostedConnTone = $derived.by(() => {
     switch (hostedConnectStatus) {
       case "connected":
