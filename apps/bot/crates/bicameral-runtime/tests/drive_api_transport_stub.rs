@@ -973,7 +973,15 @@ fn probe_folder_fails_closed() {
     ];
     for (payload, expected) in cases {
         let body = payload.to_string().into_bytes();
-        let server = StubServer::start(Box::new(move |_| (200, body.clone())));
+        let server = StubServer::start(Box::new(move |request| {
+            if request.path_and_query.starts_with("/drive/v3/files/folder-1?") {
+                (200, body.clone())
+            } else if request.path_and_query.starts_with("/drive/v3/files?") {
+                (200, b"{\"files\":[]}".to_vec())
+            } else {
+                (500, b"{}".to_vec())
+            }
+        }));
         let transport = HttpDriveApiTransport::new(Arc::new(StaticTokenProvider(
             "test-access-token-value".into(),
         )))
