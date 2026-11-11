@@ -151,6 +151,18 @@ impl DriveApiAdapter {
         let resource_fingerprint =
             sha256_hex(format!("google_drive_folder:{}", self.folder_id).as_bytes());
 
+        // ARCH-0007 Decision 4: check folder identity/write capability AND
+        // actual child-list access before every append, including retries.
+        // A writable folder with an unreadable ledger must never gain new
+        // canonical events; a successful metadata probe alone is insufficient.
+        // An empty listing is not proof that canonical history is empty.
+        self.transport
+            .probe_folder(&self.folder_id)
+            .map_err(map_transport_error)?;
+        self.transport
+            .list_children(&self.folder_id)
+            .map_err(map_transport_error)?;
+
         let existing = self
             .transport
             .find_children_by_name(&self.folder_id, &name)
@@ -391,7 +403,11 @@ mod tests {
     struct FakeDriveTransport {
         objects: Mutex<BTreeMap<String, FakeStoredObject>>,
         create_count: Mutex<u64>,
+        find_count: Mutex<u64>,
+        probe_count: Mutex<u64>,
+        list_count: Mutex<u64>,
         fail_probe: Mutex<bool>,
+        fail_list: Mutex<bool>,
     }
 
     impl FakeDriveTransport {
@@ -420,6 +436,7 @@ mod tests {
             _folder_id: &str,
             name: &str,
         ) -> Result<Vec<DriveRemoteObject>, DriveTransportError> {
+            *self.find_count.lock().unwrap() += 1;
             Ok(self
                 .objects
                 .lock()
@@ -472,6 +489,13 @@ mod tests {
             &self,
             _folder_id: &str,
         ) -> Result<Vec<DriveRemoteObject>, DriveTransportError> {
+            *self.list_count.lock().unwrap() += 1;
+            if *self.fail_list.lock().unwrap() {
+                return Err(DriveTransportError::new(
+                    DriveTransportErrorKind::Authentication,
+                    "provider child listing is not readable",
+                ));
+            }
             Ok(self
                 .objects
                 .lock()
@@ -482,6 +506,7 @@ mod tests {
         }
 
         fn probe_folder(&self, _folder_id: &str) -> Result<(), DriveTransportError> {
+            *self.probe_count.lock().unwrap() += 1;
             if *self.fail_probe.lock().unwrap() {
                 return Err(DriveTransportError::new(
                     DriveTransportErrorKind::Authentication,
@@ -533,6 +558,58 @@ mod tests {
         assert!(!second.created);
         assert_eq!(first.provider_file_id, second.provider_file_id);
         assert_eq!(first.event_digest, second.event_digest);
+        assert_eq!(transport.len(), 1);
+        assert_eq!(*transport.probe_count.lock().unwrap(), 2);
+        assert_eq!(*transport.list_count.lock().unwrap(), 2);
+    }
+
+    #[test]
+    fn append_refuses_when_folder_probe_fails_before_any_lookup_or_write() {
+        let transport = Arc::new(FakeDriveTransport::default());
+        *transport.fail_probe.lock().unwrap() = true;
+        let adapter = DriveApiAdapter::new("folder-alpha", transport.clone()).unwrap();
+        let entry = event("00000000-0000-0000-0000-000000000012", 12);
+
+        let error = adapter.append_confirmed(&entry).unwrap_err();
+        assert!(matches!(error, EventStoreError::Unreachable { .. }));
+        assert_eq!(*transport.probe_count.lock().unwrap(), 1);
+        assert_eq!(*transport.list_count.lock().unwrap(), 0);
+        assert_eq!(*transport.find_count.lock().unwrap(), 0);
+        assert_eq!(*transport.create_count.lock().unwrap(), 0);
+        assert_eq!(transport.len(), 0);
+    }
+
+    #[test]
+    fn append_refuses_unreadable_ledger_even_if_folder_is_writable() {
+        let transport = Arc::new(FakeDriveTransport::default());
+        *transport.fail_list.lock().unwrap() = true;
+        let adapter = DriveApiAdapter::new("folder-alpha", transport.clone()).unwrap();
+        let entry = event("00000000-0000-0000-0000-000000000013", 13);
+
+        let error = adapter.append_confirmed(&entry).unwrap_err();
+        assert!(matches!(error, EventStoreError::Unreachable { .. }));
+        assert_eq!(*transport.probe_count.lock().unwrap(), 1);
+        assert_eq!(*transport.list_count.lock().unwrap(), 1);
+        assert_eq!(*transport.find_count.lock().unwrap(), 0);
+        assert_eq!(*transport.create_count.lock().unwrap(), 0);
+        assert_eq!(transport.len(), 0);
+    }
+
+    #[test]
+    fn append_retry_refuses_if_ledger_read_access_was_lost() {
+        let transport = Arc::new(FakeDriveTransport::default());
+        let adapter = DriveApiAdapter::new("folder-alpha", transport.clone()).unwrap();
+        let entry = event("00000000-0000-0000-0000-000000000014", 14);
+
+        adapter.append_confirmed(&entry).unwrap();
+        *transport.fail_list.lock().unwrap() = true;
+        let error = adapter.append_confirmed(&entry).unwrap_err();
+
+        assert!(matches!(error, EventStoreError::Unreachable { .. }));
+        assert_eq!(*transport.probe_count.lock().unwrap(), 2);
+        assert_eq!(*transport.list_count.lock().unwrap(), 2);
+        assert_eq!(*transport.find_count.lock().unwrap(), 1);
+        assert_eq!(*transport.create_count.lock().unwrap(), 1);
         assert_eq!(transport.len(), 1);
     }
 
