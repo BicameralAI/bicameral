@@ -858,7 +858,11 @@ fn append_refuses_if_folder_writable_but_child_listing_is_forbidden() {
         bicameral_api::event_store::EventStoreError::Unreachable { .. }
     ));
     let recorded = server.recorded();
-    assert_eq!(recorded.len(), 2, "forbidden child listing must prevent upload");
+    assert_eq!(
+        recorded.len(),
+        2,
+        "forbidden child listing must prevent upload"
+    );
     assert!(recorded[0]
         .path_and_query
         .starts_with("/drive/v3/files/folder-1?"));
@@ -974,7 +978,10 @@ fn probe_folder_fails_closed() {
     for (payload, expected) in cases {
         let body = payload.to_string().into_bytes();
         let server = StubServer::start(Box::new(move |request| {
-            if request.path_and_query.starts_with("/drive/v3/files/folder-1?") {
+            if request
+                .path_and_query
+                .starts_with("/drive/v3/files/folder-1?")
+            {
                 (200, body.clone())
             } else if request.path_and_query.starts_with("/drive/v3/files?") {
                 (200, b"{\"files\":[]}".to_vec())
