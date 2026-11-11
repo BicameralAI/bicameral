@@ -151,16 +151,12 @@ impl DriveApiAdapter {
         let resource_fingerprint =
             sha256_hex(format!("google_drive_folder:{}", self.folder_id).as_bytes());
 
-        // ARCH-0007 Decision 4: check folder identity/write capability AND
-        // actual child-list access before every append, including retries.
-        // A writable folder with an unreadable ledger must never gain new
-        // canonical events; a successful metadata probe alone is insufficient.
-        // An empty listing is not proof that canonical history is empty.
+        // ARCH-0007 Decision 4: probe folder identity, write capability,
+        // and child-list readability before every append, including retries.
+        // The provider probe uses a bounded listing, not a full ledger scan.
+        // An empty probe response is never evidence of empty canonical history.
         self.transport
             .probe_folder(&self.folder_id)
-            .map_err(map_transport_error)?;
-        self.transport
-            .list_children(&self.folder_id)
             .map_err(map_transport_error)?;
 
         let existing = self
@@ -511,6 +507,14 @@ mod tests {
                 return Err(DriveTransportError::new(
                     DriveTransportErrorKind::Authentication,
                     "provider credential unavailable",
+                ));
+            }
+            // Production probes also make a bounded child-list request.
+            *self.list_count.lock().unwrap() += 1;
+            if *self.fail_list.lock().unwrap() {
+                return Err(DriveTransportError::new(
+                    DriveTransportErrorKind::Authentication,
+                    "provider child listing is not readable",
                 ));
             }
             Ok(())
