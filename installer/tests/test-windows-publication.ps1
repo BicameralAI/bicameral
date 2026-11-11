@@ -56,7 +56,10 @@ try {
     Check-Consumption 'digest-only pin refused' (New-Manifest $CommitA $DigestA) @{ExpectedWindowsSha256=$DigestA} 'must be supplied together' 0
     Check-Consumption 'ordinary customer latest remains supported' (New-Manifest $CommitB $DigestB) @{} 'TEST_DOWNLOAD_REACHED' 1
 
-    # Execute the actual printed uninstall command from an unrelated directory.
+    # Execute the actual printed uninstall command the way a customer does: pasted
+    # into a fresh session, from an unrelated directory, with the Windows client
+    # default execution policy (Restricted). The download is replaced by a stub
+    # script that records the call and exits with a chosen code.
     $Tokens = $null; $ParseErrors = $null
     $Ast = [Management.Automation.Language.Parser]::ParseFile($Installer, [ref]$Tokens, [ref]$ParseErrors)
     if ($ParseErrors.Count) { throw 'Installer parse failed.' }
@@ -67,19 +70,41 @@ try {
     }, $true))
     if ($Guidance.Count -ne 1) { throw 'Expected one runnable browser uninstall instruction.' }
     $Command = $Guidance[0].Value.Substring('Uninstall (paste into PowerShell): '.Length)
-    $global:BicameralTestFetchedUninstall = $null
-    function Invoke-WebRequest {
-        param($Uri, $OutFile, [switch]$UseBasicParsing, $ErrorAction)
-        if ($Uri -ne 'https://install.bicameral-ai.com/install.ps1') { throw 'Wrong uninstall origin.' }
-        $global:BicameralTestFetchedUninstall = $OutFile
-        Set-Content -LiteralPath $OutFile -Value 'param([switch]$Uninstall); if (-not $Uninstall) { throw "Uninstall switch missing" }; $global:BicameralTestGuidanceInvoked = $true'
+    $HostExe = (Get-Process -Id $PID).Path
+    $Marker = Join-Path $TestRoot 'uninstall-invoked.txt'
+    $env:BICAMERAL_TEST_MARKER = $Marker
+    $env:BICAMERAL_TEST_STUB = "param([switch]`$Uninstall)`nif (-not `$Uninstall) { exit 9 }`nSet-Content -LiteralPath `$env:BICAMERAL_TEST_MARKER -Value invoked`nexit ([int]`$env:BICAMERAL_TEST_EXIT)"
+    $ChildPrelude = @'
+if ((Get-ExecutionPolicy) -ne 'Restricted') { exit 42 }
+function Invoke-WebRequest {
+    param($Uri, $OutFile, [switch]$UseBasicParsing, $ErrorAction)
+    if ($Uri -ne 'https://install.bicameral-ai.com/install.ps1') { throw 'Wrong uninstall origin.' }
+    Set-Content -LiteralPath $OutFile -Value $env:BICAMERAL_TEST_STUB
+}
+'@
+    function Invoke-PrintedUninstall([int]$StubExitCode) {
+        $ErrorActionPreference = 'Continue'
+        $env:BICAMERAL_TEST_EXIT = [string]$StubExitCode
+        if (Test-Path -LiteralPath $Marker) { Remove-Item -LiteralPath $Marker -Force }
+        $Encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($ChildPrelude + "`n" + $Command))
+        Push-Location $TestRoot
+        try {
+            $Output = & $HostExe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Restricted -EncodedCommand $Encoded 2>&1 | Out-String
+            $Code = $LASTEXITCODE
+        } finally { Pop-Location }
+        if ($Code -eq 42) { throw 'Test setup could not create a process with a Restricted execution policy.' }
+        if (@(Get-ChildItem -LiteralPath $TestRoot -Filter 'bicameral-uninstall-*.ps1' -Force).Count) { throw 'Printed command leaked its temporary script.' }
+        return [pscustomobject]@{ Code = $Code; Output = $Output; Invoked = (Test-Path -LiteralPath $Marker) }
     }
-    $global:BicameralTestGuidanceInvoked = $false
-    Push-Location $TestRoot
-    try { & ([ScriptBlock]::Create($Command)) } finally { Pop-Location }
-    if (-not $global:BicameralTestGuidanceInvoked) { throw 'Printed command did not invoke the fetched uninstaller.' }
-    if (Test-Path -LiteralPath $global:BicameralTestFetchedUninstall) { throw 'Printed command leaked its temporary script.' }
-    Write-Host 'PASS: browser uninstall guidance works outside checkout and cleans temporary script'
+
+    $Result = Invoke-PrintedUninstall 0
+    if (-not $Result.Invoked -or $Result.Code -ne 0) { throw "Printed command did not run the fetched uninstaller under a Restricted policy (exit $($Result.Code)): $($Result.Output)" }
+    Write-Host 'PASS: browser uninstall guidance works under a Restricted execution policy, outside checkout, and cleans temporary script'
+
+    $Result = Invoke-PrintedUninstall 3
+    if (-not $Result.Invoked) { throw "Printed command did not run the fetched uninstaller (exit $($Result.Code)): $($Result.Output)" }
+    if ($Result.Code -eq 0 -or -not $Result.Output.Contains('exit code 3')) { throw "Printed command hid a failed uninstall (exit $($Result.Code)): $($Result.Output)" }
+    Write-Host 'PASS: browser uninstall guidance reports a failed uninstaller and cleans temporary script'
 
     # Download failure must not execute an old script and must still clean up.
     $global:BicameralTestGuidanceInvoked = $false
@@ -96,6 +121,7 @@ try {
     Write-Host 'PASS: uninstall download failure stops execution and cleans temporary script'
 } finally {
     Remove-Variable -Name BicameralTestDownloads,BicameralTestMockManifest,BicameralTestFetchedUninstall,BicameralTestGuidanceInvoked -Scope Global -ErrorAction SilentlyContinue
+    Remove-Item -Path Env:BICAMERAL_TEST_MARKER,Env:BICAMERAL_TEST_STUB,Env:BICAMERAL_TEST_EXIT -ErrorAction SilentlyContinue
     $env:BICAMERAL_INSTALL_DIR = $PreviousInstallDir
     $env:LOCALAPPDATA = $PreviousLocal
     $env:TEMP = $PreviousTemp
