@@ -785,7 +785,9 @@ fn append_confirmed_roundtrip_with_marker_binding() {
     let recorded = server.recorded();
     // The adapter probes folder capability and successful child listing
     // before the canonical event discovery and upload.
-    assert!(recorded[0].path_and_query.starts_with("/drive/v3/files/folder-1?"));
+    assert!(recorded[0]
+        .path_and_query
+        .starts_with("/drive/v3/files/folder-1?"));
     assert_eq!(recorded[0].method, "GET");
     assert!(recorded[1].path_and_query.starts_with("/drive/v3/files?"));
     assert!(!percent_decode(&recorded[1].path_and_query).contains(CANONICAL_EVENT_MARKER_KEY));
