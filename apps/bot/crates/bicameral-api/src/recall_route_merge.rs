@@ -1052,8 +1052,10 @@ mod tests {
 
     #[test]
     fn preference_boost_is_capped_at_policy_limit() {
-        let mut prefs = RecallPreferenceProfile::default();
-        prefs.preference_cap = 0.10;
+        let mut prefs = RecallPreferenceProfile {
+            preference_cap: 0.10,
+            ..Default::default()
+        };
         // Attempt a boost larger than the cap
         prefs.route_adjustments.insert(RouteClass::Semantic, 0.50);
 
@@ -1312,8 +1314,10 @@ mod tests {
 
     #[test]
     fn preference_negative_adjustment_clamps_to_zero() {
-        let mut prefs = RecallPreferenceProfile::default();
-        prefs.preference_cap = 1.0;
+        let mut prefs = RecallPreferenceProfile {
+            preference_cap: 1.0,
+            ..Default::default()
+        };
         prefs.route_adjustments.insert(RouteClass::Semantic, -1.0);
         let adjusted = prefs.adjust_score(RouteClass::Semantic, 0.3);
         assert!((adjusted - 0.0).abs() < f64::EPSILON);
@@ -1321,8 +1325,10 @@ mod tests {
 
     #[test]
     fn preference_positive_adjustment_clamps_to_one() {
-        let mut prefs = RecallPreferenceProfile::default();
-        prefs.preference_cap = 1.0;
+        let mut prefs = RecallPreferenceProfile {
+            preference_cap: 1.0,
+            ..Default::default()
+        };
         prefs.route_adjustments.insert(RouteClass::Binding, 1.0);
         let adjusted = prefs.adjust_score(RouteClass::Binding, 0.8);
         assert!((adjusted - 1.0).abs() < f64::EPSILON);

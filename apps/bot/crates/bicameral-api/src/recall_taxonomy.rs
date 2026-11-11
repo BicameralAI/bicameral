@@ -996,7 +996,6 @@ mod tests {
     fn alpha_registry_is_not_empty() {
         let reg = alpha_registry();
         assert!(!reg.is_empty());
-        assert!(reg.len() > 0);
     }
 
     #[test]
