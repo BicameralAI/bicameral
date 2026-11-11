@@ -563,7 +563,7 @@ impl DriveApiTransport for HttpDriveApiTransport {
              &fields=id,mimeType,trashed,capabilities/canAddChildren",
             self.api_base, folder_id
         );
-        let json = self.get_json(url, access_token)?;
+        let json = self.get_json(url, access_token.clone())?;
         if json["mimeType"].as_str() != Some("application/vnd.google-apps.folder") {
             return Err(invalid(
                 "The configured event-store resource is not a folder.",
@@ -578,6 +578,29 @@ impl DriveApiTransport for HttpDriveApiTransport {
         if json["capabilities"]["canAddChildren"].as_bool() != Some(true) {
             return Err(auth_error(
                 "The current credential cannot create files in the event-store folder.",
+            ));
+        }
+
+        // A writable folder may still have an unreadable ledger. Check that
+        // listing children succeeds under the same daemon credential before
+        // an append. Use a single-page/one-item query: a full folder scan per
+        // event would scale linearly with the accumulated ledger. HTTP 200
+        // with zero files proves only that the list call succeeded, never
+        // that the canonical ledger has no history.
+        let query = format!(
+            "'{}' in parents and trashed = false",
+            Self::escape_query_value(folder_id)
+        );
+        let list_url = format!(
+            "{}/drive/v3/files?q={}&supportsAllDrives=true&includeItemsFromAllDrives=true\
+             &fields=files(id),nextPageToken&pageSize=1",
+            self.api_base,
+            urlencode(&query)
+        );
+        let listing = self.get_json(list_url, access_token)?;
+        if !listing["files"].is_array() {
+            return Err(invalid(
+                "Google Drive did not return a readable child-list response.",
             ));
         }
         Ok(())
