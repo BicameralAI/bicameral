@@ -7,7 +7,9 @@ from datetime import datetime
 from fastapi.testclient import TestClient
 
 from bicameral_cloud.app import app
-from bicameral_cloud.config import CloudSettings, reset_settings
+from bicameral_cloud.config import CloudSettings, load_settings, reset_settings
+
+DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
 
 
 def _settings(**overrides: object) -> CloudSettings:
@@ -20,8 +22,8 @@ def _settings(**overrides: object) -> CloudSettings:
         "google_oauth_environment": "alpha",
         "google_oauth_config_version": "google-alpha-7",
         "google_oauth_native_client_secret": "desktop-provider-credential",
-        "google_oauth_scope_set_version": "drive-file-v1",
-        "google_oauth_scopes": ("https://www.googleapis.com/auth/drive.file",),
+        "google_oauth_scope_set_version": "drive-v1",
+        "google_oauth_scopes": ("https://www.googleapis.com/auth/drive",),
         "google_oauth_app_config_ttl_seconds": 3600,
         "google_oauth_app_config_enabled": True,
     }
@@ -44,8 +46,8 @@ def test_google_app_config_is_bounded_non_secret_contract() -> None:
     assert payload["client_id"] == "123456.apps.googleusercontent.com"
     assert payload["environment"] == "alpha"
     assert payload["config_version"] == "google-alpha-7"
-    assert payload["scope_set_version"] == "drive-file-v1"
-    assert payload["scopes"] == ["https://www.googleapis.com/auth/drive.file"]
+    assert payload["scope_set_version"] == "drive-v1"
+    assert payload["scopes"] == ["https://www.googleapis.com/auth/drive"]
     assert payload["enabled"] is True
     expires_at = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))
     issued_at = datetime.fromisoformat(payload["issued_at"].replace("Z", "+00:00"))
@@ -191,3 +193,31 @@ def test_empty_scope_policy_fails_closed() -> None:
 
     assert response.status_code == 503
     assert "scopes" in response.json()["detail"]
+
+
+def test_default_google_scope_served_to_daemons_is_drive(monkeypatch) -> None:
+    """ARCH-0007 / #50: Cloud serves `drive` (not `drive.file`) by default."""
+    monkeypatch.delenv("BICAMERAL_GOOGLE_OAUTH_SCOPES", raising=False)
+    monkeypatch.delenv("BICAMERAL_GOOGLE_OAUTH_SCOPE_SET_VERSION", raising=False)
+    for settings in (load_settings(), _settings_with_defaults()):
+        assert settings.google_oauth_scopes == (DRIVE_SCOPE,)
+        assert settings.google_oauth_scope_set_version == "drive-v1"
+
+    reset_settings(_settings_with_defaults())
+    payload = TestClient(app).get("/api/v1/provider-app-config/google").json()
+    assert payload["scopes"] == [DRIVE_SCOPE]
+    assert "https://www.googleapis.com/auth/drive.file" not in payload["scopes"]
+
+
+def _settings_with_defaults() -> CloudSettings:
+    """Settings that leave the Google scope fields at their dataclass defaults."""
+    return CloudSettings(
+        supabase_url=None,
+        supabase_jwt_secret=None,
+        supabase_anon_key=None,
+        supabase_service_key=None,
+        google_oauth_native_client_id="123456.apps.googleusercontent.com",
+        google_oauth_environment="alpha",
+        google_oauth_config_version="google-alpha-7",
+        google_oauth_native_client_secret="desktop-provider-credential",
+    )

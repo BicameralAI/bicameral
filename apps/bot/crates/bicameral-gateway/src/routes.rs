@@ -4472,6 +4472,31 @@ fn google_credential_readable(state: &AppState) -> bool {
         || usable(bicameral_config::connections::legacy_aliases::GOOGLE_DRIVE_SOURCE_AUTH)
 }
 
+/// ARCH-0007 / #50: whether the Google credential the Drive transport would
+/// use records a grant of the `drive` scope.
+///
+/// Resolves the same credential the runtime token provider reads (canonical
+/// key first, then the legacy alias, usable values only). A credential
+/// minted under `drive.file`, a legacy plain token, or an envelope with no
+/// recorded scope is never assumed to carry `drive`: the connection projects
+/// as `ActionNeeded` so the operator re-consents, rather than silently
+/// succeeding or surfacing as an unreachable daemon.
+fn google_credential_grants_drive(state: &AppState) -> bool {
+    let usable = |source_id: &str| {
+        state
+            .secrets_store
+            .read_secret(
+                source_id,
+                bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+            )
+            .and_then(|value| bicameral_config::parse_stored_oauth_token(&value))
+            .filter(|token| token.is_usable())
+    };
+    usable(bicameral_config::connections::connection_keys::GOOGLE_SOURCE_ID)
+        .or_else(|| usable(bicameral_config::connections::legacy_aliases::GOOGLE_DRIVE_SOURCE_AUTH))
+        .is_some_and(|token| token.grants_google_drive_scope())
+}
+
 /// Outcome of a Google `refresh_token` grant, kept three-valued so a
 /// rejected refresh and an ambiguous failure are never conflated.
 enum GoogleRefreshOutcome {
@@ -4637,8 +4662,9 @@ fn google_drive_about_endpoint(state: &AppState) -> Option<String> {
 /// that made the connection real is gone (restart with a volatile
 /// store, cleared keyring) or revoked server-side. Effective truth
 /// requires the metadata, a readable credential, and, for Google, a
-/// live check to agree: `Connected` without all three projects as
-/// `ActionNeeded`, never `Connected`. This is projection only, reads
+/// recorded `drive` scope grant (ARCH-0007) and a live check to agree:
+/// `Connected` without all of them projects as `ActionNeeded`, never
+/// `Connected`. This is projection only, reads
 /// never mutate the registry.
 async fn effective_connection_status(
     state: &AppState,
@@ -4647,6 +4673,12 @@ async fn effective_connection_status(
 ) -> bicameral_config::ConnectionStatus {
     if provider == "google" && registry_status == bicameral_config::ConnectionStatus::Connected {
         if !google_credential_readable(state) {
+            return bicameral_config::ConnectionStatus::ActionNeeded;
+        }
+        // ARCH-0007 Decision 1: a credential without a recorded `drive`
+        // grant (e.g. minted under the former `drive.file` scope) needs
+        // explicit re-consent; it never satisfies `Connected`.
+        if !google_credential_grants_drive(state) {
             return bicameral_config::ConnectionStatus::ActionNeeded;
         }
         if !google_credential_live(state).await {
@@ -4781,8 +4813,11 @@ async fn connection_start(
         }
         bicameral_config::ConnectionStatus::NotConnected => {
             // Legacy alias: if we find an existing google_drive secret,
-            // report as already connected (migrate on next refresh).
-            if has_legacy_google_secret {
+            // report as already connected (migrate on next refresh), but
+            // only when it records the `drive` grant (ARCH-0007): a legacy
+            // plain or `drive.file` credential is never assumed to carry it
+            // and enters the OAuth flow below instead.
+            if has_legacy_google_secret && google_credential_grants_drive(&state) {
                 return (
                     StatusCode::OK,
                     Json(ConnectionStartOutcome::Connected {
@@ -5153,7 +5188,7 @@ async fn google_handle_callback(
             let meta = bicameral_config::ConnectionMetadata {
                 status: bicameral_config::ConnectionStatus::Connected,
                 account_label: token_data.account_label.clone(),
-                capabilities: vec!["drive.file".into()],
+                capabilities: vec![bicameral_config::GOOGLE_DRIVE_CAPABILITY.into()],
                 updated_at: Some(chrono::Utc::now()),
                 auth_method: Some(bicameral_config::AuthMethod::Oauth),
             };
@@ -5176,7 +5211,7 @@ async fn google_handle_callback(
                     provider: provider.to_string(),
                     account_label: token_data.account_label,
                     auth_method: Some("oauth".into()),
-                    capabilities: vec!["drive.file".into()],
+                    capabilities: vec![bicameral_config::GOOGLE_DRIVE_CAPABILITY.into()],
                 }),
             )
         }
@@ -5192,6 +5227,13 @@ async fn google_handle_callback(
             Json(ConnectionCompletionOutcome::ProviderUnavailable {
                 provider: provider.to_string(),
                 message: "Token exchange returned an unusable token bundle.".into(),
+            }),
+        ),
+        Err(GoogleTokenPersistError::InsufficientScope) => (
+            StatusCode::OK,
+            Json(ConnectionCompletionOutcome::ActionNeeded {
+                provider: provider.to_string(),
+                message: GOOGLE_DRIVE_SCOPE_NOT_GRANTED_MESSAGE.into(),
             }),
         ),
         Err(GoogleTokenPersistError::Persist(message)) => (
@@ -5212,6 +5254,10 @@ async fn google_handle_callback(
 pub(crate) enum GoogleTokenPersistError {
     /// Provider-side exchange failure (safe message, no token material).
     Exchange(String),
+    /// Exchange succeeded but Google's granted scopes do not include
+    /// `drive` (ARCH-0007), e.g. the user deselected Drive access on the
+    /// consent screen. Nothing is persisted.
+    InsufficientScope,
     /// Exchange succeeded but returned an unusable token bundle.
     UnusableBundle,
     /// Envelope preparation or keyring write failed (safe message).
@@ -5252,6 +5298,12 @@ pub(crate) async fn exchange_and_persist_google_token(
     if !envelope.is_usable() {
         return Err(GoogleTokenPersistError::UnusableBundle);
     }
+    // ARCH-0007 Decision 1: only a credential whose granted scopes include
+    // `drive` is stored. A narrower grant is refused before persistence so
+    // it can neither replace a working credential nor read as connected.
+    if !bicameral_config::scope_grants_google_drive(token_data.scope.as_deref()) {
+        return Err(GoogleTokenPersistError::InsufficientScope);
+    }
     let secret_value = envelope.to_secret_string().map_err(|e| {
         GoogleTokenPersistError::Persist(format!("Failed to prepare token envelope: {e}"))
     })?;
@@ -5274,6 +5326,11 @@ pub(crate) async fn exchange_and_persist_google_token(
 
     Ok(token_data)
 }
+
+/// Operator message when Google's token response does not grant `drive`.
+pub(crate) const GOOGLE_DRIVE_SCOPE_NOT_GRANTED_MESSAGE: &str =
+    "Google did not grant the Drive access Bicameral requests. Reconnect Google and allow \
+     Drive access on the consent screen.";
 
 /// Token data from a Google OAuth token exchange. Raw token material is
 /// consumed server-side only: it flows into the versioned secret envelope
@@ -9960,7 +10017,7 @@ mod tests {
             client_id: "test-client-id".into(),
             client_secret: "test-client-secret".into(),
             redirect_uri: "http://localhost:3000/api/v1/connections/google/callback".into(),
-            scopes: vec!["https://www.googleapis.com/auth/drive.file".into()],
+            scopes: vec!["https://www.googleapis.com/auth/drive".into()],
         }
     }
 
@@ -10058,7 +10115,7 @@ mod tests {
             "refresh_token": "stub-refresh-token",
             "expires_in": 3599,
             "token_type": "Bearer",
-            "scope": "https://www.googleapis.com/auth/drive.file"
+            "scope": "https://www.googleapis.com/auth/drive"
         })
     }
 
@@ -10390,7 +10447,7 @@ mod tests {
         assert!(cb_json["capabilities"]
             .as_array()
             .unwrap()
-            .contains(&serde_json::json!("drive.file")));
+            .contains(&serde_json::json!("drive")));
 
         // No secret material in the response.
         let raw = String::from_utf8_lossy(&body);
@@ -10455,7 +10512,7 @@ mod tests {
                 bicameral_config::ConnectionMetadata {
                     status: bicameral_config::ConnectionStatus::Connected,
                     account_label: Some("workspace-scoped-label@example.com".into()),
-                    capabilities: vec!["drive.file".into()],
+                    capabilities: vec!["drive".into()],
                     updated_at: Some(chrono::Utc::now()),
                     auth_method: Some(bicameral_config::AuthMethod::Oauth),
                 },
@@ -10512,7 +10569,7 @@ mod tests {
             Some("test-refresh-token-value".into()),
             Some(3599),
             None,
-            None,
+            Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
             chrono::Utc::now(),
         );
         state
@@ -10534,21 +10591,111 @@ mod tests {
 
     /// #1083 negative 3: connected registry + supported legacy alias
     /// credential still projects `connected` during the compatibility
-    /// window.
+    /// window, provided it records the `drive` grant (ARCH-0007).
     #[tokio::test]
     async fn connections_get_projects_connected_with_legacy_credential() {
         let (app, state, _ws) = app_with_connected_google_registry().await;
+        let envelope = bicameral_config::OAuthTokenEnvelopeV1::from_token_exchange(
+            "legacy-alias-access-token".into(),
+            Some("legacy-alias-refresh-token".into()),
+            Some(3599),
+            None,
+            Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
+            chrono::Utc::now(),
+        );
         state
             .secrets_store
             .write_secret(
                 bicameral_config::connections::legacy_aliases::GOOGLE_DRIVE_SOURCE_AUTH,
                 bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
-                "legacy-plain-access-token",
+                &envelope.to_secret_string().unwrap(),
             )
             .unwrap();
 
         let json = get_connections_json(&app).await;
         assert_eq!(json["connections"]["google"]["status"], "connected");
+    }
+
+    /// ARCH-0007 / #50: a stored credential whose recorded grant is only
+    /// the former `drive.file` scope (or a legacy plain token with no
+    /// recorded scope) is never assumed to carry `drive`. It projects the
+    /// typed `action_needed` state, not `connected`, without a live Drive
+    /// call and without mutating the durable registry.
+    #[tokio::test]
+    async fn connections_get_requires_reconnect_for_drive_file_only_credential() {
+        let drive_file_envelope = bicameral_config::OAuthTokenEnvelopeV1::from_token_exchange(
+            "drive-file-access-token".into(),
+            Some("drive-file-refresh-token".into()),
+            Some(3599),
+            Some("Bearer".into()),
+            Some("https://www.googleapis.com/auth/drive.file".into()),
+            chrono::Utc::now(),
+        )
+        .to_secret_string()
+        .unwrap();
+        let cases = [
+            (
+                bicameral_config::connections::connection_keys::GOOGLE_SOURCE_ID,
+                drive_file_envelope,
+            ),
+            (
+                bicameral_config::connections::legacy_aliases::GOOGLE_DRIVE_SOURCE_AUTH,
+                "legacy-plain-access-token".to_string(),
+            ),
+        ];
+        for (source_id, secret) in cases {
+            let (_app, mut state, ws_root) = app_with_connected_google_registry().await;
+            state
+                .secrets_store
+                .write_secret(
+                    source_id,
+                    bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+                    &secret,
+                )
+                .unwrap();
+            // A live probe would accept the token; the scope gate must
+            // decide before it is ever consulted.
+            let (about_endpoint, recorded) = spawn_drive_about_stub(StatusCode::OK).await;
+            state.google_drive_about_endpoint_override = Some(about_endpoint);
+            let app = Router::new()
+                .merge(connection_routes())
+                .with_state(state.clone());
+
+            let json = get_connections_json(&app).await;
+            assert_eq!(
+                json["connections"]["google"]["status"], "action_needed",
+                "{source_id}: a credential without a recorded drive grant must require reconnect"
+            );
+            assert!(
+                recorded.lock().unwrap().is_empty(),
+                "{source_id}: scope gate must not depend on a live Drive call"
+            );
+            let raw = json.to_string();
+            assert!(!raw.contains("drive-file-access-token"));
+            assert!(!raw.contains("legacy-plain-access-token"));
+
+            // Start enters the existing re-auth flow instead of reporting
+            // the stale connection as connected.
+            let req = Request::builder()
+                .method("POST")
+                .uri("/api/v1/connections/google/start")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.clone().oneshot(req).await.unwrap();
+            let body = axum::body::to_bytes(resp.into_body(), 4096).await.unwrap();
+            let start: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert_ne!(start["outcome"], "connected", "{source_id}");
+
+            let on_disk = bicameral_config::ConnectionRegistry::load_from_file(
+                &ws_root.join(".bicameral").join("connections.yaml"),
+            )
+            .unwrap();
+            assert_eq!(
+                on_disk.status("google"),
+                bicameral_config::ConnectionStatus::Connected,
+                "GET must not manufacture a durable registry mutation"
+            );
+        }
     }
 
     /// #1279: a locally-usable but Google-revoked credential demotes to `action_needed`.
@@ -10560,7 +10707,7 @@ mod tests {
             Some("test-refresh-token-value".into()),
             Some(3599),
             None,
-            None,
+            Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
             chrono::Utc::now(),
         );
         state
@@ -10590,7 +10737,7 @@ mod tests {
             Some("test-refresh-token-value".into()),
             Some(3599),
             None,
-            None,
+            Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
             chrono::Utc::now(),
         );
         state
@@ -10627,7 +10774,7 @@ mod tests {
                 Some("test-refresh-token-value".into()),
                 Some(3599),
                 None,
-                None,
+                Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
                 chrono::Utc::now(),
             );
             state
@@ -10686,7 +10833,7 @@ mod tests {
             Some("test-refresh-token-value".into()),
             Some(1),
             None,
-            None,
+            Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
             chrono::Utc::now(),
         );
         state
@@ -10722,7 +10869,7 @@ mod tests {
             Some("test-refresh-token-value".into()),
             Some(3599),
             None,
-            None,
+            Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
             chrono::Utc::now(),
         );
         state
@@ -10766,8 +10913,8 @@ mod tests {
             "client_id": client_id,
             "environment": "production",
             "config_version": "google-production-1",
-            "scope_set_version": "drive-file-v1",
-            "scopes": ["https://www.googleapis.com/auth/drive.file"],
+            "scope_set_version": "drive-v1",
+            "scopes": ["https://www.googleapis.com/auth/drive"],
             "issued_at": (now - chrono::Duration::minutes(1)).to_rfc3339(),
             "expires_at": (now + chrono::Duration::minutes(30)).to_rfc3339(),
             "enabled": true,
@@ -10808,7 +10955,7 @@ mod tests {
             Some("test-refresh-token-value".into()),
             Some(1),
             None,
-            None,
+            Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
             chrono::Utc::now(),
         );
         state
@@ -10954,12 +11101,20 @@ mod tests {
     #[tokio::test]
     async fn start_with_credential_backed_connected_metadata_returns_connected() {
         let (app, state, _ws) = app_with_connected_google_registry().await;
+        let envelope = bicameral_config::OAuthTokenEnvelopeV1::from_token_exchange(
+            "test-access-token-value".into(),
+            None,
+            Some(3599),
+            None,
+            Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
+            chrono::Utc::now(),
+        );
         state
             .secrets_store
             .write_secret(
                 bicameral_config::connections::connection_keys::GOOGLE_SOURCE_ID,
                 bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
-                "test-access-token-value",
+                &envelope.to_secret_string().unwrap(),
             )
             .unwrap();
 
@@ -11070,6 +11225,95 @@ mod tests {
         );
     }
 
+    /// ARCH-0007 / #50: with no registry entry, a legacy `google_drive`
+    /// alias credential short-circuits Start to `connected` only when it
+    /// records the `drive` grant; a legacy plain token enters OAuth.
+    #[tokio::test]
+    async fn start_with_legacy_alias_requires_drive_grant_to_short_circuit() {
+        let (app, state) = connection_app_with_google();
+        state
+            .secrets_store
+            .write_secret(
+                bicameral_config::connections::legacy_aliases::GOOGLE_DRIVE_SOURCE_AUTH,
+                bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+                "legacy-plain-access-token",
+            )
+            .unwrap();
+        let start = |app: Router| async move {
+            let req = Request::builder()
+                .method("POST")
+                .uri("/api/v1/connections/google/start")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = axum::body::to_bytes(resp.into_body(), 4096).await.unwrap();
+            serde_json::from_slice::<serde_json::Value>(&body).unwrap()
+        };
+        assert_eq!(start(app.clone()).await["outcome"], "start_url");
+
+        let envelope = bicameral_config::OAuthTokenEnvelopeV1::from_token_exchange(
+            "legacy-alias-access-token".into(),
+            None,
+            Some(3599),
+            None,
+            Some(bicameral_config::GOOGLE_DRIVE_SCOPE.into()),
+            chrono::Utc::now(),
+        );
+        state
+            .secrets_store
+            .write_secret(
+                bicameral_config::connections::legacy_aliases::GOOGLE_DRIVE_SOURCE_AUTH,
+                bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+                &envelope.to_secret_string().unwrap(),
+            )
+            .unwrap();
+        assert_eq!(start(app).await["outcome"], "connected");
+    }
+
+    /// ARCH-0007 / #50: when Google's token response does not grant
+    /// `drive` (e.g. the user deselected Drive on the granular consent
+    /// screen, or a stale config requested `drive.file`), the callback
+    /// returns the typed `action_needed` outcome, persists nothing, and
+    /// never marks the registry connected.
+    #[tokio::test]
+    async fn google_callback_without_drive_grant_requires_reconnect_and_persists_nothing() {
+        let mut token = stub_token_response();
+        token["scope"] = serde_json::json!("https://www.googleapis.com/auth/drive.file");
+        let (app, state, _recorded) =
+            connection_app_with_google_and_token_stub(StatusCode::OK, token).await;
+        let ws_root = state.workspace_root.read().await.clone().unwrap();
+
+        let (status, cb_json) = run_google_oauth_flow(&app).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(cb_json["outcome"], "action_needed");
+        assert!(cb_json["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Reconnect Google"));
+        let raw = cb_json.to_string();
+        assert!(!raw.contains("stub-access-token"));
+        assert!(!raw.contains("stub-refresh-token"));
+
+        assert!(
+            state
+                .secrets_store
+                .read_secret(
+                    bicameral_config::connections::connection_keys::GOOGLE_SOURCE_ID,
+                    bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+                )
+                .is_none(),
+            "A credential without the drive grant must not be stored"
+        );
+        let registry = bicameral_config::ConnectionRegistry::load_from_file(
+            &ws_root.join(".bicameral").join("connections.yaml"),
+        )
+        .unwrap();
+        assert_ne!(
+            registry.status("google"),
+            bicameral_config::ConnectionStatus::Connected
+        );
+    }
+
     /// #1084 migration: a successful reconnect writes the canonical
     /// envelope and retires the legacy `google_drive` alias value.
     #[tokio::test]
@@ -11094,7 +11338,7 @@ mod tests {
                 bicameral_config::ConnectionMetadata {
                     status: bicameral_config::ConnectionStatus::ActionNeeded,
                     account_label: Some("test@example.com".into()),
-                    capabilities: vec!["drive.file".into()],
+                    capabilities: vec!["drive".into()],
                     updated_at: Some(chrono::Utc::now()),
                     auth_method: Some(bicameral_config::AuthMethod::Oauth),
                 },
@@ -11263,7 +11507,7 @@ mod tests {
             client_id: "native-client-id".into(),
             client_secret: String::new(),
             redirect_uri: "http://127.0.0.1:7411/api/v1/connections/google/callback".into(),
-            scopes: vec!["https://www.googleapis.com/auth/drive.file".into()],
+            scopes: vec!["https://www.googleapis.com/auth/drive".into()],
         });
         state.google_oauth_allow_env_override = true;
         state.google_token_endpoint_override = Some(endpoint);
