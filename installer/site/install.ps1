@@ -258,7 +258,11 @@ try {
     Write-Host 'The Bicameral browser page can now continue automatically when the daemon is ready.'
     Write-Host ''
     Write-Host "Repair/start: Start-ScheduledTask -TaskName '$TaskName'"
-    Write-Host 'Uninstall (paste into PowerShell): $p = Join-Path $env:TEMP (''bicameral-uninstall-'' + [guid]::NewGuid().ToString(''N'') + ''.ps1''); try { Invoke-WebRequest -Uri ''https://install.bicameral-ai.com/install.ps1'' -OutFile $p -UseBasicParsing -ErrorAction Stop; & $p -Uninstall } finally { Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue }'
+    # The pasted command runs in a new session whose execution policy may be
+    # Restricted, so it launches the script in a child process with a
+    # process-scoped Bypass, like install-windows.cmd. It does not change the
+    # persistent policy, and Group Policy still takes precedence.
+    Write-Host 'Uninstall (paste into PowerShell): $p = Join-Path $env:TEMP (''bicameral-uninstall-'' + [guid]::NewGuid().ToString(''N'') + ''.ps1''); try { Invoke-WebRequest -Uri ''https://install.bicameral-ai.com/install.ps1'' -OutFile $p -UseBasicParsing -ErrorAction Stop; powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $p -Uninstall; if ($LASTEXITCODE -ne 0) { throw "Bicameral uninstall failed with exit code $LASTEXITCODE." } } finally { Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue }'
 } catch {
     if (-not $InstallSucceeded -and $ExistingTaskWasPresent -and (Test-Path -LiteralPath $Destination)) {
         Start-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
