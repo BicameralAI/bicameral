@@ -22,14 +22,27 @@ implementation already agree.
 | `SourceSnapshot` | `bicameral_api::source::SourceSnapshot` | Same fields, plus required `source_uri`. No snapshot list on `Source`. No previous-snapshot pointer. |
 | `GovernedDomain` | `NormalizedClaimSetV1` fields, not `atom_ids` | `claims`, `atoms`, `claim_assertions`, `relations`. Completion writes `source_digest`, `route`, `model_id`, `prompt_id`, and `prompt_digest` together, including an empty claim set. `extract_error` is the other finished receipt and excludes those fields. |
 | `Signoff` | none | The approved state only. Tracked, rejected, and superseded are the other states and are not this payload. Records the cranking daemon, `manual` or `policy`, and the check records submitted with the approval. |
-| `TrackSource` | none | A person places a Source in the maintenance set. Records that person and the cranking daemon. Factory #946. |
-| `UntrackSource` | none | That same person removes it while the snapshot is still tracked. Writes no authorization state. Factory #946. |
-| `RejectSnapshot` | none | The owner rejects one tracked snapshot outside a conflict set. Factory #946. |
-| `SupersedeSnapshot` | none | The owner names the successor snapshot. The approval event stays in the log. Factory #946. |
-| `ResolveConflict` | none | The owner resolves one whole conflict set. The owner and the daemon are on the command, not on a member row. Factory #946. |
+| `TrackSource` | `bicameral_api::spec_registry::TrackSource` | Payload decoding only. A person places a Source in the maintenance set. Records that person and the cranking daemon. Monorepo #40. |
+| `UntrackSource` | `bicameral_api::spec_registry::UntrackSource` | Payload decoding only. That same person removes it while the snapshot is still tracked. Writes no authorization state. Monorepo #40. |
+| `RejectSnapshot` | `bicameral_api::spec_registry::RejectSnapshot` | Payload decoding only. The owner rejects one tracked snapshot outside a conflict set. Monorepo #40. |
+| `SupersedeSnapshot` | `bicameral_api::spec_registry::SupersedeSnapshot` | Payload decoding only. The owner names the successor snapshot. The approval event stays in the log. Monorepo #40. |
+| `ResolveConflict` | `bicameral_api::spec_registry::ResolveConflict` | Payload decoding only. The owner resolves one whole conflict set. The owner and the daemon are on the command, not on a member row. Monorepo #40. |
 | `ApprovePolicy` | none | Configuration for the signoff entity, not a fourth entity. |
 | `CheckRecord` | none | Subentity. One unordered digest pair, `conflict`, and the daemon that ran the check. The daemon is not part of the pair. |
 | `PromptVersion` | none | Immutable hosted prompt row. Not an entity. |
 | `PromptAssignment` | none | One current `prompt_id` per hosted route. Not an entity. |
 
 `analysis_key` on `GovernedDomainV1` is the planning-preflight key. It is not the identity of this contract.
+
+The registry transition types do not grant authority, append events, or change
+replay. The legacy `event_store::UntrackSourcePayload` still identifies a Decision;
+its `untrack_source` event must not be reinterpreted as the registry payload.
+Durable event identity and compatibility routing remain to be reconciled under
+monorepo #42 and #40 before these payloads are written.
+
+Decoding rejects unknown fields and empty required identities. A conflict bundle
+requires at least two members, at most one approved member, and an approved
+successor if any member is superseded (ARCH-0004). These are payload checks only:
+authenticated authority, current-state eligibility, complete conflict-set coverage,
+required CheckRecords, and atomic persistence remain runtime obligations. Member
+order and identities are preserved; decoding does not normalize or infer them.
