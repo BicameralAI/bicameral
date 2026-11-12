@@ -9,9 +9,26 @@ These are forward-defining. They are not generated from the Rust types.
 these files there. `python3 scripts/validate_spec_registry_schemas.py` checks
 this directory. The Rust CI job runs that script.
 
-`SignoffTransitions.tla` checks the ADR-0034 transitions with TLC. It is a model
-beside the ADR, not a payload schema. TLC 2.19, three sources, 11577 distinct
-states, depth 13, no invariant failure (2026-09-29).
+Two Quint models sit beside the ADR. They are not payload schemas.
+
+- `SignoffTransitions.qnt` checks the ADR-0034 transitions. It is a one-to-one
+  translation of the former `SignoffTransitions.tla`, with the same actions and
+  invariants.
+- `SignoffCommands.qnt` adds the durable command semantics from #40: command
+  ids and idempotent retry, stale-command refusal, role from the authenticated
+  actor, owner-only versioned policy changes, and an append-only log whose
+  replay rebuilds the same standing.
+
+Check them with the [Quint CLI](https://quint-lang.org) from this directory:
+
+```bash
+quint test SignoffTransitions.qnt --main=SignoffTransitions3
+quint run SignoffTransitions.qnt --main=SignoffTransitions3 --init=Init --step=Next \
+  --invariant=Inv --max-steps=15 --max-samples=5000
+quint test SignoffCommands.qnt --main=SignoffCommands3
+quint run SignoffCommands.qnt --main=SignoffCommands3 --invariant=Safety \
+  --max-steps=40 --max-samples=2000
+```
 
 Field names follow the current types wherever the frozen contract and the
 implementation already agree.
