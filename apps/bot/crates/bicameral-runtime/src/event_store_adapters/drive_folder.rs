@@ -39,7 +39,9 @@ use chrono::{DateTime, Utc};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use crate::atomic_event_store::{AtomicEventBatchV1, AtomicEventStoreAdapter};
+use crate::atomic_event_store::{
+    decode_json_replay_record, AtomicEventBatchV1, AtomicEventStoreAdapter,
+};
 
 /// Default staleness threshold in seconds (15 minutes).
 const DEFAULT_STALE_THRESHOLD_SECS: i64 = 900;
@@ -191,29 +193,24 @@ impl EventStoreAdapter for DriveFolderAdapter {
             }
 
             // Skip temp files from interrupted writes.
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if name.starts_with(".tmp-") {
-                    skipped += 1;
-                    continue;
-                }
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default();
+            if name.starts_with(".tmp-") {
+                skipped += 1;
+                continue;
             }
 
             let content = std::fs::read_to_string(&path).map_err(|e| EventStoreError::Io {
                 reason: e.to_string(),
             })?;
 
-            if let Ok(batch) = serde_json::from_str::<AtomicEventBatchV1>(&content) {
-                batch.validate()?;
-                entries.extend(batch.entries);
-                continue;
-            }
-
-            match serde_json::from_str::<EventStoreEntry>(&content) {
-                Ok(entry) => entries.push(entry),
-                Err(e) => {
+            match decode_json_replay_record(name, content.as_bytes())? {
+                Some(decoded) => entries.extend(decoded),
+                None => {
                     tracing::warn!(
                         path = %path.display(),
-                        error = %e,
                         "Skipping non-event JSON file during replay"
                     );
                     skipped += 1;
