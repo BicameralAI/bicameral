@@ -1298,14 +1298,11 @@ pub fn projection_api_routes() -> Router<AppState> {
 /// enforcement, or readiness-to-ship claims.
 ///
 /// Per `v1-reviewable-context-projection` spec and ADR-0022.
-async fn projection_ledger(
-    State(state): State<AppState>,
-) -> Result<Json<bicameral_api::projection::ProjectionState>, Response> {
-    Ok(Json(
-        build_projection_from_state(&state)
-            .await
-            .map_err(replay_read_error)?,
-    ))
+async fn projection_ledger(State(state): State<AppState>) -> Response {
+    match build_projection_from_state(&state).await {
+        Ok(projection) => Json(projection).into_response(),
+        Err(error) => replay_read_error(error),
+    }
 }
 
 /// Rebuilds the V1 reviewable-context projection from event-store replay.
@@ -1313,14 +1310,11 @@ async fn projection_ledger(
 /// Clears and rebuilds all projection rows. Returns the fresh projection.
 /// This endpoint proves that deleting and rebuilding the projection
 /// preserves the same read output — the event store remains canonical.
-async fn projection_rebuild(
-    State(state): State<AppState>,
-) -> Result<Json<bicameral_api::projection::ProjectionState>, Response> {
-    Ok(Json(
-        build_projection_from_state(&state)
-            .await
-            .map_err(replay_read_error)?,
-    ))
+async fn projection_rebuild(State(state): State<AppState>) -> Response {
+    match build_projection_from_state(&state).await {
+        Ok(projection) => Json(projection).into_response(),
+        Err(error) => replay_read_error(error),
+    }
 }
 
 // ── Decision detail handlers ─────────────────────────────────────
@@ -3173,7 +3167,7 @@ struct HistoryResponseBody {
 async fn query_history_handler(
     State(state): State<AppState>,
     axum::extract::Query(params): axum::extract::Query<HistoryParams>,
-) -> Result<Json<HistoryResponseBody>, Response> {
+) -> Response {
     let decisions = state.decisions.read().await;
     let mut entries: Vec<HistoryDecisionEntry> = decisions
         .values()
@@ -3230,7 +3224,10 @@ async fn query_history_handler(
     };
 
     let events = if params.include_events.unwrap_or(false) {
-        let mut evts = state.event_store.replay().map_err(replay_read_error)?;
+        let mut evts = match state.event_store.replay() {
+            Ok(events) => events,
+            Err(error) => return replay_read_error(error),
+        };
         if let Some(since) = params.since {
             evts.retain(|e| e.timestamp >= since);
         }
@@ -3239,11 +3236,12 @@ async fn query_history_handler(
         None
     };
 
-    Ok(Json(HistoryResponseBody {
+    Json(HistoryResponseBody {
         decisions: entries,
         candidates,
         events,
-    }))
+    })
+    .into_response()
 }
 
 /// Search request body aligned with spec §2.2 `bicameral.search`.
@@ -7424,13 +7422,15 @@ async fn hosted_bridge_selected_project(
 async fn hosted_bridge_projection_ledger(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
-) -> Result<Json<bicameral_api::hosted_bridge::HostedLedgerProjection>, Response> {
-    let _session = validate_bridge_session(&state, &headers).await?;
-    Ok(Json(
-        build_renderable_ledger_from_state(&state)
-            .await
-            .map_err(replay_read_error)?,
-    ))
+) -> Response {
+    let _session = match validate_bridge_session(&state, &headers).await {
+        Ok(session) => session,
+        Err(response) => return response,
+    };
+    match build_renderable_ledger_from_state(&state).await {
+        Ok(projection) => Json(projection).into_response(),
+        Err(error) => replay_read_error(error),
+    }
 }
 
 /// POST /api/v1/hosted-bridge/command — bridge-gated governed command.
