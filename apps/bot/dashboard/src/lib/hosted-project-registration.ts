@@ -883,6 +883,7 @@ export async function createHostedProject(
 
   const storage = resolveStorage(opts.storage);
   let pending = readPending(cloudAccountId, storage);
+  const resumingPendingCreate = pending !== null;
 
   if (pending && pending.verifiedDomain !== verifiedDomain) {
     return failed(
@@ -930,9 +931,9 @@ export async function createHostedProject(
       );
     }
 
-    if (response.status === "rejected") {
-      // Product-create typed denials append no event by contract, so the intent
-      // marker can be cleared rather than misrepresenting a canonical Product.
+    if (response.status === "rejected" && !resumingPendingCreate) {
+      // A fresh rejection proves no append. A resumed intent may already have
+      // committed in an earlier request, even if this request is rejected.
       clearPendingHostedCreate(cloudAccountId, storage);
       return failed(
         response.message ?? "The daemon rejected Product creation.",
@@ -941,11 +942,8 @@ export async function createHostedProject(
     }
 
     if (response.status !== "ok") {
-      // A daemon `error` can follow the canonical append: the route may fail to
-      // persist, or the commit proof may fail to mint after provider
-      // confirmation. Those errors ask for a retry with the same idempotency
-      // key. Clearing the marker here would mint a new key on the next Create
-      // and produce a second Product, so keep it and let the retry converge.
+      // An error or rejection of a resumed intent cannot rule out an earlier
+      // canonical append. Retain the original key so retry can converge.
       return createRetryNeeded(
         pending,
         response.message ?? "The daemon could not confirm Product creation.",
