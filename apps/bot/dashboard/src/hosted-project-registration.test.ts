@@ -544,6 +544,53 @@ describe("createHostedProject", () => {
     expect(testStorage.length).toBe(0);
   });
 
+  it.each(["error", "response_loss", "malformed_response"])(
+    "retains the original create intent after %s, rejection, and recovery",
+    async (uncertainty) => {
+      const spy = vi.spyOn(globalThis, "fetch");
+      if (uncertainty === "response_loss") {
+        spy.mockRejectedValueOnce(new Error("response lost after request"));
+      } else {
+        spy.mockResolvedValueOnce(jsonResponse({
+          status: uncertainty === "error" ? "error" : "ok",
+          message: "canonical creation response was not confirmed",
+        }));
+      }
+      spy
+        .mockResolvedValueOnce(jsonResponse({
+          status: "rejected",
+          message: "product_event_store_unvalidated: reselect the folder",
+        }))
+        .mockResolvedValueOnce(jsonResponse(createToolResponse(false)))
+        .mockResolvedValueOnce(jsonResponse(publishToolResponse()))
+        .mockResolvedValueOnce(jsonResponse(cloudReceipt()))
+        .mockResolvedValueOnce(jsonResponse(setupProjection()));
+      const { createHostedProject } = await import("./lib/hosted-project-registration");
+      const folder = { eventStoreFolderId: "same-product-folder" };
+      const uncertain = await createHostedProject(createOptions(folder));
+      const retryOptions = createOptions({
+        ...folder,
+        displayName: "Unrelated new input",
+        idFactory: () => "must-not-start-another-intent",
+      });
+      const denied = await createHostedProject(retryOptions);
+      const recovered = await createHostedProject(retryOptions);
+      const params = spy.mock.calls.slice(0, 3).map((call) =>
+        (requestBody(call as unknown[]).command as {
+          params: { idempotency_key: string; product_display_name: string };
+        }).params,
+      );
+      expect(new Set(params.map((value) => value.idempotency_key)).size).toBe(1);
+      expect(params.every((value) => value.product_display_name === "Checkout Service")).toBe(true);
+      expect(uncertain.phase).toBe("create_retry_needed");
+      expect(denied.phase).toBe("create_retry_needed");
+      expect(recovered.phase).toBe("published");
+      expect(recovered.productId).toBe("prd_1");
+      expect(spy).toHaveBeenCalledTimes(6);
+      expect(testStorage.length).toBe(0);
+    },
+  );
+
   it("reports honest partial success when local setup is not yet available", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse(createToolResponse()))
