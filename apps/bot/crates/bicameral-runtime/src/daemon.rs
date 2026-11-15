@@ -1266,9 +1266,11 @@ impl crate::product_registration::ProductReplayProbe for DaemonReplayProbe {
             .router
             .adapter_for(&registration.product_id)
             .and_then(|adapter| {
-                adapter.replay().map(|_| ()).map_err(|error| {
-                    crate::project_registry::ProjectRegistryError::Io(error.to_string())
-                })
+                crate::replay::replay_from_adapter(adapter.as_ref())
+                    .map(|_| ())
+                    .map_err(|error| {
+                        crate::project_registry::ProjectRegistryError::Io(error.to_string())
+                    })
             }) {
             Ok(_) => bicameral_api::product_registration::ReplayOutcome::Succeeded,
             Err(_) => bicameral_api::product_registration::ReplayOutcome::Failed,
@@ -3471,8 +3473,11 @@ mod tests {
     }
 
     #[test]
-    fn successful_continue_setup_updates_live_project_registry() {
-        let adapter = Arc::new(MemoryAdapter::new());
+    fn continue_setup_requires_materializable_replay_and_retains_registration() {
+        let event_dir = tempfile::tempdir().unwrap();
+        let adapter = Arc::new(crate::event_store_adapters::GitAdapter::new(
+            event_dir.path(),
+        ));
         let membership = ProductMemberAddedPayload {
             product_id: "prd_setup".to_string(),
             cloud_account_id: "acct_alice".to_string(),
@@ -3493,7 +3498,6 @@ mod tests {
             .unwrap();
 
         let binding_dir = tempfile::tempdir().unwrap();
-        let event_dir = tempfile::tempdir().unwrap();
         let route = crate::project_registry::EventStoreRoute::Git {
             events_dir: event_dir.path().to_path_buf(),
             ci_merge_gate_configured: false,
@@ -3571,5 +3575,38 @@ mod tests {
         assert_eq!(live[0].name, "prd_setup");
         assert!(!live[0].has_workspace_binding);
         assert_eq!(live[0].setup_state, "code_grounding_not_ready");
+        drop(live);
+        assert_eq!(
+            response.result.as_ref().unwrap()["readiness"]["state"],
+            "open"
+        );
+
+        dispatch
+            .adapter
+            .append(EventStoreEntry::new(
+                EventType::Ingest,
+                serde_json::json!({ "source": "private-malformed-source" }),
+                "daemon".into(),
+            ))
+            .unwrap();
+        let events_before = dispatch.adapter.replay().unwrap();
+        assert!(crate::replay::replay_from_adapter(dispatch.adapter.as_ref()).is_err());
+
+        let response = dispatch.dispatch(&request, None);
+        assert_eq!(
+            response.status,
+            bicameral_api::tool_request::ToolResponseStatus::Ok,
+            "{response:?}"
+        );
+        let result = response.result.unwrap();
+        assert_eq!(
+            result["readiness"],
+            serde_json::json!({ "state": "repair", "reason": "replay_failed" })
+        );
+        assert_eq!(result["registration_ref"], "reg_setup");
+        assert_eq!(result["membership_retained"], true);
+        assert!(!result.to_string().contains("private-malformed-source"));
+        assert_eq!(dispatch.adapter.replay().unwrap(), events_before);
+        assert_eq!(registrations.read().unwrap().len(), 1);
     }
 }
