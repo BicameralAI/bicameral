@@ -37,7 +37,12 @@ pub struct DriveRemoteObject {
 /// authority. `safe_message` must never contain bearer/token/auth-code values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DriveTransportErrorKind {
+    /// The daemon's Google credential is missing, too narrow, expired beyond
+    /// refresh, or rejected by Google. Recovery is reconnecting Google.
     Authentication,
+    /// Google accepted the credential but the connected account is not
+    /// allowed to perform this operation on the resource.
+    PermissionDenied,
     Unavailable,
     NotFound,
     Conflict,
@@ -369,9 +374,18 @@ fn map_transport_error(error: DriveTransportError) -> EventStoreError {
         DriveTransportErrorKind::Conflict => EventStoreError::Conflict {
             reason: error.safe_message,
         },
-        DriveTransportErrorKind::Authentication
-        | DriveTransportErrorKind::Unavailable
-        | DriveTransportErrorKind::NotFound => EventStoreError::Unreachable {
+        // ARCH-0007 Decision 5: a credential or access failure is a typed
+        // storage state. Only a provider that could not be reached, or that
+        // answered with a transient failure, is `Unreachable`.
+        DriveTransportErrorKind::Authentication => EventStoreError::CredentialRejected {
+            reason: error.safe_message,
+        },
+        DriveTransportErrorKind::PermissionDenied | DriveTransportErrorKind::NotFound => {
+            EventStoreError::AccessDenied {
+                reason: error.safe_message,
+            }
+        }
+        DriveTransportErrorKind::Unavailable => EventStoreError::Unreachable {
             reason: error.safe_message,
         },
         DriveTransportErrorKind::InvalidResponse => EventStoreError::Io {
@@ -488,7 +502,7 @@ mod tests {
             *self.list_count.lock().unwrap() += 1;
             if *self.fail_list.lock().unwrap() {
                 return Err(DriveTransportError::new(
-                    DriveTransportErrorKind::Authentication,
+                    DriveTransportErrorKind::PermissionDenied,
                     "provider child listing is not readable",
                 ));
             }
@@ -513,7 +527,7 @@ mod tests {
             *self.list_count.lock().unwrap() += 1;
             if *self.fail_list.lock().unwrap() {
                 return Err(DriveTransportError::new(
-                    DriveTransportErrorKind::Authentication,
+                    DriveTransportErrorKind::PermissionDenied,
                     "provider child listing is not readable",
                 ));
             }
@@ -575,7 +589,7 @@ mod tests {
         let entry = event("00000000-0000-0000-0000-000000000012", 12);
 
         let error = adapter.append_confirmed(&entry).unwrap_err();
-        assert!(matches!(error, EventStoreError::Unreachable { .. }));
+        assert!(matches!(error, EventStoreError::CredentialRejected { .. }));
         assert_eq!(*transport.probe_count.lock().unwrap(), 1);
         assert_eq!(*transport.list_count.lock().unwrap(), 0);
         assert_eq!(*transport.find_count.lock().unwrap(), 0);
@@ -591,7 +605,7 @@ mod tests {
         let entry = event("00000000-0000-0000-0000-000000000013", 13);
 
         let error = adapter.append_confirmed(&entry).unwrap_err();
-        assert!(matches!(error, EventStoreError::Unreachable { .. }));
+        assert!(matches!(error, EventStoreError::AccessDenied { .. }));
         assert_eq!(*transport.probe_count.lock().unwrap(), 1);
         assert_eq!(*transport.list_count.lock().unwrap(), 1);
         assert_eq!(*transport.find_count.lock().unwrap(), 0);
@@ -609,7 +623,7 @@ mod tests {
         *transport.fail_list.lock().unwrap() = true;
         let error = adapter.append_confirmed(&entry).unwrap_err();
 
-        assert!(matches!(error, EventStoreError::Unreachable { .. }));
+        assert!(matches!(error, EventStoreError::AccessDenied { .. }));
         assert_eq!(*transport.probe_count.lock().unwrap(), 2);
         assert_eq!(*transport.list_count.lock().unwrap(), 2);
         assert_eq!(*transport.find_count.lock().unwrap(), 1);
@@ -678,7 +692,39 @@ mod tests {
         let adapter = DriveApiAdapter::new("folder-alpha", transport).unwrap();
 
         let error = adapter.health_check().unwrap_err();
-        assert!(matches!(error, EventStoreError::Unreachable { .. }));
+        assert!(matches!(error, EventStoreError::CredentialRejected { .. }));
+    }
+
+    /// ARCH-0007 Decision 5: credential and access failures are typed
+    /// storage states; only a provider that could not be reached, or that
+    /// failed transiently, reads as unreachable.
+    #[test]
+    fn transport_errors_map_to_typed_storage_states() {
+        let map = |kind| map_transport_error(DriveTransportError::new(kind, "safe detail"));
+        assert!(matches!(
+            map(DriveTransportErrorKind::Authentication),
+            EventStoreError::CredentialRejected { reason } if reason == "safe detail"
+        ));
+        assert!(matches!(
+            map(DriveTransportErrorKind::PermissionDenied),
+            EventStoreError::AccessDenied { .. }
+        ));
+        assert!(matches!(
+            map(DriveTransportErrorKind::NotFound),
+            EventStoreError::AccessDenied { .. }
+        ));
+        assert!(matches!(
+            map(DriveTransportErrorKind::Unavailable),
+            EventStoreError::Unreachable { .. }
+        ));
+        assert!(matches!(
+            map(DriveTransportErrorKind::Conflict),
+            EventStoreError::Conflict { .. }
+        ));
+        assert!(matches!(
+            map(DriveTransportErrorKind::InvalidResponse),
+            EventStoreError::Io { .. }
+        ));
     }
 
     #[test]

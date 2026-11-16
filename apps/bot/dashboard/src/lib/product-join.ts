@@ -47,6 +47,8 @@ export type ProductJoinRecovery =
   | "unavailable"
   | "cloud_unavailable"
   | "product_not_registered"
+  | "storage_reconnect_required"
+  | "storage_access_denied"
   | "join_failed"
   | "join_not_configured";
 
@@ -121,6 +123,23 @@ export const PRODUCT_JOIN_FAILURE_COPY: Record<
       "Your local app responded, but this product is not set up on this device. " +
       "Product setup needs repair before joining can finish.",
     retryable: false,
+  },
+  // ARCH-0007 Decision 5: the local app answered, but its Google connection
+  // or the connected account cannot open the Product's storage. Never the
+  // offline-app message, and never a statement about Product membership.
+  storage_reconnect_required: {
+    code: "storage_reconnect_required",
+    message:
+      "Bicameral needs you to reconnect Google Drive on this device. " +
+      "Reconnect it in Settings, then try joining again.",
+    retryable: true,
+  },
+  storage_access_denied: {
+    code: "storage_access_denied",
+    message:
+      "Your Google account can’t open this product’s shared storage. " +
+      "Ask the product owner for access, then try joining again.",
+    retryable: true,
   },
   join_failed: {
     code: "join_failed",
@@ -202,10 +221,16 @@ export function recoveryFromJoinError(
   ) {
     if (
       body.status === "rejected" &&
-      "message" in body && typeof body.message === "string" &&
-      body.message.startsWith("product_not_registered:")
+      "message" in body && typeof body.message === "string"
     ) {
-      return "product_not_registered";
+      // Typed daemon refusals carry a stable `<code>:` prefix.
+      for (const code of [
+        "product_not_registered",
+        "storage_reconnect_required",
+        "storage_access_denied",
+      ] as const) {
+        if (body.message.startsWith(`${code}:`)) return code;
+      }
     }
     return "join_failed";
   }

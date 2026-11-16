@@ -855,7 +855,7 @@ fn append_refuses_if_folder_writable_but_child_listing_is_forbidden() {
     let error = adapter.append_confirmed(&event()).unwrap_err();
     assert!(matches!(
         error,
-        bicameral_api::event_store::EventStoreError::Unreachable { .. }
+        bicameral_api::event_store::EventStoreError::AccessDenied { .. }
     ));
     let recorded = server.recorded();
     assert_eq!(
@@ -874,7 +874,7 @@ fn append_refuses_if_folder_writable_but_child_listing_is_forbidden() {
 fn provider_error_classes_map_to_typed_failures() {
     for (status, expected) in [
         (401u16, DriveTransportErrorKind::Authentication),
-        (403, DriveTransportErrorKind::Authentication),
+        (403, DriveTransportErrorKind::PermissionDenied),
         (404, DriveTransportErrorKind::NotFound),
         (429, DriveTransportErrorKind::Unavailable),
         (500, DriveTransportErrorKind::Unavailable),
@@ -966,7 +966,7 @@ fn probe_folder_fails_closed() {
             serde_json::json!({"id": "folder-1",
                                "mimeType": "application/vnd.google-apps.folder",
                                "capabilities": {"canAddChildren": false}}),
-            Some(DriveTransportErrorKind::Authentication),
+            Some(DriveTransportErrorKind::PermissionDenied),
         ),
         (
             serde_json::json!({"id": "folder-1",
@@ -1007,4 +1007,123 @@ fn production_composition_requires_folder_authority() {
     // construction; the composition function never invents one.
     let result = production_drive_event_store("  ", Arc::new(InMemorySecretsStore::new()), None);
     assert!(result.is_err());
+}
+
+/// ARCH-0007 Decision 5: Google answers 403 for an insufficient OAuth scope,
+/// for a rate limit, and for missing permission on the resource. Each must
+/// keep its own class so a reconnect, a retry and an access request are
+/// never confused.
+#[test]
+fn forbidden_responses_are_classified_by_provider_reason() {
+    for (reason, expected) in [
+        (
+            "insufficientPermissions",
+            DriveTransportErrorKind::Authentication,
+        ),
+        (
+            "userRateLimitExceeded",
+            DriveTransportErrorKind::Unavailable,
+        ),
+        (
+            "insufficientFilePermissions",
+            DriveTransportErrorKind::PermissionDenied,
+        ),
+    ] {
+        let server = StubServer::start(Box::new(move |_| {
+            (
+                403,
+                serde_json::json!({"error": {"code": 403, "message": "refused",
+                    "errors": [{"domain": "global", "reason": reason}]}})
+                .to_string()
+                .into_bytes(),
+            )
+        }));
+        let transport = HttpDriveApiTransport::new(Arc::new(StaticTokenProvider(
+            "test-access-token-value".into(),
+        )))
+        .with_api_base(server.base_url.clone());
+        let error = transport.probe_folder("folder-1").unwrap_err();
+        assert_eq!(error.kind, expected, "reason {reason}");
+        assert!(!error.safe_message.contains("test-access-token-value"));
+    }
+}
+
+/// ARCH-0007 Decision 5 / #50: a stored credential without the `drive` grant
+/// reaches the event store as a typed credential rejection on both replay
+/// and append, with no provider request, never as an unreachable substrate.
+#[test]
+fn credential_without_drive_grant_is_a_typed_event_store_refusal() {
+    use bicameral_api::event_store::{EventStoreAdapter, EventStoreError};
+
+    let server = StubServer::start(Box::new(|_| (200, b"{}".to_vec())));
+    let provider = KeyringGoogleAccessTokenProvider::new(
+        store_with_scoped_envelope(
+            Some(3600),
+            Some("test-refresh-token"),
+            Some("https://www.googleapis.com/auth/drive.file"),
+        ),
+        Some(oauth_config()),
+    )
+    .with_token_endpoint(format!("{}/token", server.base_url));
+    let transport =
+        HttpDriveApiTransport::new(Arc::new(provider)).with_api_base(server.base_url.clone());
+    let adapter = DriveApiAdapter::new("folder-1", Arc::new(transport)).unwrap();
+
+    for error in [
+        adapter.replay().unwrap_err(),
+        adapter.append(event()).unwrap_err(),
+        adapter.health_check().unwrap_err(),
+    ] {
+        assert!(
+            matches!(error, EventStoreError::CredentialRejected { .. }),
+            "{error:?}"
+        );
+    }
+    assert!(
+        server.recorded().is_empty(),
+        "an insufficient grant must fail closed before any provider request"
+    );
+}
+
+/// A provider that cannot be reached, or answers with a server error, stays
+/// `Unreachable`; a folder the account cannot see is `AccessDenied`.
+#[test]
+fn event_store_separates_unreachable_from_lost_folder_access() {
+    use bicameral_api::event_store::{EventStoreAdapter, EventStoreError};
+
+    for (status, access_denied) in [(503u16, false), (404, true), (403, true)] {
+        let server = StubServer::start(Box::new(move |_| (status, b"{}".to_vec())));
+        let transport = HttpDriveApiTransport::new(Arc::new(StaticTokenProvider(
+            "test-access-token-value".into(),
+        )))
+        .with_api_base(server.base_url.clone());
+        let adapter = DriveApiAdapter::new("folder-1", Arc::new(transport)).unwrap();
+        for error in [
+            adapter.replay().unwrap_err(),
+            adapter.append(event()).unwrap_err(),
+        ] {
+            if access_denied {
+                assert!(
+                    matches!(error, EventStoreError::AccessDenied { .. }),
+                    "status {status}: {error:?}"
+                );
+            } else {
+                assert!(
+                    matches!(error, EventStoreError::Unreachable { .. }),
+                    "status {status}: {error:?}"
+                );
+            }
+        }
+    }
+
+    // No listener at all: a transport failure is unreachable, not a refusal.
+    let transport = HttpDriveApiTransport::new(Arc::new(StaticTokenProvider(
+        "test-access-token-value".into(),
+    )))
+    .with_api_base("http://127.0.0.1:9".to_string());
+    let adapter = DriveApiAdapter::new("folder-1", Arc::new(transport)).unwrap();
+    assert!(matches!(
+        adapter.replay().unwrap_err(),
+        EventStoreError::Unreachable { .. }
+    ));
 }
