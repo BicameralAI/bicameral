@@ -360,7 +360,7 @@ Why:
 - fits a browser-based dashboard running on localhost
 
 Required capabilities:
-- For Drive event store: the Google `drive` scope (ARCH-0007). `drive.file` only exposes files the same OAuth client created for the same user, so another Shared Drive member's ledger files read as an HTTP 200 empty listing; that must never be taken as an empty ledger.
+- For Drive event store: the Google `drive` scope (ARCH-0007). `drive.file` exposes only files the app created for that user, or that the user opened or picked with the app. Ledger event files that another member's daemon creates later are neither, so they are missing from this user's listing even inside a shared folder: the listing can be an HTTP 200 with no entries, which must never be taken as an empty ledger.
 - For Docs ingest: docs read capability and Drive metadata/listing capability as needed.
 
 Scope direction:
