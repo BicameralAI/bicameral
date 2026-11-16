@@ -38,14 +38,14 @@ the supply-chain rules in [`tools/npm-guard/README.md`](tools/npm-guard/README.m
 
 ```bash
 cd apps/bot/dashboard
-npm run security:setup   # enable the npm-guard git hooks and `git safe-pull`
+npm run security:setup   # install the npm-guard git hooks and `git safe-pull` in .git/npm-guard
 npm run security:check   # every line must say "ok"
 ```
 
 - Dependency install scripts do not run (`ignore-scripts=true`), and npm refuses versions less than 7 days old (`min-release-age=7`, npm 11.10+).
 - Commit `package.json` and `package-lock.json` together. Git, URL and GitHub-shorthand dependencies are not accepted.
 - A package that the check flags (new, little used, or a very new release) needs a reviewed entry in `tools/npm-guard/allow.txt`.
-- For an urgent security fix that is less than 7 days old, install it with `--min-release-age=0` and link the advisory in the pull request.
+- For an urgent security fix that is less than 7 days old, install it with `--min-release-age=0`, add the package to `tools/npm-guard/allow.txt` with the advisory as the reason, and link the advisory in the pull request.
 - The `npm supply chain` workflow checks every pull request with the guard from the base branch, so it does not depend on your local hooks.
 
 ## Where files go

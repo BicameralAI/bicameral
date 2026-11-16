@@ -11,14 +11,22 @@ never contains it.
 
 from __future__ import annotations
 
+import contextlib
+import importlib.util
+import io
 import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
+import urllib.error
+import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 GUARD = Path(__file__).resolve().parents[1]
 REPO = GUARD.parents[1]
@@ -43,6 +51,45 @@ ONLINE = registry_reachable()
 
 def run(args, cwd, env=None, timeout=120):
     return subprocess.run(args, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
+
+
+def load(name):
+    spec = importlib.util.spec_from_file_location(name, GUARD / f'{name}.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def isotime(days_ago):
+    return (datetime.now(timezone.utc) - timedelta(days=days_ago)).isoformat().replace('+00:00', 'Z')
+
+
+class FakeRegistry:
+    """Stands in for registry.npmjs.org and api.npmjs.org inside one test (the external dependency)."""
+
+    def __init__(self):
+        self.packages = {}
+        self.downloads = {}
+        self.downloads_down = False
+
+    def add(self, name, versions, latest, created_days_ago=400, weekly=50000):
+        """versions maps each version to its age in days."""
+        self.packages[name] = {
+            'dist-tags': {'latest': latest},
+            'versions': {v: {} for v in versions},
+            'time': {'created': isotime(created_days_ago), **{v: isotime(d) for v, d in versions.items()}},
+        }
+        self.downloads[name] = weekly
+
+    def fetch_json(self, url):
+        if url.startswith('https://api.npmjs.org/downloads/'):
+            if self.downloads_down:
+                raise urllib.error.HTTPError(url, 503, 'unavailable', None, io.BytesIO())
+            return {'downloads': self.downloads.get(urllib.parse.unquote(url.rsplit('/', 1)[1]), 0)}
+        name = urllib.parse.unquote(url.split('registry.npmjs.org/', 1)[1])
+        if name not in self.packages:
+            raise urllib.error.HTTPError(url, 404, 'not found', None, io.BytesIO())
+        return self.packages[name]
 
 
 @unittest.skipUnless(NPM, 'npm is not installed')
@@ -157,7 +204,16 @@ class Verify(unittest.TestCase):
         npmrc.write_text(npmrc.read_text().replace('ignore-scripts=true', 'ignore-scripts=false'))
         result = self.verify()
         self.assertEqual(result.returncode, 1)
-        self.assertIn('no longer sets ignore-scripts', result.stderr)
+        self.assertIn('must set ignore-scripts=true', result.stderr)
+
+    def test_a_later_line_that_weakens_npmrc_fails(self):
+        npmrc = self.tree / 'apps/bot/dashboard/.npmrc'
+        original = npmrc.read_text()
+        for line in ('ignore-scripts=false', 'min-release-age=0', 'registry=https://npm.example.invalid/',
+                     '@bicameral:registry=https://npm.example.invalid/'):
+            with self.subTest(line=line):
+                npmrc.write_text(original + line + '\n')
+                self.assertEqual(self.verify().returncode, 1)
 
     def test_removed_hook_fails(self):
         (self.tree / 'tools/npm-guard/hooks/pre-push').unlink()
@@ -189,7 +245,8 @@ class GitHooks(unittest.TestCase):
         self.write('app/package.json', json.dumps({'name': 'app', 'version': '1.0.0', 'dependencies': {}}))
         self.write('app/package-lock.json', json.dumps(
             {'name': 'app', 'lockfileVersion': 3, 'packages': {'': {'name': 'app', 'version': '1.0.0'}}}))
-        self.git(self.work, 'config', 'core.hooksPath', 'tools/npm-guard/hooks')
+        setup = run(['sh', 'tools/npm-guard/setup.sh'], self.work, self.env)
+        self.assertEqual(setup.returncode, 0, setup.stderr)
         self.git(self.work, 'add', '-A')
         self.git(self.work, 'commit', '-q', '-m', 'base')
         self.git(self.work, 'remote', 'add', 'origin', str(self.remote))
@@ -255,6 +312,19 @@ class GitHooks(unittest.TestCase):
         remote_log = self.git(self.remote, 'log', '--format=%s', 'main').stdout.split()
         self.assertEqual(remote_log, ['base'])
 
+    def test_checkout_does_not_run_hooks_from_the_checked_out_branch(self):
+        marker = self.tmp / 'hostile-hook-ran'
+        self.git(self.work, 'checkout', '-q', '-b', 'hostile')
+        for hook in ('post-checkout', 'post-merge'):
+            self.write(f'tools/npm-guard/hooks/{hook}', f'#!/bin/sh\ntouch "{marker}"\n')
+        self.write('tools/npm-guard/scan_incoming.py', f'open({str(marker)!r}, "w").close()\n')
+        self.assertEqual(self.commit('hostile hooks', '--no-verify').returncode, 0)
+        self.git(self.work, 'checkout', '-q', 'main')
+        self.git(self.work, 'checkout', '-q', 'hostile')
+        self.git(self.work, 'checkout', '-q', 'main')
+        self.git(self.work, 'merge', '-q', '--ff-only', 'hostile', check=False)
+        self.assertFalse(marker.exists(), 'a hook from the checked-out branch ran')
+
     def test_safe_pull_refuses_infected_commits_and_leaves_files_untouched(self):
         other = self.tmp / 'other'
         self.git(self.tmp, 'clone', '-q', str(self.remote), str(other))
@@ -262,10 +332,169 @@ class GitHooks(unittest.TestCase):
         self.git(other, 'add', '-A')
         self.git(other, 'commit', '-q', '-m', 'infected')
         self.git(other, 'push', '-q', 'origin', 'main')  # no hooks in this clone
-        result = run(['sh', 'tools/npm-guard/safe-pull.sh'], self.work, self.env)
+        result = self.git(self.work, 'safe-pull', check=False)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('NOT pulling', result.stderr)
         self.assertFalse((self.work / 'app' / 'vite.config.js').exists())
+
+
+class DependencyCheck(unittest.TestCase):
+    """check_dependency_changes.py against a fake registry: what CI and the hooks block."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix='npm-guard-deps-'))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        empty = self.tmp / 'gitconfig'
+        empty.write_text('')
+        env = {'GIT_CONFIG_GLOBAL': str(empty), 'GIT_CONFIG_NOSYSTEM': '1',
+               'GIT_AUTHOR_NAME': 't', 'GIT_AUTHOR_EMAIL': 't@example.invalid',
+               'GIT_COMMITTER_NAME': 't', 'GIT_COMMITTER_EMAIL': 't@example.invalid'}
+        patcher = mock.patch.dict(os.environ, env)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        os.environ.pop('NPM_GUARD_ALLOW', None)
+        self.repo = self.tmp / 'repo'
+        self.repo.mkdir()
+        self.git('init', '-q', '-b', 'main')
+        self.registry = FakeRegistry()
+        self.registry.add('vite', {'6.4.0': 300, '6.4.4': 1}, latest='6.4.4')
+        self.write_app({'vite': '^6.4.0'}, {'vite': ('vite', '6.4.0', 'sha512-old')})
+        self.git('add', '-A')
+        self.git('commit', '-q', '-m', 'base')
+
+    def git(self, *args):
+        result = run(['git', *args], self.repo)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result
+
+    def write_app(self, deps, lock):
+        """lock maps each node_modules key to (registry name, version, integrity)."""
+        app = self.repo / 'app'
+        app.mkdir(exist_ok=True)
+        (app / 'package.json').write_text(json.dumps({'name': 'app', 'dependencies': deps}))
+        packages = {'': {'name': 'app', 'dependencies': deps}}
+        for key, (name, version, integrity) in lock.items():
+            packages[f'node_modules/{key}'] = {
+                **({'name': name} if name != key else {}), 'version': version, 'integrity': integrity,
+                'resolved': f'https://registry.npmjs.org/{name}/-/{name.split("/")[-1]}-{version}.tgz'}
+        (app / 'package-lock.json').write_text(json.dumps({'name': 'app', 'lockfileVersion': 3, 'packages': packages}))
+
+    def check(self):
+        self.git('add', '-A')
+        guard = load('guard_npm_install')
+        checker = load('check_dependency_changes')
+        stderr = io.StringIO()
+        cwd = os.getcwd()
+        os.chdir(self.repo)
+        try:
+            with mock.patch.object(guard, 'fetch_json', self.registry.fetch_json), \
+                    mock.patch.object(checker, 'load_registry_check', lambda: guard.check_package), \
+                    mock.patch.object(sys, 'argv', ['check', '--staged']), contextlib.redirect_stderr(stderr):
+                code = checker.main()
+        finally:
+            os.chdir(cwd)
+        return code, stderr.getvalue()
+
+    def test_pinned_older_version_passes_while_latest_is_new(self):
+        self.registry.add('zod', {'3.23.8': 100, '4.0.0': 2}, latest='4.0.0')
+        self.write_app({'vite': '^6.4.0', 'zod': '3.23.8'}, {
+            'vite': ('vite', '6.4.0', 'sha512-old'), 'zod': ('zod', '3.23.8', 'sha512-zod')})
+        code, out = self.check()
+        self.assertEqual(code, 0, out)
+
+    def test_lockfile_bump_to_a_version_under_the_cooldown_is_blocked(self):
+        self.write_app({'vite': '^6.4.0'}, {'vite': ('vite', '6.4.4', 'sha512-new')})
+        code, out = self.check()
+        self.assertEqual(code, 1)
+        self.assertIn('6.4.4 published 1d ago', out)
+
+    def test_reviewed_allow_entry_accepts_an_urgent_fix(self):
+        self.write_app({'vite': '^6.4.0'}, {'vite': ('vite', '6.4.4', 'sha512-new')})
+        allow = self.repo / 'tools' / 'npm-guard' / 'allow.txt'
+        allow.parent.mkdir(parents=True)
+        allow.write_text('vite  # security fix, advisory linked in the pull request\n')
+        code, out = self.check()
+        self.assertEqual(code, 0, out)
+
+    def test_alias_swap_on_an_existing_name_is_vetted(self):
+        self.write_app({'vite': 'npm:vite-evil@6.4.4'}, {'vite': ('vite-evil', '6.4.4', 'sha512-evil')})
+        code, out = self.check()
+        self.assertEqual(code, 1)
+        self.assertIn('"vite-evil" does not exist', out)
+
+    def test_integrity_change_without_a_new_version_is_blocked(self):
+        self.write_app({'vite': '^6.4.0'}, {'vite': ('vite', '6.4.0', 'sha512-swapped')})
+        code, out = self.check()
+        self.assertEqual(code, 1)
+        self.assertIn('integrity changed', out)
+
+    def test_download_stats_outage_only_warns(self):
+        self.registry.add('zod', {'3.23.8': 100}, latest='3.23.8')
+        self.registry.downloads_down = True
+        self.write_app({'vite': '^6.4.0', 'zod': '3.23.8'}, {
+            'vite': ('vite', '6.4.0', 'sha512-old'), 'zod': ('zod', '3.23.8', 'sha512-zod')})
+        code, out = self.check()
+        self.assertEqual(code, 0, out)
+        self.assertIn('warning:', out)
+
+
+class ClaudeHookDecisions(unittest.TestCase):
+    """guard_npm_install.py decisions against a fake registry."""
+
+    def setUp(self):
+        self.registry = FakeRegistry()
+        self.registry.add('lowuse', {'1.0.0': 300}, latest='1.0.0', weekly=10)
+        self.registry.add('vite', {'8.3.6': 10, '8.3.8': 2}, latest='8.3.8')
+
+    def decide(self, command, cwd=DASHBOARD):
+        guard = load('guard_npm_install')
+        event = json.dumps({'tool_name': 'Bash', 'tool_input': {'command': command}, 'cwd': str(cwd)})
+        stdout = io.StringIO()
+        with mock.patch.object(guard, 'fetch_json', self.registry.fetch_json), \
+                mock.patch.object(guard, 'infected_tree', lambda event: None), \
+                mock.patch.object(sys, 'stdin', io.StringIO(event)), contextlib.redirect_stdout(stdout):
+            try:
+                guard.main()
+            except SystemExit:
+                pass
+        out = stdout.getvalue().strip()
+        return json.loads(out)['hookSpecificOutput'] if out else None
+
+    def test_a_deny_is_not_hidden_by_an_earlier_ask(self):
+        decision = self.decide('npm install --ignore-scripts lowuse missing-pkg')
+        self.assertEqual(decision['permissionDecision'], 'deny')
+        self.assertIn('"missing-pkg" does not exist', decision['permissionDecisionReason'])
+
+    def test_install_spellings_and_package_runners_are_vetted(self):
+        for command in ('npm --prefix apps/bot/dashboard install missing-pkg', 'npm in missing-pkg',
+                        'npm -D install missing-pkg', 'pnpm --dir apps/bot/dashboard add missing-pkg',
+                        'npx missing-pkg', 'npm exec -- missing-pkg', 'pnpm dlx missing-pkg', 'bunx missing-pkg'):
+            with self.subTest(command=command):
+                decision = self.decide(command, cwd=REPO)
+                self.assertIsNotNone(decision)
+                self.assertEqual(decision['permissionDecision'], 'deny')
+
+    def test_latest_tag_is_switched_to_the_settled_version(self):
+        decision = self.decide('npm install --ignore-scripts vite@latest')
+        self.assertEqual(decision['permissionDecision'], 'ask')
+        self.assertIn('vite@8.3.6', decision['updatedInput']['command'])
+
+    def test_a_later_npmrc_line_that_enables_scripts_wins(self):
+        project = Path(tempfile.mkdtemp(prefix='npm-guard-npmrc-'))
+        self.addCleanup(shutil.rmtree, project, True)
+        (project / 'package.json').write_text('{}')
+        (project / '.npmrc').write_text('ignore-scripts=true\nignore-scripts=false\n')
+        self.assertEqual(self.decide('npm install', cwd=project)['permissionDecision'], 'ask')
+
+
+class Scanner(unittest.TestCase):
+    def test_a_source_file_over_the_size_limit_is_reported(self):
+        tree = Path(tempfile.mkdtemp(prefix='npm-guard-scan-'))
+        self.addCleanup(shutil.rmtree, tree, True)
+        (tree / 'vite.config.js').write_text('//' + ' ' * (6 * 1024 * 1024) + '\n' + INFECTED)
+        result = run(['python3', str(GUARD / 'scan_incoming.py'), '--worktree'], tree)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('over 5 MiB', result.stderr)
 
 
 if __name__ == '__main__':

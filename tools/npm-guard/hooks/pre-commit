@@ -1,7 +1,9 @@
 #!/bin/sh
 # Block risky npm dependency changes and known malware signatures before they are committed.
-root=$(git rev-parse --show-toplevel)
+# Runs from the copy that `npm run security:setup` installs in the git directory, never from the
+# working tree, so a branch you check out or pull cannot change what runs here.
+here=$(cd "$(dirname "$0")" && pwd)
 status=0
-sh "$root/tools/npm-guard/py.sh" "$root/tools/npm-guard/check_dependency_changes.py" --staged || status=1
-sh "$root/tools/npm-guard/py.sh" "$root/tools/npm-guard/scan_incoming.py" --staged || status=1
+sh "$here/py.sh" "$here/check_dependency_changes.py" --staged || status=1
+sh "$here/py.sh" "$here/scan_incoming.py" --staged || status=1
 exit $status

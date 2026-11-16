@@ -12,7 +12,9 @@ Fails (exit 1) when a change:
   * adds or changes a preinstall / install / postinstall script in the project itself
   * changes dependencies without changing a lockfile in the same directory
   * adds a package that does not exist on the registry, or is new / barely used
+  * adds or bumps a lockfile entry (direct or transitive) to a version under the release-age limit
   * adds a package-lock.json "resolved" URL outside the allowed registries
+  * changes a lockfile entry's integrity while its version and URL stay the same
 
 Warns (exit 0) when the registry is unreachable or a new dependency declares install scripts.
 
@@ -71,6 +73,15 @@ def real_name(name, spec):
     return name
 
 
+def requested_version(spec):
+    """The version, range or tag part of a spec, without an npm: alias prefix."""
+    if spec.startswith('npm:'):
+        target = spec[4:]
+        at = target.rfind('@')
+        return target[at + 1:] if at > 0 else ''
+    return spec
+
+
 def load_registry_check():
     """Reuse the Claude hook's registry vetting so the logic lives in one place."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'guard_npm_install.py')
@@ -108,10 +119,10 @@ def check_manifest(path, base, head, allow, errors, to_vet):
             if REMOTE_SPEC_RE.match(spec):
                 errors.append(f'{path}: "{name}" uses a non-registry spec "{spec}" ({section}).')
                 continue
-            if name not in old_deps:
-                target = real_name(name, spec)
-                if target not in allow:
-                    to_vet.add((path, target))
+            target = real_name(name, spec)
+            old_spec = old_deps.get(name)
+            if (old_spec is None or real_name(name, old_spec) != target) and target not in allow:
+                to_vet.add((path, target, requested_version(spec)))
     for script in INSTALL_SCRIPTS:
         if new.get('scripts', {}).get(script) and new['scripts'].get(script) != old.get('scripts', {}).get(script):
             errors.append(f'{path}: adds/changes a "{script}" script, which runs on every install.')
@@ -130,18 +141,33 @@ def check_lockfile_present(path, base, head, files, errors):
                       'Run your package manager install (with --ignore-scripts) and commit the lockfile.')
 
 
-def check_package_lock(path, base, head, hosts, errors, warnings):
+def lock_name(key, entry):
+    """Registry name of a package-lock.json entry (an alias entry records its real name)."""
+    return entry.get('name') or key.rsplit('node_modules/', 1)[-1]
+
+
+def check_package_lock(path, base, head, hosts, allow, errors, warnings, lock_vet):
+    """Check new or changed lockfile entries, including transitive ones and version bumps."""
     old = load_json(base, path).get('packages', {})
     new = load_json(head, path).get('packages', {})
     old_resolved = {e.get('resolved') for e in old.values()}
     for key, entry in new.items():
         resolved = entry.get('resolved')
+        host = re.sub(r'^\w+://([^/]+).*', r'\1', resolved) if resolved else None
         if resolved and resolved not in old_resolved:
-            host = re.sub(r'^\w+://([^/]+).*', r'\1', resolved)
             if host not in hosts and not resolved.startswith(('file:', '.')):
                 errors.append(f'{path}: "{key or "."}" resolves from unexpected host {host}.')
         if entry.get('hasInstallScript') and not old.get(key, {}).get('hasInstallScript'):
             warnings.append(f'{path}: {key} declares install scripts (keep ignore-scripts=true).')
+        if not key or entry.get('link') or host not in hosts:
+            continue
+        before = old.get(key, {})
+        if resolved == before.get('resolved') and entry.get('integrity') != before.get('integrity'):
+            errors.append(f'{path}: "{key}" integrity changed while its version and URL stayed the same.')
+        name = lock_name(key, entry)
+        changed = (name, entry.get('version')) != (lock_name(key, before), before.get('version'))
+        if entry.get('version') and changed and name not in allow:
+            lock_vet.add((path, name, entry['version']))
 
 
 def main():
@@ -161,7 +187,7 @@ def main():
     allow = {n for n in os.environ.get('NPM_GUARD_ALLOW', '').split(',') if n} | allow_file_names()
     hosts = {'registry.npmjs.org', *[h for h in os.environ.get('NPM_GUARD_REGISTRY_HOSTS', '').split(',') if h]}
     files = changed_files(base, head)
-    errors, warnings, to_vet = [], [], set()
+    errors, warnings, to_vet, lock_vet = [], [], set(), set()
 
     for path in files:
         name = PurePosixPath(path).name
@@ -170,22 +196,27 @@ def main():
             if deps_changed(old, new):
                 check_lockfile_present(path, base, head, files, errors)
         elif name == 'package-lock.json':
-            check_package_lock(path, base, head, hosts, errors, warnings)
+            check_package_lock(path, base, head, hosts, allow, errors, warnings, lock_vet)
 
-    if to_vet:
+    if to_vet or lock_vet:
         check_package = load_registry_check()
         if check_package is None:
             warnings.append('Registry checks skipped (tools/npm-guard/guard_npm_install.py not found).')
         else:
-            for path, name in sorted(to_vet):
-                verdict = check_package(name)
+            # Manifest entries: the requested version or range, plus download count.
+            # Lockfile entries: the exact version only (transitive packages are often little used).
+            checks = [(p, n, lambda n=n, v=v: check_package(n, v)) for p, n, v in sorted(to_vet)]
+            checks += [(p, n, lambda n=n, v=v: check_package(n, v, check_latest=False, check_downloads=False))
+                       for p, n, v in sorted(lock_vet)]
+            for path, name, verdict_for in checks:
+                verdict = verdict_for()
                 if not verdict:
                     continue
                 decision, reason = verdict
                 if reason.startswith('Could not verify'):
                     warnings.append(f'{path}: {reason}')
                 else:
-                    errors.append(f'{path}: {reason} (review it, then NPM_GUARD_ALLOW={name} to proceed)')
+                    errors.append(f'{path}: {reason} (after review, add "{name}" to tools/npm-guard/allow.txt)')
 
     for message in warnings:
         print(f'warning: {message}', file=sys.stderr)

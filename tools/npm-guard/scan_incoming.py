@@ -66,8 +66,10 @@ def is_source(path):
 
 
 def hits(data):
-    if data is None or len(data) > MAX_BYTES:
+    if data is None:
         return {}
+    if len(data) > MAX_BYTES:  # too big to scan: never treat it as clean
+        return {'source file over 5 MiB, not scanned (review it)': 1}
     return {name: len(rx.findall(data)) for name, rx in CHECKS if rx.search(data)}
 
 

@@ -28,7 +28,34 @@ const REQUIRED_FILES = [
   'tools/npm-guard/scan_incoming.py', 'tools/npm-guard/check_dependency_changes.py',
   'tools/npm-guard/guard_npm_install.py', '.claude/settings.json',
 ];
-const NPMRC_SETTINGS = { 'ignore-scripts': 'true', 'min-release-age': '[1-9][0-9]*' };
+const MIN_RELEASE_AGE_DAYS = 7;
+
+// Read .npmrc the way npm does: comments are skipped, and for a repeated key the last value wins.
+function npmrcSettings(text) {
+  const settings = {};
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line[0] === '#' || line[0] === ';') continue;
+    const eq = line.indexOf('=');
+    if (eq > 0) settings[line.slice(0, eq).trim()] = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+  }
+  return settings;
+}
+
+// Problems with the dashboard .npmrc, as messages.
+function npmrcProblems(text) {
+  const s = npmrcSettings(text);
+  const problems = [];
+  if (s['ignore-scripts'] !== 'true') problems.push('must set ignore-scripts=true');
+  const age = Number(s['min-release-age']);
+  if (!Number.isInteger(age) || age < MIN_RELEASE_AGE_DAYS) problems.push(`must set min-release-age to ${MIN_RELEASE_AGE_DAYS} or more`);
+  for (const key of Object.keys(s)) {
+    if (key === 'registry' || key.endsWith(':registry') || key === 'replace-registry-host') {
+      problems.push(`must not set ${key} (packages come from registry.npmjs.org only)`);
+    }
+  }
+  return problems;
+}
 
 function python() {
   for (const [cmd, pre] of [['python3', []], ['python', []], ['py', ['-3']]]) {
@@ -57,11 +84,9 @@ function verify() {
   }
   let npmrc = '';
   try { npmrc = fs.readFileSync(path.join(root, NPMRC), 'utf8'); } catch (e) { /* reported below */ }
-  for (const [key, value] of Object.entries(NPMRC_SETTINGS)) {
-    if (!new RegExp('^\\s*' + key + '\\s*=\\s*' + value + '\\s*$', 'm').test(npmrc)) {
-      console.error('npm-guard: ' + NPMRC + ' no longer sets ' + key);
-      bad = 1;
-    }
+  for (const problem of npmrcProblems(npmrc)) {
+    console.error('npm-guard: ' + NPMRC + ' ' + problem);
+    bad = 1;
   }
   if (scan() !== 0) bad = 1;
   if (bad) console.error('npm-guard: the supply-chain guard was removed or weakened, or malware was found.');

@@ -16,9 +16,9 @@ result is not proof that the code is clean.
 |---|---|---|
 | `.npmrc` | `ignore-scripts=true`: dependency install scripts do not run. `min-release-age=7`: npm refuses versions published less than 7 days ago (npm 11.10+). | `apps/bot/dashboard/.npmrc` |
 | Run-time scan | Every dashboard script runs `gate.cjs --gate` first, and refuses to start if a file in the tree has a malware signature. | `apps/bot/dashboard/package.json` |
-| Git hooks | `pre-commit` and `pre-push` block malware signatures and risky dependency changes. `pre-merge-commit` blocks an infected merge. `post-merge`, `post-rewrite` and `post-checkout` warn after the fact. | `hooks/` |
+| Git hooks | `pre-commit` and `pre-push` block malware signatures and risky dependency changes. `pre-merge-commit` blocks an infected merge. `post-merge`, `post-rewrite` and `post-checkout` warn after the fact. | `hooks/`, installed into `.git/npm-guard` |
 | `git safe-pull` | Fetches, scans the incoming commits, and merges only if they are clean. | `safe-pull.sh` |
-| Claude Code hook | Vets `npm`/`pnpm`/`yarn`/`bun` `install` and `add` commands that the assistant runs. Refuses Node commands while the tree is infected. | `guard_npm_install.py`, `/.claude/settings.json` |
+| Claude Code hook | Vets installs (`npm`/`pnpm`/`yarn`/`bun` `install` and `add`, with npm's aliases and flags such as `--prefix`) and package runs (`npx`, `npm exec`, `pnpm dlx`, `yarn dlx`, `bunx`) that the assistant runs. Refuses Node commands while the tree is infected. | `guard_npm_install.py`, `/.claude/settings.json` |
 | CI | Scan, guard verification, dependency-change check, guard tests, `npm ci --ignore-scripts` and `npm audit signatures`. | `/.github/workflows/npm-supply-chain.yml` |
 
 ### Why the scan runs inline, not in a `pre*` script
@@ -51,8 +51,14 @@ npm run security:setup    # enable the git hooks and the git safe-pull alias for
 npm run security:check    # every line must say "ok"
 ```
 
+Setup copies the hooks and the scripts they call into `.git/npm-guard`, and points `core.hooksPath` and
+`git safe-pull` there. Git runs a hook after it updates your files. A hook that ran from the working tree
+would therefore run code from any branch you check out or pull. The installed copy changes only when you
+run setup again. After `tools/npm-guard` changes, run setup again on a reviewed `main`.
+`npm run security:check` reports when the installed copy is out of date.
+
 Setup changes only this clone's git config. It does not change your global npm config. If you already
-use another `core.hooksPath`, setup does not overwrite it. Call the hooks in `hooks/` from your own hooks.
+use another `core.hooksPath`, setup stops and does not overwrite it.
 
 ## What the dependency check blocks
 
@@ -62,10 +68,17 @@ On commit, on push and in CI, a change to `package.json` or `package-lock.json` 
 - adds or changes a `preinstall`, `install` or `postinstall` script
 - changes dependencies without a lockfile change in the same directory
 - adds a package that does not exist on the registry, is less than 7 days old, or has fewer than 1000
-  weekly downloads
+  weekly downloads (a pinned version is judged by its own age, not by the age of the latest release)
+- adds or bumps a lockfile entry, direct or transitive, to a version less than 7 days old, or to a
+  package that does not exist
 - adds a lockfile `resolved` URL outside `registry.npmjs.org`
+- changes a lockfile `integrity` value while the version and URL stay the same
 
-It only warns when the registry is unreachable.
+It only warns when the registry or the download-count service is unreachable.
+
+`gate.cjs --verify` (in CI) also fails when the dashboard `.npmrc` turns `ignore-scripts` off, sets
+`min-release-age` below 7, or sets `registry`, a scoped `registry` or `replace-registry-host`. A later
+line counts, as it does for npm.
 
 ## Exceptions
 
@@ -73,7 +86,7 @@ It only warns when the registry is unreachable.
 |---|---|
 | Accept a reviewed package that the dependency check flags | Add its name to `allow.txt`, with the reason. Code owners review the entry in the pull request. CI reads `allow.txt` from the pull request. |
 | Accept a package for one local commit | `NPM_GUARD_ALLOW=name git commit ...` (CI checks again) |
-| Install an urgent security fix that is less than 7 days old | `npm install <pkg>@<fixed version> --min-release-age=0`, then open a pull request that links the advisory. The code-owner review of that pull request is the approval. `npm ci` installs from the reviewed lockfile and is not affected by the cooldown. |
+| Install an urgent security fix that is less than 7 days old | `npm install <pkg>@<fixed version> --min-release-age=0`. Add the package to `allow.txt` with the advisory as the reason, and link the advisory in the pull request. The code-owner review of that pull request is the approval. Remove the entry once the version is 7 days old. `npm ci` installs from the reviewed lockfile and is not affected by the cooldown. |
 | A reviewed false positive in the scanner | `NPM_GUARD_SCAN_ALLOW=path/to/file` for one local run |
 
 ## If the scan fires after a pull

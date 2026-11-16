@@ -1,4 +1,6 @@
 #!/bin/sh
 # Refuse a (non fast-forward) merge/pull that would bring in a known malware signature.
-root=$(git rev-parse --show-toplevel)
-exec sh "$root/tools/npm-guard/py.sh" "$root/tools/npm-guard/scan_incoming.py" --ref MERGE_HEAD
+# Runs from the copy that `npm run security:setup` installs in the git directory, never from the
+# working tree, so a branch you check out or pull cannot change what runs here.
+here=$(cd "$(dirname "$0")" && pwd)
+exec sh "$here/py.sh" "$here/scan_incoming.py" --ref MERGE_HEAD

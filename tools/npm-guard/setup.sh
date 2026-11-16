@@ -1,24 +1,38 @@
 #!/bin/sh
 # Per-clone npm-guard setup. Run it through npm from apps/bot/dashboard:
-#   npm run security:setup    enable the git hooks and the `git safe-pull` alias for this clone
+#   npm run security:setup    install the git hooks and the `git safe-pull` alias for this clone
 #   npm run security:check    report what is set up; exit 1 if something is missing
+#
+# Setup copies the hooks and the scripts they call into the git directory (.git/npm-guard) and points
+# core.hooksPath there. Git runs hooks after it updates the working tree, so hooks that ran from the
+# working tree would run code from any branch you check out or pull. The installed copy changes only
+# when you run setup again: do that on a reviewed main after tools/npm-guard changes.
 #
 # Setup changes only this clone's git config. It does not change your global npm config: the
 # dashboard's own .npmrc already sets ignore-scripts and min-release-age for this repository.
 
 root=$(git rev-parse --show-toplevel) || exit 1
 cd "$root" || exit 1
-hooks_dir=tools/npm-guard/hooks
+source_dir=tools/npm-guard
+dest=$(cd "$(git rev-parse --git-common-dir)" && pwd)/npm-guard
 dashboard=apps/bot/dashboard
+installed="py.sh scan_incoming.py check_dependency_changes.py guard_npm_install.py safe-pull.sh"
+hooks="pre-commit pre-push pre-merge-commit post-merge post-rewrite post-checkout"
+alias_value="!sh \"$dest/safe-pull.sh\""
 
 if [ "$1" = "--check" ]; then
   ok=0
-  hooks=$(git config --get core.hooksPath)
-  [ "$hooks" = "$hooks_dir" ] && echo "ok:   git hooks enabled ($hooks_dir)" \
-    || { echo "MISSING: git hooks (core.hooksPath is '${hooks:-unset}'; run npm run security:setup)"; ok=1; }
-  git config --get alias.safe-pull >/dev/null && echo "ok:   git safe-pull alias" \
+  current=$(git config --get core.hooksPath)
+  [ "$current" = "$dest" ] && echo "ok:   git hooks enabled ($dest)" \
+    || { echo "MISSING: git hooks (core.hooksPath is '${current:-unset}'; run npm run security:setup)"; ok=1; }
+  stale=
+  for f in $installed; do cmp -s "$source_dir/$f" "$dest/$f" || stale="$stale $f"; done
+  for f in $hooks; do cmp -s "$source_dir/hooks/$f" "$dest/$f" || stale="$stale $f"; done
+  [ -z "$stale" ] && echo "ok:   installed hooks match $source_dir" \
+    || { echo "MISSING: installed hooks differ from $source_dir:$stale (review the change, then run npm run security:setup)"; ok=1; }
+  [ "$(git config --get alias.safe-pull)" = "$alias_value" ] && echo "ok:   git safe-pull alias" \
     || { echo "MISSING: git safe-pull alias (run npm run security:setup)"; ok=1; }
-  sh tools/npm-guard/py.sh -c 'pass' 2>/dev/null && echo "ok:   Python 3 found (hooks and scans can run)" \
+  sh "$source_dir/py.sh" -c 'pass' 2>/dev/null && echo "ok:   Python 3 found (hooks and scans can run)" \
     || { echo "MISSING: Python 3 (the hooks and scans are Python scripts)"; ok=1; }
   if command -v npm >/dev/null 2>&1; then
     # Read the settings the way npm sees them inside the dashboard, where the project .npmrc applies.
@@ -43,13 +57,18 @@ if [ "$1" = "--check" ]; then
   exit $ok
 fi
 
-hooks=$(git config --get core.hooksPath)
-if [ -n "$hooks" ] && [ "$hooks" != "$hooks_dir" ]; then
-  echo "core.hooksPath is already '$hooks'; not overwriting. Call the hooks in $hooks_dir from your own hooks."
-else
-  git config core.hooksPath "$hooks_dir" && echo "enabled git hooks ($hooks_dir) for this clone"
-fi
-git config alias.safe-pull '!sh tools/npm-guard/safe-pull.sh' \
+current=$(git config --get core.hooksPath)
+case "$current" in
+  ''|"$dest"|"$source_dir/hooks") ;;
+  *) echo "core.hooksPath is already '$current'; not overwriting."
+     echo "Run 'sh $source_dir/setup.sh' after you remove it, or call the hooks in $dest from your own hooks."
+     exit 1;;
+esac
+mkdir -p "$dest" || exit 1
+for f in $installed; do cp "$source_dir/$f" "$dest/$f" || exit 1; done
+for f in $hooks; do cp "$source_dir/hooks/$f" "$dest/$f" && chmod 755 "$dest/$f" || exit 1; done
+git config core.hooksPath "$dest" && echo "installed git hooks in $dest and enabled them for this clone"
+git config alias.safe-pull "$alias_value" \
   && echo "added 'git safe-pull': scans incoming commits before it updates your files (use it instead of git pull)"
 echo "optional: to protect npm installs in your other projects too, run"
 echo "  npm config set ignore-scripts true --global && npm config set min-release-age 7 --global"
