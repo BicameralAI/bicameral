@@ -746,6 +746,20 @@ fn append_confirmed_roundtrip_with_marker_binding() {
             )
         } else if path.contains("alt=media") {
             (200, handler_uploaded.lock().unwrap().clone().unwrap())
+        } else if path.starts_with("/drive/v3/files/folder-1?") {
+            // Pre-write folder capability probe: the folder must permit
+            // creation as well as successful child listing.
+            (
+                200,
+                serde_json::json!({
+                    "id": "folder-1",
+                    "mimeType": "application/vnd.google-apps.folder",
+                    "trashed": false,
+                    "capabilities": {"canAddChildren": true}
+                })
+                .to_string()
+                .into_bytes(),
+            )
         } else if path.starts_with("/drive/v3/files?") {
             (
                 200,
@@ -769,9 +783,18 @@ fn append_confirmed_roundtrip_with_marker_binding() {
     assert_eq!(confirmation.provider_version.as_deref(), Some("rev-1"));
 
     let recorded = server.recorded();
-    // Discovery query is folder-bounded, shared-drive aware, and
+    // The adapter probes folder capability and successful child listing
+    // before the canonical event discovery and upload.
+    assert!(recorded[0]
+        .path_and_query
+        .starts_with("/drive/v3/files/folder-1?"));
+    assert_eq!(recorded[0].method, "GET");
+    assert!(recorded[1].path_and_query.starts_with("/drive/v3/files?"));
+    assert!(recorded[1].path_and_query.contains("pageSize=1"));
+    assert!(!percent_decode(&recorded[1].path_and_query).contains(CANONICAL_EVENT_MARKER_KEY));
+    // Discovery query remains folder-bounded, shared-drive aware, and
     // marker-bound to the exact canonical filename.
-    let discovery = &recorded[0];
+    let discovery = &recorded[2];
     assert!(discovery.path_and_query.contains("supportsAllDrives=true"));
     let decoded = percent_decode(&discovery.path_and_query);
     assert!(decoded.contains("'folder-1' in parents"));
@@ -797,6 +820,54 @@ fn append_confirmed_roundtrip_with_marker_binding() {
         assert!(!request.path_and_query.contains("test-access-token-value"));
         assert!(!String::from_utf8_lossy(&request.body).contains("Bearer test-access"));
     }
+}
+
+#[test]
+fn append_refuses_if_folder_writable_but_child_listing_is_forbidden() {
+    let server = StubServer::start(Box::new(|request| {
+        let path = request.path_and_query.as_str();
+        if path.starts_with("/drive/v3/files/folder-1?") {
+            (
+                200,
+                serde_json::json!({
+                    "id": "folder-1",
+                    "mimeType": "application/vnd.google-apps.folder",
+                    "trashed": false,
+                    "capabilities": {"canAddChildren": true}
+                })
+                .to_string()
+                .into_bytes(),
+            )
+        } else if path.starts_with("/drive/v3/files?") {
+            (403, b"{}".to_vec())
+        } else {
+            (500, b"{}".to_vec())
+        }
+    }));
+    let transport = Arc::new(
+        HttpDriveApiTransport::new(Arc::new(StaticTokenProvider(
+            "test-access-token-value".into(),
+        )))
+        .with_api_base(server.base_url.clone()),
+    );
+    let adapter = DriveApiAdapter::new("folder-1", transport).unwrap();
+
+    let error = adapter.append_confirmed(&event()).unwrap_err();
+    assert!(matches!(
+        error,
+        bicameral_api::event_store::EventStoreError::Unreachable { .. }
+    ));
+    let recorded = server.recorded();
+    assert_eq!(
+        recorded.len(),
+        2,
+        "forbidden child listing must prevent upload"
+    );
+    assert!(recorded[0]
+        .path_and_query
+        .starts_with("/drive/v3/files/folder-1?"));
+    assert!(recorded[1].path_and_query.contains("pageSize=1"));
+    assert!(recorded.iter().all(|request| request.method == "GET"));
 }
 
 #[test]
@@ -906,7 +977,18 @@ fn probe_folder_fails_closed() {
     ];
     for (payload, expected) in cases {
         let body = payload.to_string().into_bytes();
-        let server = StubServer::start(Box::new(move |_| (200, body.clone())));
+        let server = StubServer::start(Box::new(move |request| {
+            if request
+                .path_and_query
+                .starts_with("/drive/v3/files/folder-1?")
+            {
+                (200, body.clone())
+            } else if request.path_and_query.starts_with("/drive/v3/files?") {
+                (200, b"{\"files\":[]}".to_vec())
+            } else {
+                (500, b"{}".to_vec())
+            }
+        }));
         let transport = HttpDriveApiTransport::new(Arc::new(StaticTokenProvider(
             "test-access-token-value".into(),
         )))
