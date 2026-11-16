@@ -532,7 +532,14 @@ impl DriveApiTransport for HttpDriveApiTransport {
                 .send()
                 .map_err(|_| unavailable("Could not reach Google Drive."))?;
             let status = response.status().as_u16();
-            map_status(status)?;
+            if !(200..=299).contains(&status) {
+                // Classify by Google's reason, like every other call: a
+                // rate or download-quota 403 during replay is transient,
+                // not a missing permission.
+                let body = response.text().unwrap_or_default();
+                map_status_with_body(status, &body)?;
+                return Err(invalid(format!("Google Drive returned status {status}.")));
+            }
             response
                 .bytes()
                 .map(|bytes| bytes.to_vec())
@@ -786,8 +793,9 @@ fn map_status_with_body(status: u16, body: &str) -> Result<(), DriveTransportErr
     }
 }
 
-/// Google answers HTTP 403 for three different conditions. The machine
-/// `reason` separates them: quota and rate limits are transient, an
+/// Google answers HTTP 403 for several different conditions. The machine
+/// `reason` separates them: quota and rate limits are transient, a full
+/// drive or an item limit is a capacity problem the account must fix, an
 /// insufficient OAuth scope needs a reconnect, and everything else is the
 /// connected account lacking permission on the resource.
 fn forbidden_reason_class(
@@ -813,10 +821,27 @@ fn forbidden_reason_class(
                 | "dailyLimitExceeded"
                 | "quotaExceeded"
                 | "sharingRateLimitExceeded"
+                | "downloadQuotaExceeded"
                 | "RATE_LIMIT_EXCEEDED"
         )
     }) {
         return Some(unavailable("Google Drive is rate limiting requests."));
+    }
+    // Storage and item limits are not access refusals: asking the Product
+    // owner for access cannot fix a full drive. They stay in the
+    // unavailable class with a message that names the real cause.
+    if reasons.iter().any(|reason| {
+        matches!(
+            *reason,
+            "storageQuotaExceeded"
+                | "teamDriveFileLimitExceeded"
+                | "numChildrenInNonRootLimitExceeded"
+                | "activeItemCreationLimitExceeded"
+        )
+    }) {
+        return Some(unavailable(
+            "Google Drive refused the write because a storage or item limit is reached.",
+        ));
     }
     if reasons.iter().any(|reason| {
         matches!(
@@ -886,6 +911,26 @@ mod http_transport_tests {
         let objects = HttpDriveApiTransport::objects_from_files(&value);
         assert_eq!(objects.len(), 1);
         assert_eq!(objects[0].file_id, "evt-1");
+    }
+
+    #[test]
+    fn forbidden_capacity_and_download_quota_reasons_are_not_access_refusals() {
+        for reason in [
+            "downloadQuotaExceeded",
+            "storageQuotaExceeded",
+            "teamDriveFileLimitExceeded",
+            "numChildrenInNonRootLimitExceeded",
+            "activeItemCreationLimitExceeded",
+        ] {
+            let body = serde_json::json!({"error": {"code": 403, "message": "refused",
+                "errors": [{"reason": reason}]}})
+            .to_string();
+            let err = map_status_with_body(403, &body).unwrap_err();
+            assert_eq!(err.kind, DriveTransportErrorKind::Unavailable, "{reason}");
+        }
+        // An unlisted or unreadable 403 stays a permission refusal.
+        let err = map_status_with_body(403, "not json").unwrap_err();
+        assert_eq!(err.kind, DriveTransportErrorKind::PermissionDenied);
     }
 
     #[test]

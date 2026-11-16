@@ -1048,6 +1048,43 @@ fn forbidden_responses_are_classified_by_provider_reason() {
     }
 }
 
+/// A rate-limited or quota-limited download during replay is transient. It
+/// must not read as the account lacking access to the ledger.
+#[test]
+fn forbidden_downloads_are_classified_by_provider_reason() {
+    for (reason, expected) in [
+        (
+            "userRateLimitExceeded",
+            DriveTransportErrorKind::Unavailable,
+        ),
+        (
+            "downloadQuotaExceeded",
+            DriveTransportErrorKind::Unavailable,
+        ),
+        (
+            "insufficientFilePermissions",
+            DriveTransportErrorKind::PermissionDenied,
+        ),
+    ] {
+        let server = StubServer::start(Box::new(move |_| {
+            (
+                403,
+                serde_json::json!({"error": {"code": 403, "message": "refused",
+                    "errors": [{"domain": "global", "reason": reason}]}})
+                .to_string()
+                .into_bytes(),
+            )
+        }));
+        let transport = HttpDriveApiTransport::new(Arc::new(StaticTokenProvider(
+            "test-access-token-value".into(),
+        )))
+        .with_api_base(server.base_url.clone());
+        let error = transport.download_file("evt-1").unwrap_err();
+        assert_eq!(error.kind, expected, "reason {reason}");
+        assert!(!error.safe_message.contains("test-access-token-value"));
+    }
+}
+
 /// ARCH-0007 Decision 5 / #50: a stored credential without the `drive` grant
 /// reaches the event store as a typed credential rejection on both replay
 /// and append, with no provider request, never as an unreachable substrate.
