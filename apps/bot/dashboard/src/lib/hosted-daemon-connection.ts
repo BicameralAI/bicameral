@@ -81,10 +81,17 @@ export async function fetchFromHostedDaemon(
         status: response.status,
       });
     } else if (response.status >= 500) {
-      notifyDisconnected({
-        kind: "daemon_unavailable",
-        status: response.status,
-      });
+      // A typed projection failure is not loss of the daemon connection.
+      // Inspect a clone so callers still receive the original failure body.
+      const body = response.status === 503
+        ? await response.clone().json().catch(() => null)
+        : null;
+      if (body?.kind !== "ProjectionUnavailable") {
+        notifyDisconnected({
+          kind: "daemon_unavailable",
+          status: response.status,
+        });
+      }
     }
     return response;
   } catch (error) {
