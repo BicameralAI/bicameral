@@ -692,6 +692,19 @@ pub enum EventStoreError {
     Io { reason: String },
     #[error("conflict: {reason}")]
     Conflict { reason: String },
+    /// The provider reached the substrate but refused this daemon's storage
+    /// credential: the grant is missing, too narrow, expired beyond refresh,
+    /// or revoked. Recovery is the operator reconnecting the provider, so
+    /// this must never be reported as an unreachable daemon or substrate
+    /// (ARCH-0007 Decision 5).
+    #[error("storage credential rejected: {reason}")]
+    CredentialRejected { reason: String },
+    /// The credential is accepted, but the connected account cannot reach
+    /// the storage resource (removed from the shared drive, folder trashed
+    /// or not shared). A storage fact only: it never revokes canonical
+    /// Product membership (ARCH-0007 Consequences).
+    #[error("storage access denied: {reason}")]
+    AccessDenied { reason: String },
 }
 
 #[cfg(test)]

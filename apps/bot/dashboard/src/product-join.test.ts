@@ -355,6 +355,58 @@ describe("live product join transport", () => {
     }
   });
 
+  it.each([
+    [
+      "storage_reconnect_required",
+      "storage_reconnect_required: this device's storage connection cannot open the Product's ledger; reconnect the storage provider and join again",
+      /reconnect Google Drive/i,
+    ],
+    [
+      "storage_access_denied",
+      "storage_access_denied: the connected storage account cannot reach the Product's ledger; ask the Product owner for access, then join again",
+      /ask the product owner for access/i,
+    ],
+  ] as const)("shows a typed %s refusal instead of an offline app", async (code, message, copy) => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(SIGNED_TICKET)))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "rejected", message })));
+
+    const outcome = await runProductJoin({
+      preview: PREVIEW,
+      accessToken: "cloud-token",
+      sessionToken: "bridge-token",
+      transport: defaultProductJoinTransport,
+    });
+
+    expect(outcome.status).toBe("failed");
+    if (outcome.status === "failed") {
+      expect(outcome.failure.code).toBe(code);
+      expect(outcome.failure.message).toMatch(copy);
+      expect(outcome.failure.message).not.toMatch(/couldn.t reach|make sure it.s running|ledger|daemon/i);
+    }
+  });
+
+  it("does not read a daemon_unavailable error as a storage refusal", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(SIGNED_TICKET)))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        status: "error",
+        message: "daemon_unavailable: replay failed: substrate not reachable: Could not reach Google Drive.",
+      })));
+
+    const outcome = await runProductJoin({
+      preview: PREVIEW,
+      accessToken: "cloud-token",
+      sessionToken: "bridge-token",
+      transport: defaultProductJoinTransport,
+    });
+
+    expect(outcome.status).toBe("failed");
+    if (outcome.status === "failed") {
+      expect(outcome.failure.code).toBe("join_failed");
+    }
+  });
+
   it.each(["rejected", "error"])("keeps an HTTP 200 %s response distinct from transport loss", async (status) => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify(SIGNED_TICKET)))

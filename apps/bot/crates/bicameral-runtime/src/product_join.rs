@@ -350,12 +350,7 @@ pub(crate) fn dispatch_product_join(
     // Materialize canonical state exclusively from the event ledger.
     let entries = match adapter.replay() {
         Ok(entries) => entries,
-        Err(e) => {
-            return ToolResponse::error(
-                request.request_id,
-                format!("daemon_unavailable: replay failed: {e}"),
-            );
-        }
+        Err(e) => return storage_failure_response(request, "replay", &e),
     };
     let state = ProductJoinState::from_entries(&entries);
     let membership_key = (ticket.product_id.clone(), ticket.cloud_account_id.clone());
@@ -420,10 +415,7 @@ pub(crate) fn dispatch_product_join(
                     );
                     success_result(request, &result)
                 }
-                Err(e) => ToolResponse::error(
-                    request.request_id,
-                    format!("daemon_unavailable: event append failed: {e}"),
-                ),
+                Err(e) => storage_failure_response(request, "event append", &e),
             }
         }
         JoinDecision::AlreadyMember {
@@ -450,6 +442,60 @@ pub(crate) fn dispatch_product_join(
             );
             success_result(request, &result)
         }
+    }
+}
+
+/// Wire prefix for a Join refused because this daemon's storage credential
+/// cannot be used (missing, too narrow, or revoked provider grant).
+pub const JOIN_STORAGE_RECONNECT_REQUIRED: &str = "storage_reconnect_required";
+
+/// Wire prefix for a Join refused because the connected provider account
+/// cannot reach the Product's ledger storage.
+pub const JOIN_STORAGE_ACCESS_DENIED: &str = "storage_access_denied";
+
+/// Map a ledger failure during Join to a transport response.
+///
+/// ARCH-0007 Decision 5: a provider that refuses this daemon's credential,
+/// or an account that cannot reach the Product's ledger, is a typed refusal
+/// the joiner can act on. It is reported as a rejected request with a stable
+/// prefix, the same vocabulary as `product_not_registered:`, and never as
+/// `daemon_unavailable`. Losing storage access says nothing about canonical
+/// Product membership, so no membership state is read or written here.
+///
+/// The joiner-facing message is fixed text. The provider's own detail can
+/// name folders and accounts, so it goes to the daemon log only.
+fn storage_failure_response(
+    request: &ToolRequest,
+    phase: &str,
+    error: &bicameral_api::event_store::EventStoreError,
+) -> ToolResponse {
+    use bicameral_api::event_store::EventStoreError;
+
+    match error {
+        EventStoreError::CredentialRejected { reason } => {
+            tracing::warn!(phase, %reason, "product.join refused: storage credential rejected");
+            ToolResponse::rejected(
+                request.request_id,
+                format!(
+                    "{JOIN_STORAGE_RECONNECT_REQUIRED}: this device's storage connection cannot \
+                     open the Product's ledger; reconnect the storage provider and join again"
+                ),
+            )
+        }
+        EventStoreError::AccessDenied { reason } => {
+            tracing::warn!(phase, %reason, "product.join refused: storage access denied");
+            ToolResponse::rejected(
+                request.request_id,
+                format!(
+                    "{JOIN_STORAGE_ACCESS_DENIED}: the connected storage account cannot reach \
+                     the Product's ledger; ask the Product owner for access, then join again"
+                ),
+            )
+        }
+        other => ToolResponse::error(
+            request.request_id,
+            format!("daemon_unavailable: {phase} failed: {other}"),
+        ),
     }
 }
 
@@ -968,5 +1014,204 @@ mod tests {
         let resp =
             crate::dispatch::dispatch_with_workspace_and_commit_watcher(&req, &adapter, None, None);
         assert_eq!(resp.status, ToolResponseStatus::Rejected);
+    }
+
+    // ── ARCH-0007 Decision 5: typed storage refusals through Join ───────────
+
+    use crate::drive_api_event_store::{
+        DriveApiAdapter, DriveApiTransport, DriveRemoteObject, DriveTransportError,
+        DriveTransportErrorKind,
+    };
+    use std::sync::{Arc, Mutex};
+
+    /// Drive transport double for the real `DriveApiAdapter`: serves a seeded
+    /// ledger for replay and fails the chosen call with a typed provider error.
+    #[derive(Default)]
+    struct ScriptedDriveTransport {
+        ledger: Vec<(DriveRemoteObject, Vec<u8>)>,
+        list_error: Option<DriveTransportError>,
+        probe_error: Option<DriveTransportError>,
+        creates: Mutex<usize>,
+    }
+
+    impl ScriptedDriveTransport {
+        fn with_policy() -> Self {
+            let entry = policy_event(true, &[DOMAIN]);
+            let object = DriveRemoteObject {
+                file_id: "file-policy".into(),
+                name: format!("{}.json", entry.id),
+                version: Some("1".into()),
+            };
+            Self {
+                ledger: vec![(object, serde_json::to_vec(&entry).unwrap())],
+                ..Self::default()
+            }
+        }
+    }
+
+    impl DriveApiTransport for ScriptedDriveTransport {
+        fn find_children_by_name(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> Result<Vec<DriveRemoteObject>, DriveTransportError> {
+            Ok(Vec::new())
+        }
+
+        fn create_json_file(
+            &self,
+            _: &str,
+            _: &str,
+            _: &[u8],
+        ) -> Result<DriveRemoteObject, DriveTransportError> {
+            *self.creates.lock().unwrap() += 1;
+            panic!("a refused Join must never write to the provider");
+        }
+
+        fn download_file(&self, file_id: &str) -> Result<Vec<u8>, DriveTransportError> {
+            self.ledger
+                .iter()
+                .find(|(object, _)| object.file_id == file_id)
+                .map(|(_, bytes)| bytes.clone())
+                .ok_or_else(|| {
+                    DriveTransportError::new(DriveTransportErrorKind::NotFound, "object missing")
+                })
+        }
+
+        fn list_children(&self, _: &str) -> Result<Vec<DriveRemoteObject>, DriveTransportError> {
+            match &self.list_error {
+                Some(error) => Err(error.clone()),
+                None => Ok(self
+                    .ledger
+                    .iter()
+                    .map(|(object, _)| object.clone())
+                    .collect()),
+            }
+        }
+
+        fn probe_folder(&self, _: &str) -> Result<(), DriveTransportError> {
+            match &self.probe_error {
+                Some(error) => Err(error.clone()),
+                None => Ok(()),
+            }
+        }
+    }
+
+    fn join_over_drive(
+        transport: ScriptedDriveTransport,
+    ) -> (ToolResponse, Arc<ScriptedDriveTransport>) {
+        let issuer = TestIssuer::new();
+        let trust = issuer.trust();
+        let transport = Arc::new(transport);
+        let adapter = DriveApiAdapter::new("ledger-folder", transport.clone()).unwrap();
+        let req = request(issuer.sign(ticket()), ACCOUNT);
+        let ctx = ProductJoinDispatchContext { trust: &trust };
+        let response =
+            crate::dispatch::dispatch_with_product_join(&req, &adapter, None, None, &ctx);
+        (response, transport)
+    }
+
+    /// The exact error the keyring token provider returns for a stored
+    /// credential that does not record the `drive` grant.
+    fn missing_drive_grant() -> DriveTransportError {
+        DriveTransportError::new(
+            DriveTransportErrorKind::Authentication,
+            crate::drive_api_transport::DRIVE_SCOPE_NOT_GRANTED_MESSAGE,
+        )
+    }
+
+    fn assert_typed_storage_refusal(response: &ToolResponse, prefix: &str) {
+        assert_eq!(
+            response.status,
+            ToolResponseStatus::Rejected,
+            "{response:?}"
+        );
+        assert!(response.result.is_none(), "no membership result on refusal");
+        let message = response.message.as_deref().unwrap_or_default();
+        assert!(message.starts_with(&format!("{prefix}:")), "{message}");
+        assert!(!message.contains("daemon_unavailable"), "{message}");
+        assert!(!message.contains("not reachable"), "{message}");
+    }
+
+    #[test]
+    fn join_without_drive_grant_is_a_typed_refusal_on_replay() {
+        let (response, transport) = join_over_drive(ScriptedDriveTransport {
+            list_error: Some(missing_drive_grant()),
+            ..ScriptedDriveTransport::with_policy()
+        });
+        assert_typed_storage_refusal(&response, JOIN_STORAGE_RECONNECT_REQUIRED);
+        assert_eq!(*transport.creates.lock().unwrap(), 0);
+    }
+
+    #[test]
+    fn join_without_drive_grant_is_a_typed_refusal_on_append() {
+        // Replay succeeds and the ticket is granted; the credential is then
+        // refused at the pre-append probe.
+        let (response, transport) = join_over_drive(ScriptedDriveTransport {
+            probe_error: Some(missing_drive_grant()),
+            ..ScriptedDriveTransport::with_policy()
+        });
+        assert_typed_storage_refusal(&response, JOIN_STORAGE_RECONNECT_REQUIRED);
+        assert_eq!(*transport.creates.lock().unwrap(), 0);
+    }
+
+    #[test]
+    fn join_after_losing_ledger_folder_access_is_a_typed_refusal() {
+        for kind in [
+            DriveTransportErrorKind::NotFound,
+            DriveTransportErrorKind::PermissionDenied,
+        ] {
+            let lost = DriveTransportError::new(kind, "ledger folder is not accessible");
+
+            let (response, _) = join_over_drive(ScriptedDriveTransport {
+                list_error: Some(lost.clone()),
+                ..ScriptedDriveTransport::with_policy()
+            });
+            assert_typed_storage_refusal(&response, JOIN_STORAGE_ACCESS_DENIED);
+
+            let (response, transport) = join_over_drive(ScriptedDriveTransport {
+                probe_error: Some(lost),
+                ..ScriptedDriveTransport::with_policy()
+            });
+            assert_typed_storage_refusal(&response, JOIN_STORAGE_ACCESS_DENIED);
+            assert_eq!(*transport.creates.lock().unwrap(), 0);
+        }
+    }
+
+    #[test]
+    fn join_storage_refusal_never_echoes_provider_detail() {
+        let (response, _) = join_over_drive(ScriptedDriveTransport {
+            list_error: Some(DriveTransportError::new(
+                DriveTransportErrorKind::PermissionDenied,
+                "Google said: user alice@acme.example lacks access to folder 1AbC",
+            )),
+            ..ScriptedDriveTransport::with_policy()
+        });
+        let message = response.message.unwrap_or_default();
+        assert!(!message.contains("alice@acme.example"), "{message}");
+        assert!(!message.contains("1AbC"), "{message}");
+    }
+
+    #[test]
+    fn join_against_an_unreachable_provider_still_reports_unavailable() {
+        let down = DriveTransportError::new(
+            DriveTransportErrorKind::Unavailable,
+            "Could not reach Google Drive.",
+        );
+        for transport in [
+            ScriptedDriveTransport {
+                list_error: Some(down.clone()),
+                ..ScriptedDriveTransport::with_policy()
+            },
+            ScriptedDriveTransport {
+                probe_error: Some(down.clone()),
+                ..ScriptedDriveTransport::with_policy()
+            },
+        ] {
+            let (response, _) = join_over_drive(transport);
+            assert_eq!(response.status, ToolResponseStatus::Error, "{response:?}");
+            let message = response.message.unwrap_or_default();
+            assert!(message.starts_with("daemon_unavailable:"), "{message}");
+        }
     }
 }
