@@ -3,13 +3,12 @@
 //! registration cache and request outcomes match the model.
 //!
 //! Traces are generated at test time by the Quint CLI (fixed seed) into a
-//! temp dir; nothing is committed. The test is `#[ignore]`d so a plain
+//! temp dir; nothing is committed. The model test is `#[ignore]`d so a plain
 //! `cargo test` does not need Quint.
 //!
-//! This replaces hand-written scenario tests for create → bind → restart and
-//! damaged-binding hydration (bicameral#65): the model checks the same
-//! properties as invariants over every generated sequence, and this driver
-//! checks that the Rust code takes the same steps.
+//! The deterministic regression below always checks create/bind/restart and
+//! damaged-binding hydration (bicameral#65). Model sampling adds sequences
+//! without replacing that default coverage.
 
 use super::*;
 use crate::project_registry::{
@@ -307,6 +306,45 @@ impl Harness {
             .map(|record| (*model_for[&record.registration.product_id]).clone())
             .collect()
     }
+}
+
+#[test]
+fn registration_cache_regressions_without_quint() {
+    let mut sut = Harness::new();
+    let ok = bicameral_api::tool_request::ToolResponseStatus::Ok;
+    assert_eq!(sut.create("p1").status, ok);
+    let mut expected = BTreeMap::from([(
+        "p1".to_string(),
+        ModelEntry {
+            has_binding: false,
+            setup: "code_grounding_not_ready".into(),
+        },
+    )]);
+    assert_eq!(
+        sut.observed_cache(),
+        expected,
+        "create refreshes the live cache"
+    );
+
+    assert_eq!(sut.bind("p1").status, ok);
+    expected.get_mut("p1").unwrap().has_binding = true;
+    expected.get_mut("p1").unwrap().setup = "normal".into();
+    assert_eq!(sut.observed_cache(), expected, "bind refreshes readiness");
+    assert_eq!(sut.create("p1").status, ok);
+    assert_eq!(sut.observed_durable(), BTreeSet::from(["p1".into()]));
+    sut.restart();
+    assert_eq!(sut.observed_cache(), expected, "restart restores readiness");
+
+    sut.corrupt_binding("p1");
+    sut.restart();
+    expected.get_mut("p1").unwrap().has_binding = false;
+    expected.get_mut("p1").unwrap().setup = "local_workspace_repair_required".into();
+    assert_eq!(
+        sut.observed_cache(),
+        expected,
+        "damaged binding stays visible"
+    );
+    assert_eq!(sut.observed_durable(), BTreeSet::from(["p1".into()]));
 }
 
 // ── Replay ─────────────────────────────────────────────────────────────────
