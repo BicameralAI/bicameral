@@ -367,7 +367,7 @@ Scope direction:
 - Request `https://www.googleapis.com/auth/drive` in place of `drive.file` for the Drive event store (ARCH-0007, #50). This is a broader grant: the token can see Drive files the user can access. The connector still reads and writes only the Product ledger folder the owner selected.
 - Do not request anything broader or unrelated to the event store; keep `drive.readonly` and Docs ingest scopes out of the event-store scope set.
 - Never assume a stored credential carries `drive`: a credential whose recorded granted scope lacks it projects `action_needed` and requires explicit re-consent.
-- Never grant Drive permissions automatically. Owner-managed sharing and Shared Drive membership remain the access boundary.
+- Make one Drive permission change only, on an explicit owner action: share the Product's ledger folder with the owner's Google Workspace domain (ARCH-0007 Decision 2). Never add individual accounts, never share outside that domain or by public link, and never change sharing on anything other than the ledger folder. Drive access is not Product membership; the signed Join ticket stays the Join authority.
 - Keep Docs ingest scopes separate in capability metadata even if one Google token grants both.
 
 Legacy support:
