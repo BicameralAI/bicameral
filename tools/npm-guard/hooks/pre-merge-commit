@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refuse a (non fast-forward) merge/pull that would bring in a known malware signature.
+root=$(git rev-parse --show-toplevel)
+exec sh "$root/tools/npm-guard/py.sh" "$root/tools/npm-guard/scan_incoming.py" --ref MERGE_HEAD

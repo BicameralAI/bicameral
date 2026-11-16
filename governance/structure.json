@@ -92,6 +92,16 @@
       ]
     },
     {
+      "path": ".claude",
+      "purpose": "Claude Code project settings: the npm install vetting hook from tools/npm-guard.",
+      "children": "open",
+      "readme": false,
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
       "path": "apps",
       "purpose": "End-user applications.",
       "children": "declared"
@@ -175,6 +185,15 @@
       "purpose": "Allowlisted Bicameral-owned validators imported from BicameralAI/bicameral-factory; everything else in Factory stays out (#969).",
       "children": "open",
       "status": "active"
+    },
+    {
+      "path": "tools/npm-guard",
+      "purpose": "npm supply-chain guard: malware scan, dependency-change checks, git hooks and the Claude Code install hook (#92).",
+      "children": "open",
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
     },
     {
       "path": "docs",

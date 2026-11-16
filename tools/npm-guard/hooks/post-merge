@@ -1,0 +1,5 @@
+#!/bin/sh
+# After `git pull`/merge: alarm if the update brought in a malware signature (git ignores our exit code).
+root=$(git rev-parse --show-toplevel)
+sh "$root/tools/npm-guard/py.sh" "$root/tools/npm-guard/scan_incoming.py" --warn-only --range ORIG_HEAD HEAD
+exit 0

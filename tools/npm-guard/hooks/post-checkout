@@ -1,0 +1,6 @@
+#!/bin/sh
+# After switching branches ($3 = 1): alarm if the new branch carries a malware signature.
+[ "$3" = 1 ] || exit 0
+root=$(git rev-parse --show-toplevel)
+sh "$root/tools/npm-guard/py.sh" "$root/tools/npm-guard/scan_incoming.py" --warn-only --range "$1" "$2"
+exit 0

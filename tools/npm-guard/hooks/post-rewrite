@@ -1,0 +1,6 @@
+#!/bin/sh
+# After `git pull --rebase` / rebase / amend: scan what the rewrite brought in.
+[ "$1" = rebase ] || exit 0
+root=$(git rev-parse --show-toplevel)
+sh "$root/tools/npm-guard/py.sh" "$root/tools/npm-guard/scan_incoming.py" --warn-only --range ORIG_HEAD HEAD
+exit 0

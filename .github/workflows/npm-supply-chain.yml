@@ -1,0 +1,110 @@
+# npm supply-chain checks (#92). Required CI does not depend on local git hooks, which a contributor can
+# skip. For pull requests, the guard code comes from the base branch, so a change cannot weaken the
+# scanner that checks it. The data it reads (the tree, the lockfile, tools/npm-guard/allow.txt) comes
+# from the pull request, where code owners review it.
+name: npm supply chain
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm-guard:
+    name: npm-guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the change
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          path: change
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out the reviewed guard from the base branch
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
+      - name: Install the pinned Node.js and npm toolchain
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 26.13.0
+
+      - name: Select the guard copy
+        run: |
+          if [ -f base/tools/npm-guard/scan_incoming.py ]; then
+            echo "GUARD=$PWD/base/tools/npm-guard" >> "$GITHUB_ENV"
+          else
+            echo "::notice::The base branch has no npm-guard yet. This run uses the copy in the change (first install only)."
+            echo "GUARD=$PWD/change/tools/npm-guard" >> "$GITHUB_ENV"
+          fi
+          echo "node $(node --version), npm $(npm --version), $(python3 --version)"
+
+      # python3 is called directly, so a missing interpreter or scanner fails this step.
+      - name: Scan the tree for known malware signatures
+        working-directory: change
+        run: python3 "$GUARD/scan_incoming.py" --worktree
+
+      - name: Verify the guard files and the dashboard .npmrc
+        working-directory: change
+        run: NPM_GUARD_ROOT="$PWD" node "$GUARD/gate.cjs" --verify
+
+      - name: Check npm dependency changes
+        if: github.event_name == 'pull_request'
+        working-directory: change
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          python3 "$GUARD/check_dependency_changes.py" --base "$base" --head "$HEAD_SHA"
+
+      - name: Test the guard, including the ignore-scripts negative control
+        working-directory: change
+        run: python3 -m unittest discover -s tools/npm-guard/tests -v
+
+  npm-install-audit:
+    name: npm-install-audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/bot/dashboard
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Node.js and npm toolchain
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 26.13.0
+          cache: npm
+          cache-dependency-path: apps/bot/dashboard/package-lock.json
+
+      - name: Install without running dependency scripts
+        run: npm ci --ignore-scripts
+
+      - name: Verify registry signatures and provenance
+        run: npm audit signatures
+
+      - name: List dependencies that declare install scripts
+        run: |
+          node -e '
+            const lock = require("./package-lock.json");
+            const found = Object.entries(lock.packages || {}).filter(([, p]) => p.hasInstallScript).map(([k]) => k);
+            if (found.length) console.log("::notice::Install scripts are not run for: " + found.join(", "));
+          '

@@ -1,0 +1,7 @@
+#!/bin/sh
+# Block risky npm dependency changes and known malware signatures before they are committed.
+root=$(git rev-parse --show-toplevel)
+status=0
+sh "$root/tools/npm-guard/py.sh" "$root/tools/npm-guard/check_dependency_changes.py" --staged || status=1
+sh "$root/tools/npm-guard/py.sh" "$root/tools/npm-guard/scan_incoming.py" --staged || status=1
+exit $status

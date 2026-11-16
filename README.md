@@ -139,6 +139,7 @@ The layout is declared in [`governance/structure.json`](governance/structure.jso
 | [`docs/architecture/`](docs/architecture/) | Architecture records and the generated index | |
 | [`governance/`](governance/) | Structure manifest | |
 | [`tools/governance/`](tools/governance/) | Governance validators and tests | |
+| [`tools/npm-guard/`](tools/npm-guard/) | npm supply-chain guard for the dashboard | |
 | [`migration/`](migration/) | Provenance for each imported component | |
 
 Components keep their own internal layout, including their own `docs/` and pre-consolidation `docs/adr/` records. Repository-level architecture records live in `docs/architecture/records/`.

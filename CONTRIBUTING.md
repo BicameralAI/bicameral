@@ -31,6 +31,23 @@ python3 -m unittest discover -s tools/governance/tests -t tools/governance
 
 Generated files (`.github/CODEOWNERS`, `docs/architecture/INDEX.md`, `docs/architecture/index.json`) are never edited by hand. Change the source and run `--write`.
 
+## npm dependencies
+
+The dashboard (`apps/bot/dashboard`) is the only npm project. Changes that touch npm dependencies follow
+the supply-chain rules in [`tools/npm-guard/README.md`](tools/npm-guard/README.md). Once per clone:
+
+```bash
+cd apps/bot/dashboard
+npm run security:setup   # enable the npm-guard git hooks and `git safe-pull`
+npm run security:check   # every line must say "ok"
+```
+
+- Dependency install scripts do not run (`ignore-scripts=true`), and npm refuses versions less than 7 days old (`min-release-age=7`, npm 11.10+).
+- Commit `package.json` and `package-lock.json` together. Git, URL and GitHub-shorthand dependencies are not accepted.
+- A package that the check flags (new, little used, or a very new release) needs a reviewed entry in `tools/npm-guard/allow.txt`.
+- For an urgent security fix that is less than 7 days old, install it with `--min-release-age=0` and link the advisory in the pull request.
+- The `npm supply chain` workflow checks every pull request with the guard from the base branch, so it does not depend on your local hooks.
+
 ## Where files go
 
 [`governance/structure.json`](governance/structure.json) decides where files may live.
