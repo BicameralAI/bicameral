@@ -73,8 +73,8 @@
     }) => void;
     /** Clear any prior create result (on open/cancel/done). */
     onregistrationreset?: () => void;
-    /** Google Drive folder selection for Product create (#1264). */
-    driveFolderPhase?: "idle" | "starting" | "picking" | "ready" | "failed";
+    /** Google Drive storage setup for Product create (#1264, ARCH-0007). */
+    driveFolderPhase?: "idle" | "starting" | "provisioning" | "ready" | "failed";
     driveFolderName?: string;
     driveFolderMessage?: string;
     ondrivefolderselect?: () => void;

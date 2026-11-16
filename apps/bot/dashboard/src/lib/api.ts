@@ -716,11 +716,14 @@ export async function startHostedConnection(
   return res.json();
 }
 
-// ── Google Drive folder selection (hosted path, #1264) ──────────────
+// ── Google Drive storage setup (hosted path, #1264, ARCH-0007) ──────
 //
-// Drives the daemon-owned resource-selection seam. The daemon returns a
-// Picker start URL, validates the picked folder itself (Drive `files.get`),
-// and exposes only the redacted projection. The SPA never receives tokens.
+// Drives the daemon-owned resource-selection seam. The daemon sets up the
+// Product ledger folder itself with its stored Google credential (shared
+// drive, folder, one share with the owner's organization), validates it
+// (Drive `files.get`), and exposes only the redacted projection. There is
+// no Google window and no folder id from the browser. The SPA never
+// receives tokens.
 
 export async function startHostedResourceSelection(
   sessionToken: string,

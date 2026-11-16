@@ -15,7 +15,7 @@ For v0.1.28, terminal evidence must prove against exact Bot and Cloud candidate 
 3. exact Cloud client/scope binding, opaque state, PKCE S256, and the daemon loopback callback;
 4. real Google browser consent and authorization-code exchange through the production connection service;
 5. daemon-local provider credential custody and `ConnectionRegistry: connected` only after real provider completion;
-6. Cloud-first Picker/resource selection through the governed native-client + PKCE contract and the `drive` scope boundary (ARCH-0007; formerly `drive.file`);
+6. daemon-side Drive storage setup with the stored `drive` credential (ARCH-0007 Decision 2; replaces the former Picker/resource selection): Shared Drive, ledger folder, and one domain share on that folder;
 7. exactly one real accessible Drive resource plus a real provider-backed Drive operation/readiness result;
 8. bounded still-valid-cache behavior and wrong-environment/stale/tampered/disabled/rotated configuration negative paths;
 9. sanitized teardown and an exact-component terminal receipt;
@@ -74,7 +74,7 @@ Browser evidence may retain route/host/status/timing metadata. It must redact qu
 After the real browser flow:
 
 1. Record a sanitized `ConnectionRegistry` projection showing Google connected.
-2. Exercise the governed Picker/resource-selection path and bind exactly one accessible Drive resource.
+2. Exercise the daemon-side Drive storage setup path and bind exactly the one ledger folder it created and validated.
 3. Exercise the production downstream Drive path far enough to prove the provider credential is usable.
 4. Persist only operation type, success/failure, bounded resource metadata, and timestamps required by the topology contract.
 

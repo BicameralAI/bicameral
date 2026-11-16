@@ -569,6 +569,12 @@ pub struct AppState {
     /// deterministic doubles. Only daemon code touches it; access tokens
     /// pass through transiently and are never stored by the probe.
     pub drive_resource_probe: Arc<dyn crate::google_resource_selection::DriveResourceProbe>,
+    /// Injected Drive transport that provisions Product ledger storage
+    /// (ARCH-0007 Decision 2): Shared Drive, ledger folder, and the single
+    /// domain share. Production uses the live REST transport; tests inject
+    /// deterministic doubles. Access tokens pass through transiently.
+    pub drive_storage_provisioner:
+        Arc<dyn crate::google_drive_provisioning::DriveStorageProvisioner>,
     /// HTTP client shared across connection handlers.
     pub http_client: reqwest::Client,
     /// Configurable GitHub API endpoints (overridable for testing).
@@ -675,6 +681,11 @@ impl AppState {
                     reqwest::Client::new(),
                 ),
             ),
+            drive_storage_provisioner: Arc::new(
+                crate::google_drive_provisioning::HttpDriveStorageProvisioner::new(
+                    reqwest::Client::new(),
+                ),
+            ),
             http_client: reqwest::Client::new(),
             github_endpoints: crate::github_device_flow::GitHubEndpoints::default(),
             runtime_dispatch: None,
@@ -725,6 +736,16 @@ impl AppState {
         probe: Arc<dyn crate::google_resource_selection::DriveResourceProbe>,
     ) -> Self {
         self.drive_resource_probe = probe;
+        self
+    }
+
+    /// Replace the Drive storage provisioner. Tests inject deterministic
+    /// doubles; production keeps the live REST transport.
+    pub fn with_drive_storage_provisioner(
+        mut self,
+        provisioner: Arc<dyn crate::google_drive_provisioning::DriveStorageProvisioner>,
+    ) -> Self {
+        self.drive_storage_provisioner = provisioner;
         self
     }
 

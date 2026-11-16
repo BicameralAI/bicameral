@@ -14,6 +14,7 @@ pub mod evidence_repository;
 pub mod github_device_flow;
 pub mod google_app_config;
 pub mod google_client_credential;
+pub mod google_drive_provisioning;
 pub mod google_oauth;
 pub mod google_resource_selection;
 pub mod hosted_bridge_cors;

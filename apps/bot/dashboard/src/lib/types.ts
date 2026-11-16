@@ -388,9 +388,8 @@ export type ProviderResourceDescriptor = {
 
 export type ResourceSelectionStartOutcome =
   | {
-      outcome: "start_url";
+      outcome: "started";
       provider: string;
-      url: string;
       selection_session_id: string;
     }
   | { outcome: "action_needed"; provider: string; message: string }
