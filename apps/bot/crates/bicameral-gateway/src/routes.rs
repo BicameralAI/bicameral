@@ -4542,6 +4542,14 @@ async fn google_refresh_access_token(
         Err(_) => return GoogleRefreshOutcome::Inconclusive,
     };
 
+    // Omission retains the recorded grant; an explicit reduction requires consent.
+    if json["scope"]
+        .as_str()
+        .is_some_and(|scope| !bicameral_config::scope_grants_google_drive(Some(scope)))
+    {
+        return GoogleRefreshOutcome::Rejected;
+    }
+
     match json["access_token"].as_str().filter(|t| !t.is_empty()) {
         Some(token) => GoogleRefreshOutcome::Ok(token.to_string()),
         None => GoogleRefreshOutcome::Inconclusive,
@@ -11023,6 +11031,57 @@ mod tests {
         for request in &requests {
             assert!(request.contains("client_id=cloud-client-id"));
             assert!(request.contains("client_secret=desktop-secret"));
+        }
+    }
+
+    #[tokio::test]
+    async fn cloud_first_refresh_scope_controls_connection_and_reconnect() {
+        for (scope, connected) in [
+            (Some(bicameral_config::GOOGLE_DRIVE_SCOPE), true),
+            (None, true),
+            (Some("https://www.googleapis.com/auth/drive.file"), false),
+            (Some(""), false),
+        ] {
+            let mut state =
+                cloud_first_state_with_expired_google_token(Some("desktop-secret")).await;
+            let mut response = stub_token_response();
+            response.as_object_mut().unwrap().remove("scope");
+            if let Some(scope) = scope {
+                response["scope"] = serde_json::json!(scope);
+            }
+            let (endpoint, requests) = spawn_token_endpoint_stub(StatusCode::OK, response).await;
+            state.google_token_endpoint_override = Some(endpoint);
+            let (about, probes) = spawn_drive_about_stub(StatusCode::OK).await;
+            state.google_drive_about_endpoint_override = Some(about);
+            let app = Router::new().merge(connection_routes()).with_state(state);
+
+            let status = get_connections_json(&app).await;
+            let request = Request::builder()
+                .method("POST")
+                .uri("/api/v1/connections/google/start")
+                .body(Body::empty())
+                .unwrap();
+            let response = app.oneshot(request).await.unwrap();
+            let bytes = axum::body::to_bytes(response.into_body(), 4096)
+                .await
+                .unwrap();
+            let start: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            assert!(!requests.lock().unwrap().is_empty());
+            assert_eq!(
+                status["connections"]["google"]["status"],
+                if connected {
+                    "connected"
+                } else {
+                    "action_needed"
+                },
+                "refresh scope={scope:?}"
+            );
+            assert_eq!(
+                start["outcome"],
+                if connected { "connected" } else { "start_url" },
+                "refresh scope={scope:?}"
+            );
+            assert_eq!(probes.lock().unwrap().len(), if connected { 2 } else { 0 });
         }
     }
 
