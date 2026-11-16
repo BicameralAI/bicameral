@@ -26,6 +26,7 @@
     type HostedSetupProjection,
   } from "./lib/api";
   import type { ProviderResourceDescriptor } from "./lib/types";
+  import { startFailureMessage } from "./lib/resource-selection";
   import type { ProjectEntry } from "./lib/project-fixtures";
   import type { HostedBridgeUIState } from "./lib/hosted-bridge-types";
   import { bridgeStateToConnectStatus } from "./lib/connect-status";
@@ -158,16 +159,20 @@ let bridgeState = $state<HostedBridgeUIState>(
   // started earlier can never overwrite a newer outcome.
   let driveStateGeneration = 0;
 
-  // Google Drive folder selection for Product create (#1264). The daemon
-  // owns the Picker session and validates the folder; the SPA keeps only the
+  // Google Drive storage setup for Product create (#1264, ARCH-0007). The
+  // daemon creates and validates the ledger folder; the SPA keeps only the
   // redacted projection. `driveFolder` is the daemon-validated descriptor the
   // create request transports as `event_store_descriptor`.
   let driveFolderPhase = $state<
-    "idle" | "starting" | "picking" | "ready" | "failed"
+    "idle" | "starting" | "provisioning" | "ready" | "failed"
   >("idle");
   let driveFolder = $state<ProviderResourceDescriptor | null>(null);
   let driveFolderMessage = $state("");
   let driveFolderPollTimer: ReturnType<typeof setInterval> | null = null;
+  // Bumped by every setup run and by Cancel. A run applies a result only
+  // while it is still the current one, so a cancelled or superseded run can
+  // never come back as ready or overwrite a newer run.
+  let driveFolderRunGeneration = 0;
 
   onMount(() =>
     onHostedDaemonDisconnected(() => {
@@ -245,10 +250,11 @@ async function handleHostedCreate(input: {
       eventStoreFolderId: driveFolder?.folder_id,
     });
     registrationBusy = false;
-    // The daemon validates a chosen folder for a bounded window. When it
-    // refuses the create because that validation is gone (expired session,
-    // daemon restart, or a folder it never validated), drop the stale
-    // selection so the user re-picks instead of retrying a dead descriptor.
+    // The daemon validates the folder it set up for a bounded window. When
+    // it refuses the create because that validation is gone (expired
+    // session, daemon restart, or a folder it never validated), drop the
+    // stale folder so the user sets storage up again instead of retrying a
+    // dead descriptor.
     if (
       registrationResult.phase === "failed" &&
       registrationResult.message.startsWith("product_event_store_unvalidated")
@@ -257,7 +263,7 @@ async function handleHostedCreate(input: {
       driveFolder = null;
       driveFolderPhase = "failed";
       driveFolderMessage =
-        "The folder choice is no longer valid. Choose the folder again, then create.";
+        "Drive storage setup expired. Set up Drive storage again, then create.";
     }
     if (registrationResult.status === "recorded") {
       await loadHostedProjectDiscovery();
@@ -636,19 +642,23 @@ async function loadHostedProjectDiscovery() {
   }
 
   /**
-   * Start the daemon-owned Google Drive folder selection (#1264). The daemon
-   * mints the Picker URL and a selection session; the user picks exactly one
-   * folder in Google; the daemon validates it on its loopback callback. We
-   * poll the redacted projection until it is ready or fails. Nothing here
-   * can mark a folder ready: only a daemon `ready` projection does.
+   * Start the daemon-owned Google Drive storage setup (#1264, ARCH-0007).
+   * The daemon creates the ledger folder in the Bicameral shared drive,
+   * shares that folder with the owner's organization, and validates it. No
+   * Google window opens and the browser supplies no folder id. We poll the
+   * redacted projection until it is ready or fails. Nothing here can mark a
+   * folder ready: only a daemon `ready` projection does.
    */
   async function handleDriveFolderSelect() {
     if (!bridgeSessionToken) {
       driveFolderPhase = "failed";
-      driveFolderMessage = "Reconnect this device before choosing a folder.";
+      driveFolderMessage = "Reconnect this device before setting up Drive storage.";
       return;
     }
     stopDriveFolderPolling();
+    driveFolderRunGeneration += 1;
+    const run = driveFolderRunGeneration;
+    const superseded = () => run !== driveFolderRunGeneration;
     driveFolder = null;
     driveFolderMessage = "";
     driveFolderPhase = "starting";
@@ -656,20 +666,22 @@ async function loadHostedProjectDiscovery() {
     try {
       outcome = await startHostedResourceSelection(bridgeSessionToken);
     } catch {
+      if (superseded()) return;
       driveFolderPhase = "failed";
-      driveFolderMessage = "Bicameral could not start folder selection. Try again.";
+      driveFolderMessage = "Bicameral could not set up Drive storage. Try again.";
       return;
     }
-    if (outcome.outcome !== "start_url") {
+    // Cancel, or a newer run, happened while start was in flight.
+    if (superseded()) return;
+    if (outcome.outcome !== "started") {
       driveFolderPhase = "failed";
-      driveFolderMessage = outcome.message;
+      driveFolderMessage = startFailureMessage(outcome);
       return;
     }
     const selectionSessionId = outcome.selection_session_id;
-    window.open(outcome.url, "_blank", "noopener,noreferrer");
-    driveFolderPhase = "picking";
+    driveFolderPhase = "provisioning";
     const sessionToken = bridgeSessionToken;
-    driveFolderPollTimer = setInterval(async () => {
+    const readProjection = async () => {
       let projection;
       try {
         projection = await pollHostedResourceSelection(
@@ -679,6 +691,9 @@ async function loadHostedProjectDiscovery() {
       } catch {
         return;
       }
+      // A read that was already in flight when the owner cancelled, or
+      // when a newer run started, must not be applied.
+      if (superseded()) return;
       if (projection.state === "ready" && projection.resource) {
         stopDriveFolderPolling();
         driveFolder = projection.resource;
@@ -692,11 +707,19 @@ async function loadHostedProjectDiscovery() {
         driveFolderPhase = "failed";
         driveFolderMessage = projection.message;
       }
-    }, 2000);
+    };
+    // The daemon answers start at once and sets storage up in the
+    // background, so the session is normally still pending here; the timer
+    // reads the projection until it is terminal.
+    driveFolderPollTimer = setInterval(readProjection, 1000);
+    await readProjection();
   }
 
   function handleDriveFolderReset() {
     stopDriveFolderPolling();
+    // Invalidate any run still in flight. The daemon may still finish
+    // creating the folder; this page just no longer adopts it.
+    driveFolderRunGeneration += 1;
     driveFolder = null;
     driveFolderPhase = "idle";
     driveFolderMessage = "";

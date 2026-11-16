@@ -93,7 +93,7 @@ The deterministic suite does not prove:
 
 - real Google OAuth/token refresh;
 - OS-backed secret persistence;
-- Google Picker/folder-resource selection;
+- real Shared Drive creation, ledger-folder creation, and the domain share on the folder (daemon-side storage setup, ARCH-0007 Decision 2);
 - real `files.create`, `files.list`, or `files.get` behavior;
 - shared-drive behavior against a real account;
 - provider object identity binding under Google metadata;

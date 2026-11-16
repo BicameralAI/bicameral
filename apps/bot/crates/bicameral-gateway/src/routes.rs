@@ -4556,6 +4556,95 @@ async fn google_refresh_access_token(
     }
 }
 
+/// Why the daemon could not produce a `drive`-scoped access token.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum GoogleDriveAccessTokenError {
+    /// No usable Google credential is stored.
+    NotConnected,
+    /// The stored credential does not record a `drive` grant (ARCH-0007).
+    MissingDriveGrant,
+    /// Google rejected the refresh grant, or the refresh came back with a
+    /// narrower scope.
+    Rejected,
+    /// The token could not be refreshed for a reason that is not a
+    /// rejection (no refresh token, config unavailable, transport).
+    Unavailable,
+}
+
+/// A fresh access token for the daemon's own Drive calls (storage setup,
+/// ARCH-0007 Decision 2), from the stored Google connection credential.
+///
+/// Resolves the same credential the runtime token provider reads
+/// (canonical key first, then the legacy alias, usable values only). A
+/// credential that does not record the `drive` grant fails before any
+/// provider call. An expiring token is refreshed with the same policy as
+/// [`google_credential_live`]; the refreshed token is used transiently and
+/// not persisted (the runtime token provider owns rotation).
+pub(crate) async fn google_drive_access_token(
+    state: &AppState,
+) -> Result<String, GoogleDriveAccessTokenError> {
+    let usable = |source_id: &str| {
+        state
+            .secrets_store
+            .read_secret(
+                source_id,
+                bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+            )
+            .and_then(|value| bicameral_config::parse_stored_oauth_token(&value))
+            .filter(|token| token.is_usable())
+    };
+    let stored = usable(bicameral_config::connections::connection_keys::GOOGLE_SOURCE_ID)
+        .or_else(|| usable(bicameral_config::connections::legacy_aliases::GOOGLE_DRIVE_SOURCE_AUTH))
+        .ok_or(GoogleDriveAccessTokenError::NotConnected)?;
+    if !stored.grants_google_drive_scope() {
+        return Err(GoogleDriveAccessTokenError::MissingDriveGrant);
+    }
+
+    let needs_refresh = match &stored {
+        bicameral_config::StoredOAuthToken::Envelope(envelope) => {
+            envelope.access_token.is_empty()
+                || envelope.access_token_expired(chrono::Utc::now() + chrono::Duration::seconds(60))
+        }
+        _ => false,
+    };
+    if !needs_refresh {
+        return stored
+            .access_token()
+            .filter(|token| !token.is_empty())
+            .map(str::to_string)
+            .ok_or(GoogleDriveAccessTokenError::Unavailable);
+    }
+
+    let refresh_token = stored
+        .refresh_token()
+        .filter(|token| !token.is_empty())
+        .ok_or(GoogleDriveAccessTokenError::Unavailable)?;
+    let resolved = resolve_google_oauth_config_for(state)
+        .await
+        .map_err(|_| GoogleDriveAccessTokenError::Unavailable)?;
+    let mut config = resolved.oauth;
+    if config.client_secret.is_empty() {
+        config.client_secret = crate::google_resource_selection::stored_desktop_credential(
+            state.secrets_store.as_ref(),
+            &config.client_id,
+            resolved.config_version.as_deref(),
+        )
+        .ok_or(GoogleDriveAccessTokenError::Unavailable)?;
+    }
+    match google_refresh_access_token(
+        &state.http_client,
+        refresh_token,
+        &config,
+        &google_token_endpoint(state),
+    )
+    .await
+    {
+        GoogleRefreshOutcome::Ok(token) => Ok(token),
+        GoogleRefreshOutcome::Rejected => Err(GoogleDriveAccessTokenError::Rejected),
+        GoogleRefreshOutcome::Inconclusive => Err(GoogleDriveAccessTokenError::Unavailable),
+    }
+}
+
 /// #1279: whether a locally-usable Google credential is still accepted by
 /// Google. A server-side revocation leaves the local token structurally
 /// intact, so `google_credential_readable` alone never sees it.
@@ -7117,7 +7206,7 @@ async fn hosted_bridge_compatibility_telemetry(State(state): State<AppState>) ->
 /// the hosted bridge gateway guard — it runs before any handler that
 /// reads projections or mutates state.
 #[allow(clippy::result_large_err)] // Axum's concrete Response is the intentional handler error type.
-async fn validate_bridge_session(
+pub(crate) async fn validate_bridge_session(
     state: &AppState,
     headers: &axum::http::HeaderMap,
 ) -> Result<crate::state::HostedBridgePairingSession, Response> {

@@ -16,11 +16,12 @@
     eventSubstrateConnected?: boolean;
     eventSubstrateLabel?: string;
     /**
-     * Google Drive folder step (#1264). `ready` means the daemon validated a
-     * folder for this Product; only then is Create enabled. Legacy callers
-     * that never pass a phase keep the pre-#1264 behavior.
+     * Google Drive storage step (#1264, ARCH-0007). `ready` means the daemon
+     * created and validated a ledger folder for this Product; only then is
+     * Create enabled. Legacy callers that never pass a phase keep the
+     * pre-#1264 behavior.
      */
-    folderPhase?: "idle" | "starting" | "picking" | "ready" | "failed";
+    folderPhase?: "idle" | "starting" | "provisioning" | "ready" | "failed";
     folderName?: string;
     folderMessage?: string;
     onselectfolder?: () => void;
@@ -202,22 +203,22 @@
           data-phase={folderPhase}
         >
           <span class="substrate-label">
-            Product folder in {eventSubstrateLabel}
+            Product storage in {eventSubstrateLabel}
           </span>
           {#if folderPhase === "ready"}
             <span class="substrate-ok" data-testid="create-drive-folder-ready"
-              >{folderName || "Folder selected"}</span
+              >{folderName || "Storage ready"}</span
             >
             <button
               type="button"
               class="btn secondary btn-inline"
               data-testid="create-drive-folder-change"
               onclick={() => onresetfolder?.()}
-              disabled={busy}>Change</button
+              disabled={busy}>Reset</button
             >
-          {:else if folderPhase === "starting" || folderPhase === "picking"}
+          {:else if folderPhase === "starting" || folderPhase === "provisioning"}
             <span class="substrate-hint" data-testid="create-drive-folder-pending"
-              >Choose a folder in the Google window, then come back here.</span
+              >Setting up the Product ledger folder in Google Drive…</span
             >
             <button
               type="button"
@@ -238,8 +239,15 @@
               data-testid="create-drive-folder-choose"
               onclick={() => onselectfolder?.()}
               disabled={busy}
-              >{folderPhase === "failed" ? "Try again" : "Choose folder"}</button
+              >{folderPhase === "failed" ? "Try again" : "Set up Drive storage"}</button
             >
+            {#if folderPhase !== "failed"}
+              <span class="substrate-hint" data-testid="create-drive-folder-note"
+                >Bicameral creates the Product ledger folder in a Bicameral
+                shared drive. The only sharing change it makes is to share that
+                folder with your organization.</span
+              >
+            {/if}
           {/if}
         </div>
       {/if}

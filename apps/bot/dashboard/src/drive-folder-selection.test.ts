@@ -1,11 +1,13 @@
 /**
- * Hosted Product create: Google Drive folder selection (bot#1264).
+ * Hosted Product create: Google Drive storage setup (bot#1264, ARCH-0007).
  *
  * The operator-scoped daemon rejects `product.create` without a
  * daemon-validated Drive folder descriptor. These tests prove the shipped
- * hosted path drives the daemon's existing resource-selection flow, carries
- * the validated folder id into `product.create` verbatim, never invents
- * readiness, and never handles provider token material.
+ * hosted path drives the daemon's resource-selection flow, in which the
+ * daemon creates and shares the ledger folder itself (no Google window, no
+ * folder chosen in the browser), carries the validated folder id into
+ * `product.create` verbatim, never invents readiness, and never handles
+ * provider token material.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import appSource from "./App.svelte?raw";
@@ -13,6 +15,10 @@ import registrationSource from "./pages/HostedProjectRegistration.svelte?raw";
 import hostedDashboardSource from "./pages/HostedDashboard.svelte?raw";
 import apiSource from "./lib/api.ts?raw";
 import typesSource from "./lib/types.ts?raw";
+import {
+  startFailureMessage,
+  UNRECOGNISED_START_OUTCOME_MESSAGE,
+} from "./lib/resource-selection";
 
 class MemoryStorage implements Storage {
   readonly #values = new Map<string, string>();
@@ -177,8 +183,8 @@ describe("hosted SPA drives the daemon resource-selection flow", () => {
     );
     // The create request transports the daemon-issued folder id, nothing else.
     expect(appSource).toContain("eventStoreFolderId: driveFolder?.folder_id");
-    // A daemon refusal of a stale/unvalidated folder drops the selection so
-    // the user re-picks rather than replaying a dead descriptor.
+    // A daemon refusal of a stale/unvalidated folder drops it so the user
+    // sets storage up again rather than replaying a dead descriptor.
     expect(appSource).toContain(
       'registrationResult.message.startsWith("product_event_store_unvalidated")',
     );
@@ -193,7 +199,84 @@ describe("hosted SPA drives the daemon resource-selection flow", () => {
       "eventSubstrateConnected && folderReady",
     );
     expect(registrationSource).toContain('data-testid="create-drive-folder-choose"');
-    expect(registrationSource).toContain('"Choose folder"');
+    expect(registrationSource).toContain('"Set up Drive storage"');
+  });
+
+  it("sets storage up in one click: no Google window and no folder choosing", () => {
+    // The daemon's start outcome carries a session id and no URL.
+    const startOutcome = typesSource.slice(
+      typesSource.indexOf("export type ResourceSelectionStartOutcome"),
+      typesSource.indexOf("export type ResourceSelectionProjection"),
+    );
+    expect(startOutcome).toContain('outcome: "started"');
+    expect(startOutcome).not.toContain("url");
+    expect(startOutcome).not.toContain("start_url");
+    expect(appSource).toContain('outcome.outcome !== "started"');
+    // The folder step opens no browser window.
+    const handler = appSource.slice(
+      appSource.indexOf("async function handleDriveFolderSelect"),
+      appSource.indexOf("function handleDriveFolderReset"),
+    );
+    expect(handler).not.toContain("window.open");
+    expect(handler).not.toContain("outcome.url");
+    expect(registrationSource).not.toContain("Choose folder");
+    expect(registrationSource).not.toContain("Google window");
+    // Copy matches the Drive consent note in HostedSettings.
+    expect(registrationSource.replace(/\s+/g, " ")).toContain(
+      "The only sharing change it makes is to share that folder with your organization.",
+    );
+  });
+
+  it("drops the result of a cancelled or superseded setup run", () => {
+    const handler = appSource.slice(
+      appSource.indexOf("async function handleDriveFolderSelect"),
+      appSource.indexOf("function handleDriveFolderReset"),
+    );
+    // Each run takes its own generation and re-checks it after the start
+    // request and after every projection read.
+    expect(handler).toContain("driveFolderRunGeneration += 1;");
+    expect(handler).toContain("const run = driveFolderRunGeneration;");
+    const afterStart = handler.slice(
+      handler.indexOf("await startHostedResourceSelection"),
+      handler.indexOf('outcome.outcome !== "started"'),
+    );
+    expect(afterStart).toContain("if (superseded()) return;");
+    const afterPoll = handler.slice(
+      handler.indexOf("await pollHostedResourceSelection("),
+      handler.indexOf('projection.state === "ready"'),
+    );
+    expect(afterPoll).toContain("if (superseded()) return;");
+    // Cancel invalidates the run that is in flight.
+    const reset = appSource.slice(
+      appSource.indexOf("function handleDriveFolderReset"),
+      appSource.indexOf("function handleDriveOpenAuth"),
+    );
+    expect(reset).toContain("driveFolderRunGeneration += 1;");
+  });
+
+  it("shows a clear message for a start outcome it does not recognise", () => {
+    // A known refusal keeps the daemon's own message.
+    expect(
+      startFailureMessage({
+        outcome: "action_needed",
+        provider: "google",
+        message: "Connect Google before setting up Drive storage.",
+      }),
+    ).toBe("Connect Google before setting up Drive storage.");
+    // An older daemon still answers `start_url`, which has no message.
+    for (const outcome of [
+      { outcome: "start_url", provider: "google", url: "https://example.invalid" },
+      { outcome: "something_new", provider: "google" },
+      { outcome: "action_needed", provider: "google", message: "  " },
+      null,
+      "not an object",
+    ]) {
+      expect(startFailureMessage(outcome)).toBe(
+        UNRECOGNISED_START_OUTCOME_MESSAGE,
+      );
+    }
+    expect(appSource).toContain("startFailureMessage(outcome)");
+    expect(appSource).not.toContain("driveFolderMessage = outcome.message");
   });
 
   it("never exposes internal descriptor vocabulary or provider secrets to the browser surface", () => {
@@ -213,8 +296,8 @@ describe("hosted SPA drives the daemon resource-selection flow", () => {
     ]) {
       expect(projection).not.toContain(forbidden);
     }
-    // The SPA never posts to the selection callback; only the daemon's
-    // loopback receives Google's redirect.
+    // There is no selection callback any more, and the SPA never sends a
+    // browser-chosen folder id.
     expect(apiSource).not.toContain("resource-selection/callback");
     expect(appSource).not.toContain("picked_file_ids");
   });

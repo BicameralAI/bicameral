@@ -1,7 +1,8 @@
 //! Provider resource-selection contract (#1085).
 //!
-//! Daemon-owned Google Drive folder selection and validation for Product
-//! creation/setup. Resource selection is a bounded creation-attempt
+//! Daemon-owned Google Drive ledger-folder setup and validation for Product
+//! creation/setup. The daemon provisions the folder itself (ARCH-0007
+//! Decision 2); nothing is picked in a browser. Resource selection is a bounded creation-attempt
 //! operation that reuses the provider Connection credential boundary; it
 //! is deliberately separate from operator-global `ConnectionRegistry`
 //! state and from canonical Product creation.
@@ -17,8 +18,8 @@ use serde::{Deserialize, Serialize};
 /// Daemon/provider-authored resource readiness state.
 ///
 /// Mirrors the established provider-setup vocabulary. `Ready` is only
-/// reachable through daemon-side provider validation of an explicitly
-/// selected resource.
+/// reachable through daemon-side provider validation of a resource the
+/// daemon provisioned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderResourceState {
@@ -61,12 +62,14 @@ pub struct ProviderResourceDescriptor {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum ResourceSelectionStartOutcome {
-    /// System-browser Picker/OAuth URL for the user to open.
-    StartUrl {
+    /// The daemon started storage setup itself with its stored provider
+    /// credential and runs it in the background. There is no URL to open:
+    /// the status route reports `pending_selection` until the result
+    /// (ready or a typed failure) is recorded.
+    Started {
         provider: String,
-        url: String,
-        /// Opaque daemon-authored selection-session id used for callback
-        /// binding and polling. Not connection auth-session state.
+        /// Opaque daemon-authored selection-session id used for polling.
+        /// Not connection auth-session state.
         selection_session_id: String,
     },
     /// Selection cannot start until the operator acts (e.g. provider
@@ -74,27 +77,6 @@ pub enum ResourceSelectionStartOutcome {
     ActionNeeded { provider: String, message: String },
     /// Provider or resource kind not supported for selection.
     Unsupported { provider: String, message: String },
-}
-
-/// Callback body for the Picker/OAuth redirect return.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ResourceSelectionCallbackRequest {
-    /// The `selection_session_id` returned by start.
-    pub selection_session_id: String,
-    /// Authorization code from the redirect (consumed server-side, never
-    /// stored or echoed).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub code: Option<String>,
-    /// OAuth `state` parameter for session/CSRF binding.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
-    /// Picker-selected file ids from the redirect. Exactly one folder id
-    /// is required for readiness.
-    #[serde(default)]
-    pub picked_file_ids: Vec<String>,
-    /// Provider error code from the redirect.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
 }
 
 /// Daemon-authored projection of one resource-selection attempt.
@@ -151,10 +133,20 @@ mod tests {
     }
 
     #[test]
-    fn callback_request_defaults_picked_ids_empty() {
-        let req: ResourceSelectionCallbackRequest =
-            serde_json::from_str(r#"{"selection_session_id":"rsel-1"}"#).unwrap();
-        assert!(req.picked_file_ids.is_empty());
-        assert!(req.code.is_none());
+    fn started_outcome_carries_only_the_session_id() {
+        let outcome = ResourceSelectionStartOutcome::Started {
+            provider: "google".into(),
+            selection_session_id: "rsel-1".into(),
+        };
+        let json = serde_json::to_value(&outcome).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "outcome": "started",
+                "provider": "google",
+                "selection_session_id": "rsel-1"
+            })
+        );
+        assert!(json.get("url").is_none(), "there is no browser URL to open");
     }
 }
