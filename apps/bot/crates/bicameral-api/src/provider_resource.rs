@@ -62,9 +62,10 @@ pub struct ProviderResourceDescriptor {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum ResourceSelectionStartOutcome {
-    /// The daemon ran storage setup itself with its stored provider
-    /// credential. There is no URL to open: the result (ready or a typed
-    /// failure) is read from the status route.
+    /// The daemon started storage setup itself with its stored provider
+    /// credential and runs it in the background. There is no URL to open:
+    /// the status route reports `pending_selection` until the result
+    /// (ready or a typed failure) is recorded.
     Started {
         provider: String,
         /// Opaque daemon-authored selection-session id used for polling.

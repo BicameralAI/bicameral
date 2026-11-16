@@ -11,6 +11,11 @@
 //! folder id: Google's native Picker only supports `drive.file`, which
 //! cannot serve cross-operator Join.
 //!
+//! Both routes require a valid hosted-bridge session, because start changes
+//! the owner's Drive. Start answers at once with a `Pending` session and
+//! provisioning runs in a background task, serialized per daemon; the SPA
+//! polls the status route for the terminal projection.
+//!
 //! Authority boundary: folder validation grants resource readiness only.
 //! It does not create a Product, append an event, create SourceBinding,
 //! approve ingestion, grant membership, or publish Cloud state. The
@@ -157,9 +162,9 @@ impl DriveResourceProbe for HttpDriveResourceProbe {
 /// Terminal or pending outcome of one setup attempt.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SelectionOutcome {
-    /// Provisioning is in flight. A request that is dropped mid-flight
-    /// leaves the session here until the TTL purges it: fail-closed, it
-    /// can never validate a create.
+    /// Provisioning is in flight in a background task. If the daemon exits
+    /// mid-run the session is gone with it; while it is here it can never
+    /// validate a create.
     Pending,
     Ready(ProviderResourceDescriptor),
     Failed {
@@ -346,6 +351,7 @@ pub async fn validated_event_store_folder(
 use crate::state::AppState;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use bicameral_api::provider_resource::ResourceSelectionStartOutcome;
@@ -366,7 +372,7 @@ pub fn resource_selection_routes() -> Router<AppState> {
         )
 }
 
-fn start_action_needed(message: &str) -> (StatusCode, Json<ResourceSelectionStartOutcome>) {
+fn start_action_needed(message: &str) -> Response {
     (
         StatusCode::OK,
         Json(ResourceSelectionStartOutcome::ActionNeeded {
@@ -374,21 +380,91 @@ fn start_action_needed(message: &str) -> (StatusCode, Json<ResourceSelectionStar
             message: message.into(),
         }),
     )
+        .into_response()
 }
 
-/// `POST /setup/google/resource-selection/start`: provision and validate
-/// the Product ledger folder.
+/// Upper bound for one whole provisioning run. Each Drive call has its own
+/// request timeout; this bounds the sequence, including time spent waiting
+/// for another run to release the provisioning lock.
+pub const PROVISIONING_RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(150);
+
+const PROVISIONING_TIMED_OUT_MESSAGE: &str =
+    "Google Drive storage setup took too long and was stopped. Try again.";
+
+const PROVISIONING_STOPPED_MESSAGE: &str =
+    "Google Drive storage setup stopped unexpectedly. Try again.";
+
+/// Record the terminal outcome of a run. Only a session that is still
+/// `Pending` is advanced, so a recorded outcome is never overwritten.
+async fn record_outcome(state: &AppState, session_id: &str, outcome: SelectionOutcome) {
+    let mut sessions = state.resource_selection_sessions.write().await;
+    if let Some(entry) = sessions.get_mut(session_id) {
+        if matches!(entry.outcome, SelectionOutcome::Pending) {
+            entry.outcome = outcome;
+        }
+    }
+}
+
+/// Run provisioning for one session and always record a terminal outcome.
 ///
-/// Requires the stored Google connection credential to record the `drive`
-/// grant; without it the call returns `action_needed` and reaches no
-/// provider. Provisioning runs inside this request, so the session is
-/// terminal by the time the response is sent; the SPA reads the redacted
-/// result through the status route. Each call creates a new ledger folder
-/// (see the limitation noted in [`crate::google_drive_provisioning`]).
+/// Runs detached from the HTTP request, so the request timeout can never
+/// drop it halfway. The inner task holds the daemon's provisioning lock for
+/// the whole run; a timeout or a panic in it is recorded as a typed failure.
+/// If the daemon exits mid-run the session is gone with it, and a session
+/// that is still `Pending` never validates a create.
+async fn run_provisioning(state: AppState, session_id: String, access_token: String) {
+    let run_state = state.clone();
+    let run = tokio::spawn(async move {
+        let provision = async {
+            let _single_flight = run_state.drive_provisioning_lock.lock().await;
+            crate::google_drive_provisioning::provision_ledger_folder(
+                run_state.drive_storage_provisioner.as_ref(),
+                run_state.drive_resource_probe.as_ref(),
+                run_state.secrets_store.as_ref(),
+                &access_token,
+                Utc::now(),
+            )
+            .await
+        };
+        match tokio::time::timeout(PROVISIONING_RUN_TIMEOUT, provision).await {
+            Ok(outcome) => outcome,
+            Err(_) => SelectionOutcome::Failed {
+                state: ProviderResourceState::NotReady,
+                message: PROVISIONING_TIMED_OUT_MESSAGE.into(),
+            },
+        }
+    });
+    let outcome = run.await.unwrap_or_else(|_| SelectionOutcome::Failed {
+        state: ProviderResourceState::NotReady,
+        message: PROVISIONING_STOPPED_MESSAGE.into(),
+    });
+    record_outcome(&state, &session_id, outcome).await;
+}
+
+/// `POST /setup/google/resource-selection/start`: begin provisioning the
+/// Product ledger folder.
+///
+/// Requires a valid hosted-bridge session: this call changes the owner's
+/// Drive (Shared Drive, folder, domain share), so an unpaired caller is
+/// rejected before any credential read, provider call, or session insert.
+/// It also requires the stored Google connection credential to record the
+/// `drive` grant; without it the call returns `action_needed` and reaches
+/// no provider.
+///
+/// Provisioning runs in a background task so the request timeout cannot
+/// drop it halfway. The response carries the session id of a `Pending`
+/// session; the SPA polls the status route for the terminal projection.
+/// Each call creates a new ledger folder (see the limitation noted in
+/// [`crate::google_drive_provisioning`]).
 async fn resource_selection_start(
     State(state): State<AppState>,
-) -> (StatusCode, Json<ResourceSelectionStartOutcome>) {
+    headers: axum::http::HeaderMap,
+) -> Response {
     use crate::routes::GoogleDriveAccessTokenError;
+
+    if let Err(rejection) = crate::routes::validate_bridge_session(&state, &headers).await {
+        return rejection;
+    }
 
     let access_token = match crate::routes::google_drive_access_token(&state).await {
         Ok(token) => token,
@@ -428,21 +504,11 @@ async fn resource_selection_start(
         );
     }
 
-    let outcome = crate::google_drive_provisioning::provision_ledger_folder(
-        state.drive_storage_provisioner.as_ref(),
-        state.drive_resource_probe.as_ref(),
-        state.secrets_store.as_ref(),
-        &access_token,
-        now,
-    )
-    .await;
-
-    {
-        let mut sessions = state.resource_selection_sessions.write().await;
-        if let Some(entry) = sessions.get_mut(&session_id) {
-            entry.outcome = outcome;
-        }
-    }
+    tokio::spawn(run_provisioning(
+        state.clone(),
+        session_id.clone(),
+        access_token,
+    ));
 
     (
         StatusCode::OK,
@@ -451,20 +517,28 @@ async fn resource_selection_start(
             selection_session_id: session_id,
         }),
     )
+        .into_response()
 }
 
-/// `GET /setup/google/resource-selection/:session_id` — safe projection.
+/// `GET /setup/google/resource-selection/:session_id`: safe projection.
+///
+/// Requires a valid hosted-bridge session: a `Ready` projection carries the
+/// folder descriptor, which an unpaired caller must not read.
 async fn resource_selection_status(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Path(session_id): Path<String>,
-) -> (StatusCode, Json<ResourceSelectionProjection>) {
+) -> Response {
+    if let Err(rejection) = crate::routes::validate_bridge_session(&state, &headers).await {
+        return rejection;
+    }
     let session = {
         let sessions = state.resource_selection_sessions.read().await;
         sessions.get(&session_id).cloned()
     };
     match session {
         Some(session) if !session.is_expired(Utc::now()) => {
-            (StatusCode::OK, Json(selection_projection(&session.outcome)))
+            (StatusCode::OK, Json(selection_projection(&session.outcome))).into_response()
         }
         _ => (
             StatusCode::NOT_FOUND,
@@ -474,7 +548,8 @@ async fn resource_selection_status(
                 message: "Selection session not found or expired.".into(),
                 resource: None,
             }),
-        ),
+        )
+            .into_response(),
     }
 }
 
@@ -803,10 +878,30 @@ mod tests {
         let state = AppState::new(audit)
             .with_drive_resource_probe(probe)
             .with_drive_storage_provisioner(provisioner);
+        pair(&state, BRIDGE_TOKEN, chrono::Duration::hours(1));
         let app = Router::new()
             .merge(resource_selection_routes())
             .with_state(state.clone());
         (app, state)
+    }
+
+    const BRIDGE_TOKEN: &str = "bridge-session-token-for-tests";
+
+    /// Register a hosted-bridge session, as an approved pairing would.
+    fn pair(state: &AppState, token: &str, lifetime: chrono::Duration) {
+        let now = Utc::now();
+        state.hosted_bridge_sessions.try_write().unwrap().insert(
+            token.to_string(),
+            crate::state::HostedBridgePairingSession {
+                session_token: token.to_string(),
+                pairing_id: None,
+                origin: "https://app.bicameral-ai.com".to_string(),
+                cloud_account_id: "acct-test-123".to_string(),
+                paired_at: now,
+                expires_at: now + lifetime,
+                revoked: false,
+            },
+        );
     }
 
     async fn request_json(
@@ -814,11 +909,20 @@ mod tests {
         method: &str,
         uri: &str,
     ) -> (StatusCode, serde_json::Value) {
-        let req = Request::builder()
-            .method(method)
-            .uri(uri)
-            .body(Body::empty())
-            .unwrap();
+        request_json_as(app, method, uri, Some(BRIDGE_TOKEN)).await
+    }
+
+    async fn request_json_as(
+        app: &Router,
+        method: &str,
+        uri: &str,
+        bridge_token: Option<&str>,
+    ) -> (StatusCode, serde_json::Value) {
+        let mut builder = Request::builder().method(method).uri(uri);
+        if let Some(token) = bridge_token {
+            builder = builder.header("x-bridge-session-token", token);
+        }
+        let req = builder.body(Body::empty()).unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
         let status = resp.status();
         let bytes = axum::body::to_bytes(resp.into_body(), 16384).await.unwrap();
@@ -828,11 +932,34 @@ mod tests {
         )
     }
 
+    const START_URI: &str = "/api/v1/setup/google/resource-selection/start";
+
+    /// Start setup and wait for the background run to record its outcome,
+    /// so a test can assert on provider calls and the terminal projection.
     async fn start(app: &Router) -> serde_json::Value {
-        let (status, json) =
-            request_json(app, "POST", "/api/v1/setup/google/resource-selection/start").await;
+        let json = start_without_waiting(app).await;
+        if let Some(session_id) = json["selection_session_id"].as_str() {
+            settle(app, session_id).await;
+        }
+        json
+    }
+
+    async fn start_without_waiting(app: &Router) -> serde_json::Value {
+        let (status, json) = request_json(app, "POST", START_URI).await;
         assert_eq!(status, StatusCode::OK);
         json
+    }
+
+    /// Poll the status route until the session leaves `pending_selection`.
+    async fn settle(app: &Router, session_id: &str) -> serde_json::Value {
+        for _ in 0..400 {
+            let (_, projection) = status_of(app, session_id).await;
+            if projection["state"] != "pending_selection" {
+                return projection;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+        panic!("provisioning did not reach a terminal outcome");
     }
 
     async fn status_of(app: &Router, session_id: &str) -> (StatusCode, serde_json::Value) {
@@ -1021,6 +1148,7 @@ mod tests {
         let mut state = AppState::new(audit)
             .with_drive_resource_probe(probe)
             .with_drive_storage_provisioner(provisioner.clone());
+        pair(&state, BRIDGE_TOKEN, chrono::Duration::hours(1));
         state.google_oauth_config = Some(legacy_env_config());
         state.google_oauth_allow_env_override = true;
         state.google_token_endpoint_override = Some(endpoint);
@@ -1133,6 +1261,192 @@ mod tests {
         assert!(provisioner.calls().is_empty());
         assert_eq!(
             validated_event_store_folder(&state, &create_command(Some("folder-x"))).await,
+            None
+        );
+    }
+    // ── Bridge-session guard, background run, single flight ────────
+
+    #[tokio::test]
+    async fn start_without_a_valid_bridge_session_is_rejected_before_any_side_effect() {
+        let provisioner = Arc::new(ScriptedProvisioner::workspace());
+        let probe = CountingProbe::in_drive("created-drive-1");
+        let (app, state) = setup_app(provisioner.clone(), probe.clone());
+        store_google_credential(&state, Some(DRIVE_SCOPE), Some(3600), Utc::now());
+        pair(&state, "expired-token", chrono::Duration::hours(-1));
+
+        for (token, expected) in [
+            (None, StatusCode::UNAUTHORIZED),
+            (Some("not-a-paired-token"), StatusCode::UNAUTHORIZED),
+            (Some("expired-token"), StatusCode::FORBIDDEN),
+        ] {
+            let (status, json) = request_json_as(&app, "POST", START_URI, token).await;
+            assert_eq!(status, expected, "token {token:?}");
+            assert!(json.get("selection_session_id").is_none());
+        }
+        // Give any wrongly spawned run a chance to show itself.
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(provisioner.calls().is_empty());
+        assert_eq!(probe.calls.load(Ordering::SeqCst), 0);
+        assert!(state.resource_selection_sessions.read().await.is_empty());
+
+        // The paired SPA is still served.
+        let started = start(&app).await;
+        assert_eq!(started["outcome"], "started");
+    }
+
+    #[tokio::test]
+    async fn status_without_a_valid_bridge_session_never_returns_the_folder() {
+        let provisioner = Arc::new(ScriptedProvisioner::workspace());
+        let probe = CountingProbe::in_drive("created-drive-1");
+        let (app, state) = setup_app(provisioner, probe);
+        let mut ready = test_session(Utc::now());
+        ready.outcome = SelectionOutcome::Ready(ready_descriptor("folder-abc"));
+        state
+            .resource_selection_sessions
+            .write()
+            .await
+            .insert(ready.session_id.clone(), ready);
+        let uri = "/api/v1/setup/google/resource-selection/rsel-1";
+
+        for token in [None, Some("not-a-paired-token")] {
+            let (status, json) = request_json_as(&app, "GET", uri, token).await;
+            assert_eq!(status, StatusCode::UNAUTHORIZED, "token {token:?}");
+            assert!(!json.to_string().contains("folder-abc"));
+        }
+        // An unknown session id is not distinguishable without a session.
+        let (status, _) = request_json_as(
+            &app,
+            "GET",
+            "/api/v1/setup/google/resource-selection/rsel-missing",
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+
+        let (status, json) = request_json_as(&app, "GET", uri, Some(BRIDGE_TOKEN)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json["resource"]["folder_id"], "folder-abc");
+    }
+
+    #[tokio::test]
+    async fn start_returns_a_pending_session_and_the_run_finishes_in_the_background() {
+        let mut scripted = ScriptedProvisioner::workspace();
+        scripted.pause = std::time::Duration::from_millis(40);
+        let provisioner = Arc::new(scripted);
+        let probe = CountingProbe::in_drive("created-drive-1");
+        let (app, state) = setup_app(provisioner, probe);
+        store_google_credential(&state, Some(DRIVE_SCOPE), Some(3600), Utc::now());
+
+        let started = start_without_waiting(&app).await;
+        assert_eq!(started["outcome"], "started");
+        let session_id = started["selection_session_id"].as_str().unwrap();
+
+        // The response does not wait for Google: the session is in flight
+        // and cannot validate a create yet.
+        let (status, projection) = status_of(&app, session_id).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(projection["state"], "pending_selection");
+        assert!(projection.get("resource").is_none());
+        assert_eq!(
+            validated_event_store_folder(&state, &create_command(Some("ledger-folder-1"))).await,
+            None
+        );
+
+        let projection = settle(&app, session_id).await;
+        assert_eq!(projection["state"], "ready");
+        assert_eq!(
+            validated_event_store_folder(&state, &create_command(Some("ledger-folder-1"))).await,
+            Some("ledger-folder-1".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn overlapping_starts_create_exactly_one_shared_drive() {
+        let mut scripted = ScriptedProvisioner::workspace();
+        // Without serialization both runs would list no drive and each
+        // would create one while the other is paused.
+        scripted.pause = std::time::Duration::from_millis(30);
+        let provisioner = Arc::new(scripted);
+        let probe = CountingProbe::in_drive("created-drive-1");
+        let (app, state) = setup_app(provisioner.clone(), probe);
+        store_google_credential(&state, Some(DRIVE_SCOPE), Some(3600), Utc::now());
+
+        let first = start_without_waiting(&app).await;
+        let second = start_without_waiting(&app).await;
+        let first_id = first["selection_session_id"].as_str().unwrap();
+        let second_id = second["selection_session_id"].as_str().unwrap();
+        assert_ne!(first_id, second_id);
+
+        assert_eq!(settle(&app, first_id).await["state"], "ready");
+        assert_eq!(settle(&app, second_id).await["state"], "ready");
+
+        let calls = provisioner.calls();
+        let creates = calls
+            .iter()
+            .filter(|call| matches!(call, Call::CreateDrive { .. }))
+            .count();
+        assert_eq!(creates, 1, "calls: {calls:?}");
+        // The second run found the recorded drive instead of listing.
+        assert!(calls.contains(&Call::GetDrive("created-drive-1".into())));
+        let folders: Vec<&Call> = calls
+            .iter()
+            .filter(|call| matches!(call, Call::CreateFolder { .. }))
+            .collect();
+        assert_eq!(folders.len(), 2);
+        assert!(folders.iter().all(|call| matches!(
+            call,
+            Call::CreateFolder { drive_id, .. } if drive_id == "created-drive-1"
+        )));
+    }
+
+    #[tokio::test]
+    async fn a_crashed_run_is_recorded_as_a_failure_and_validates_nothing() {
+        let mut scripted = ScriptedProvisioner::workspace();
+        scripted.panic_on_account = true;
+        let provisioner = Arc::new(scripted);
+        let probe = CountingProbe::in_drive("created-drive-1");
+        let (app, state) = setup_app(provisioner, probe);
+        store_google_credential(&state, Some(DRIVE_SCOPE), Some(3600), Utc::now());
+
+        let started = start(&app).await;
+        let session_id = started["selection_session_id"].as_str().unwrap();
+        let (_, projection) = status_of(&app, session_id).await;
+        assert_eq!(projection["state"], "not_ready");
+        assert_eq!(projection["message"], PROVISIONING_STOPPED_MESSAGE);
+        assert!(projection.get("resource").is_none());
+        assert_eq!(
+            validated_event_store_folder(&state, &create_command(Some("ledger-folder-1"))).await,
+            None
+        );
+
+        // The lock was released: a later run on the same daemon proceeds.
+        assert!(state.drive_provisioning_lock.try_lock().is_ok());
+    }
+
+    #[tokio::test]
+    async fn a_recorded_outcome_is_never_overwritten() {
+        let provisioner = Arc::new(ScriptedProvisioner::workspace());
+        let probe = CountingProbe::in_drive("created-drive-1");
+        let (_app, state) = setup_app(provisioner, probe);
+        let mut session = test_session(Utc::now());
+        session.outcome = SelectionOutcome::Failed {
+            state: ProviderResourceState::NotReady,
+            message: "first".into(),
+        };
+        state
+            .resource_selection_sessions
+            .write()
+            .await
+            .insert(session.session_id.clone(), session);
+
+        record_outcome(
+            &state,
+            "rsel-1",
+            SelectionOutcome::Ready(ready_descriptor("folder-abc")),
+        )
+        .await;
+        assert_eq!(
+            validated_event_store_folder(&state, &create_command(Some("folder-abc"))).await,
             None
         );
     }

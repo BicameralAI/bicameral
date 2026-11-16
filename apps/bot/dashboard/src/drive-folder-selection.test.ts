@@ -15,6 +15,10 @@ import registrationSource from "./pages/HostedProjectRegistration.svelte?raw";
 import hostedDashboardSource from "./pages/HostedDashboard.svelte?raw";
 import apiSource from "./lib/api.ts?raw";
 import typesSource from "./lib/types.ts?raw";
+import {
+  startFailureMessage,
+  UNRECOGNISED_START_OUTCOME_MESSAGE,
+} from "./lib/resource-selection";
 
 class MemoryStorage implements Storage {
   readonly #values = new Map<string, string>();
@@ -221,6 +225,58 @@ describe("hosted SPA drives the daemon resource-selection flow", () => {
     expect(registrationSource.replace(/\s+/g, " ")).toContain(
       "The only sharing change it makes is to share that folder with your organization.",
     );
+  });
+
+  it("drops the result of a cancelled or superseded setup run", () => {
+    const handler = appSource.slice(
+      appSource.indexOf("async function handleDriveFolderSelect"),
+      appSource.indexOf("function handleDriveFolderReset"),
+    );
+    // Each run takes its own generation and re-checks it after the start
+    // request and after every projection read.
+    expect(handler).toContain("driveFolderRunGeneration += 1;");
+    expect(handler).toContain("const run = driveFolderRunGeneration;");
+    const afterStart = handler.slice(
+      handler.indexOf("await startHostedResourceSelection"),
+      handler.indexOf('outcome.outcome !== "started"'),
+    );
+    expect(afterStart).toContain("if (superseded()) return;");
+    const afterPoll = handler.slice(
+      handler.indexOf("await pollHostedResourceSelection("),
+      handler.indexOf('projection.state === "ready"'),
+    );
+    expect(afterPoll).toContain("if (superseded()) return;");
+    // Cancel invalidates the run that is in flight.
+    const reset = appSource.slice(
+      appSource.indexOf("function handleDriveFolderReset"),
+      appSource.indexOf("function handleDriveOpenAuth"),
+    );
+    expect(reset).toContain("driveFolderRunGeneration += 1;");
+  });
+
+  it("shows a clear message for a start outcome it does not recognise", () => {
+    // A known refusal keeps the daemon's own message.
+    expect(
+      startFailureMessage({
+        outcome: "action_needed",
+        provider: "google",
+        message: "Connect Google before setting up Drive storage.",
+      }),
+    ).toBe("Connect Google before setting up Drive storage.");
+    // An older daemon still answers `start_url`, which has no message.
+    for (const outcome of [
+      { outcome: "start_url", provider: "google", url: "https://example.invalid" },
+      { outcome: "something_new", provider: "google" },
+      { outcome: "action_needed", provider: "google", message: "  " },
+      null,
+      "not an object",
+    ]) {
+      expect(startFailureMessage(outcome)).toBe(
+        UNRECOGNISED_START_OUTCOME_MESSAGE,
+      );
+    }
+    expect(appSource).toContain("startFailureMessage(outcome)");
+    expect(appSource).not.toContain("driveFolderMessage = outcome.message");
   });
 
   it("never exposes internal descriptor vocabulary or provider secrets to the browser surface", () => {

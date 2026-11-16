@@ -575,6 +575,10 @@ pub struct AppState {
     /// deterministic doubles. Access tokens pass through transiently.
     pub drive_storage_provisioner:
         Arc<dyn crate::google_drive_provisioning::DriveStorageProvisioner>,
+    /// Serializes Drive storage provisioning for this daemon. Held across
+    /// the whole run so overlapping setup requests can neither create two
+    /// Shared Drives nor race the hint read-modify-write.
+    pub drive_provisioning_lock: Arc<tokio::sync::Mutex<()>>,
     /// HTTP client shared across connection handlers.
     pub http_client: reqwest::Client,
     /// Configurable GitHub API endpoints (overridable for testing).
@@ -686,6 +690,7 @@ impl AppState {
                     reqwest::Client::new(),
                 ),
             ),
+            drive_provisioning_lock: Arc::new(tokio::sync::Mutex::new(())),
             http_client: reqwest::Client::new(),
             github_endpoints: crate::github_device_flow::GitHubEndpoints::default(),
             runtime_dispatch: None,

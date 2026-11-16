@@ -136,6 +136,11 @@ pub const GOOGLE_DRIVE_API_BASE: &str = "https://www.googleapis.com/drive/v3";
 
 const DRIVE_CAPABILITY_FIELDS: &str = "id,name,capabilities(canAddChildren,canShare)";
 
+/// Upper bound for one Drive provisioning request. Provisioning makes up
+/// to about nine sequential calls; a single stalled call must fail the run
+/// with a typed message instead of holding the provisioning lock.
+pub const DRIVE_PROVISION_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
+
 /// Live Drive REST provisioner.
 pub struct HttpDriveStorageProvisioner {
     client: reqwest::Client,
@@ -163,6 +168,7 @@ impl HttpDriveStorageProvisioner {
     ) -> Result<reqwest::Response, DriveProvisionError> {
         request
             .bearer_auth(access_token)
+            .timeout(DRIVE_PROVISION_REQUEST_TIMEOUT)
             .send()
             .await
             .map_err(|_| DriveProvisionError::Network {
@@ -678,6 +684,11 @@ pub(crate) mod test_support {
         pub(crate) folder: Result<String, DriveProvisionError>,
         pub(crate) share: Result<(), DriveProvisionError>,
         pub(crate) calls: Mutex<Vec<Call>>,
+        /// Delay inside `drives.list` and `drives.create`, so overlapping
+        /// runs interleave unless something serializes them.
+        pub(crate) pause: std::time::Duration,
+        /// Panic inside the `about` call, to prove a crashed run is recorded.
+        pub(crate) panic_on_account: bool,
     }
 
     pub(crate) fn drive(id: &str) -> SharedDriveFacts {
@@ -702,6 +713,8 @@ pub(crate) mod test_support {
                 folder: Ok("ledger-folder-1".into()),
                 share: Ok(()),
                 calls: Mutex::new(Vec::new()),
+                pause: std::time::Duration::ZERO,
+                panic_on_account: false,
             }
         }
 
@@ -718,7 +731,11 @@ pub(crate) mod test_support {
         fn account<'a>(&'a self, _access_token: &'a str) -> ProvisionFuture<'a, DriveAccount> {
             self.record(Call::Account);
             let result = self.account.clone();
-            Box::pin(async move { result })
+            let panic_on_account = self.panic_on_account;
+            Box::pin(async move {
+                assert!(!panic_on_account, "scripted provisioner panic");
+                result
+            })
         }
 
         fn get_shared_drive<'a>(
@@ -744,7 +761,13 @@ pub(crate) mod test_support {
         ) -> ProvisionFuture<'a, Vec<SharedDriveFacts>> {
             self.record(Call::FindDrives(name.into()));
             let listed = self.listed.lock().unwrap().clone();
-            Box::pin(async move { Ok(listed) })
+            let pause = self.pause;
+            Box::pin(async move {
+                if !pause.is_zero() {
+                    tokio::time::sleep(pause).await;
+                }
+                Ok(listed)
+            })
         }
 
         fn create_shared_drive<'a>(
@@ -773,7 +796,14 @@ pub(crate) mod test_support {
             if let Ok(created) = &result {
                 self.drives.lock().unwrap().push(created.clone());
             }
-            Box::pin(async move { result })
+            drop(queued);
+            let pause = self.pause;
+            Box::pin(async move {
+                if !pause.is_zero() {
+                    tokio::time::sleep(pause).await;
+                }
+                result
+            })
         }
 
         fn create_folder<'a>(

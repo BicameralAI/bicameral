@@ -26,6 +26,7 @@
     type HostedSetupProjection,
   } from "./lib/api";
   import type { ProviderResourceDescriptor } from "./lib/types";
+  import { startFailureMessage } from "./lib/resource-selection";
   import type { ProjectEntry } from "./lib/project-fixtures";
   import type { HostedBridgeUIState } from "./lib/hosted-bridge-types";
   import { bridgeStateToConnectStatus } from "./lib/connect-status";
@@ -168,6 +169,10 @@ let bridgeState = $state<HostedBridgeUIState>(
   let driveFolder = $state<ProviderResourceDescriptor | null>(null);
   let driveFolderMessage = $state("");
   let driveFolderPollTimer: ReturnType<typeof setInterval> | null = null;
+  // Bumped by every setup run and by Cancel. A run applies a result only
+  // while it is still the current one, so a cancelled or superseded run can
+  // never come back as ready or overwrite a newer run.
+  let driveFolderRunGeneration = 0;
 
   onMount(() =>
     onHostedDaemonDisconnected(() => {
@@ -651,6 +656,9 @@ async function loadHostedProjectDiscovery() {
       return;
     }
     stopDriveFolderPolling();
+    driveFolderRunGeneration += 1;
+    const run = driveFolderRunGeneration;
+    const superseded = () => run !== driveFolderRunGeneration;
     driveFolder = null;
     driveFolderMessage = "";
     driveFolderPhase = "starting";
@@ -658,13 +666,16 @@ async function loadHostedProjectDiscovery() {
     try {
       outcome = await startHostedResourceSelection(bridgeSessionToken);
     } catch {
+      if (superseded()) return;
       driveFolderPhase = "failed";
       driveFolderMessage = "Bicameral could not set up Drive storage. Try again.";
       return;
     }
+    // Cancel, or a newer run, happened while start was in flight.
+    if (superseded()) return;
     if (outcome.outcome !== "started") {
       driveFolderPhase = "failed";
-      driveFolderMessage = outcome.message;
+      driveFolderMessage = startFailureMessage(outcome);
       return;
     }
     const selectionSessionId = outcome.selection_session_id;
@@ -680,6 +691,9 @@ async function loadHostedProjectDiscovery() {
       } catch {
         return;
       }
+      // A read that was already in flight when the owner cancelled, or
+      // when a newer run started, must not be applied.
+      if (superseded()) return;
       if (projection.state === "ready" && projection.resource) {
         stopDriveFolderPolling();
         driveFolder = projection.resource;
@@ -694,14 +708,18 @@ async function loadHostedProjectDiscovery() {
         driveFolderMessage = projection.message;
       }
     };
-    // The daemon finishes setup before it answers start, so the first read
-    // is normally terminal; the timer only covers a still-pending session.
-    driveFolderPollTimer = setInterval(readProjection, 2000);
+    // The daemon answers start at once and sets storage up in the
+    // background, so the session is normally still pending here; the timer
+    // reads the projection until it is terminal.
+    driveFolderPollTimer = setInterval(readProjection, 1000);
     await readProjection();
   }
 
   function handleDriveFolderReset() {
     stopDriveFolderPolling();
+    // Invalidate any run still in flight. The daemon may still finish
+    // creating the folder; this page just no longer adopts it.
+    driveFolderRunGeneration += 1;
     driveFolder = null;
     driveFolderPhase = "idle";
     driveFolderMessage = "";

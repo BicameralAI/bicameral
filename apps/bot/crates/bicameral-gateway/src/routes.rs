@@ -7206,7 +7206,7 @@ async fn hosted_bridge_compatibility_telemetry(State(state): State<AppState>) ->
 /// the hosted bridge gateway guard — it runs before any handler that
 /// reads projections or mutates state.
 #[allow(clippy::result_large_err)] // Axum's concrete Response is the intentional handler error type.
-async fn validate_bridge_session(
+pub(crate) async fn validate_bridge_session(
     state: &AppState,
     headers: &axum::http::HeaderMap,
 ) -> Result<crate::state::HostedBridgePairingSession, Response> {
