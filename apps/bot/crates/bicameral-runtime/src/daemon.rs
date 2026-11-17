@@ -26,6 +26,17 @@ fn project_registrations_from_store(
     router: &crate::project_registry::ProjectEventStoreRouter,
     workspace_bindings_dir: Option<&Path>,
 ) -> anyhow::Result<Vec<LocalProjectRegistration>> {
+    project_registrations_from_store_with_drive_transport(router, workspace_bindings_dir, None)
+}
+
+/// [`project_registrations_from_store`] whose event-store health checks open
+/// Google Drive routes through an explicit, process-local transport (tests).
+/// `None` uses the operator's OS credentials.
+fn project_registrations_from_store_with_drive_transport(
+    router: &crate::project_registry::ProjectEventStoreRouter,
+    workspace_bindings_dir: Option<&Path>,
+    drive_transport: Option<Arc<dyn crate::drive_api_event_store::DriveApiTransport>>,
+) -> anyhow::Result<Vec<LocalProjectRegistration>> {
     use crate::workspace_binding::WorkspaceBindingStore;
     use bicameral_api::workspace_binding::WorkspaceBindingState;
 
@@ -70,7 +81,10 @@ fn project_registrations_from_store(
                 // never the descriptor/account label or a local path.
                 name: registration.product_id.clone(),
                 event_store_healthy: router
-                    .adapter_for(&registration.product_id)
+                    .adapter_for_with_drive_transport(
+                        &registration.product_id,
+                        drive_transport.clone(),
+                    )
                     .and_then(|adapter| {
                         adapter.health_check().map_err(|error| {
                             crate::project_registry::ProjectRegistryError::Io(error.to_string())
@@ -460,7 +474,12 @@ impl DaemonDispatch {
                     &ctx,
                 );
                 return match pending_route {
-                    Some(pending) => self.persist_joined_product_route(request, response, pending),
+                    Some(pending) => self.persist_joined_product_route(
+                        request,
+                        response,
+                        pending,
+                        create_transport,
+                    ),
                     None => response,
                 };
             }
@@ -1117,6 +1136,7 @@ impl DaemonDispatch {
         request: &ToolRequest,
         response: ToolResponse,
         pending: PendingJoinRoute,
+        drive_transport: Option<Arc<dyn crate::drive_api_event_store::DriveApiTransport>>,
     ) -> ToolResponse {
         let granted = response.status == bicameral_api::tool_request::ToolResponseStatus::Ok
             && response
@@ -1139,7 +1159,7 @@ impl DaemonDispatch {
         };
         match router.store().write(&pending.record) {
             Ok(()) => {
-                self.refresh_project_registrations();
+                self.refresh_project_registrations_with_drive_transport(drive_transport);
                 response
             }
             // Membership is canonical in the Product ledger; joining again is
@@ -1383,10 +1403,24 @@ impl DaemonDispatch {
     /// outcome; the warning is redaction-safe and restart hydration retries the
     /// projection from the same durable stores.
     fn refresh_project_registrations(&self) {
+        self.refresh_project_registrations_with_drive_transport(None);
+    }
+
+    /// [`Self::refresh_project_registrations`] carrying the request's
+    /// process-local Drive transport through the health checks, so a test-owned
+    /// provider boundary is not replaced by the OS-credential opener.
+    fn refresh_project_registrations_with_drive_transport(
+        &self,
+        drive_transport: Option<Arc<dyn crate::drive_api_event_store::DriveApiTransport>>,
+    ) {
         let Some(router) = &self.project_router else {
             return;
         };
-        match project_registrations_from_store(router, self.workspace_bindings_dir.as_deref()) {
+        match project_registrations_from_store_with_drive_transport(
+            router,
+            self.workspace_bindings_dir.as_deref(),
+            drive_transport,
+        ) {
             Ok(registrations) => {
                 let count = registrations.len();
                 *self
@@ -2864,6 +2898,8 @@ mod tests {
 
     #[test]
     fn join_with_a_validated_folder_registers_the_product_and_grants_membership() {
+        let _no_os_credentials =
+            crate::google_drive_credential_route::ForbidProductionDriveOpener::new();
         let transport = Arc::new(MemoryDriveTransport::default());
         let product_id = owner_creates_product_in_drive(&transport, "acme.test");
         let (request, trust, _) = hosted_join_fixture(&product_id);
@@ -2903,10 +2939,21 @@ mod tests {
             RegisteredProvider::Google
         );
         assert!(record.first_event_commit_proof.is_none());
+
+        // The post-join refresh health-checked the new route through the
+        // injected transport, not the OS-credential opener.
+        let live = dispatch.project_registrations.read().unwrap();
+        let joined = live
+            .iter()
+            .find(|registration| registration.name == product_id)
+            .expect("the live cache shows the joined Product");
+        assert!(joined.event_store_healthy);
     }
 
     #[test]
     fn join_with_an_unvalidated_folder_is_rejected_without_provider_io() {
+        let _no_os_credentials =
+            crate::google_drive_credential_route::ForbidProductionDriveOpener::new();
         let transport = Arc::new(MemoryDriveTransport::default());
         let product_id = owner_creates_product_in_drive(&transport, "acme.test");
         let touched_before = transport.touched().len();
@@ -2945,6 +2992,8 @@ mod tests {
 
     #[test]
     fn join_rejects_a_validated_folder_that_does_not_hold_the_ticket_product() {
+        let _no_os_credentials =
+            crate::google_drive_credential_route::ForbidProductionDriveOpener::new();
         let transport = Arc::new(MemoryDriveTransport::default());
         let product_id = owner_creates_product_in_drive(&transport, "acme.test");
         let (request, trust, _) = hosted_join_fixture(&product_id);
@@ -2974,6 +3023,8 @@ mod tests {
 
     #[test]
     fn a_refused_join_registers_no_route() {
+        let _no_os_credentials =
+            crate::google_drive_credential_route::ForbidProductionDriveOpener::new();
         let transport = Arc::new(MemoryDriveTransport::default());
         // The Product admits a different domain than the joiner's ticket.
         let product_id = owner_creates_product_in_drive(&transport, "other.test");

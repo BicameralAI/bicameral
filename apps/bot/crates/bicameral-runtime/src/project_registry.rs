@@ -650,13 +650,23 @@ impl ProjectEventStoreRouter {
         &self,
         product_id: &str,
     ) -> Result<Arc<dyn EventStoreAdapter>, ProjectRegistryError> {
+        self.adapter_for_with_drive_transport(product_id, None)
+    }
+
+    /// [`Self::adapter_for`] with an explicit, process-local Drive transport
+    /// (tests). `None` uses the operator's OS credentials, as `adapter_for`.
+    pub(crate) fn adapter_for_with_drive_transport(
+        &self,
+        product_id: &str,
+        transport: Option<Arc<dyn DriveApiTransport>>,
+    ) -> Result<Arc<dyn EventStoreAdapter>, ProjectRegistryError> {
         let record = self
             .registrations
             .find_product(product_id)?
             .ok_or_else(|| ProjectRegistryError::NotRegistered {
                 product_id: product_id.to_string(),
             })?;
-        Ok(record.event_store.open())
+        Ok(record.event_store.open_with_drive_transport(transport))
     }
 
     /// Resolve the Product's atomic event-store adapter for selection commit.
