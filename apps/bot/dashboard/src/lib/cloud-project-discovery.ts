@@ -86,7 +86,6 @@ export type CloudProjectListItem = {
   membership_role?: CloudTeamRole;
   pairing_status: CloudProjectPairingStatus;
   binding_readiness: CloudBindingReadiness;
-  daemon_compatible: boolean;
   /**
    * How Cloud made this row discoverable (cloud#95 domain-gated discovery).
    * Optional so the contract stays compatible while cloud#95 lands; when absent
@@ -177,10 +176,10 @@ export function mapCloudProjectItem(item: CloudProjectListItem): ProjectEntry {
     id: item.project_id,
     name: item.display_name,
     event_store_kind: "github",
-    // Only `upgrade_required` is Cloud's evaluated "daemon too old" verdict.
-    // `daemon_compatible: false` also covers rows Cloud cannot evaluate (a
-    // directory row with no paired daemon), which is "unknown", not a reason to
-    // tell the operator to update (bot#1347).
+    // Only `upgrade_required` is Cloud's evaluated "daemon too old" verdict
+    // (bot#1347, bicameral#53). Cloud still sends a deprecated
+    // `daemon_compatible` field, which is false even for rows it never
+    // evaluated; the SPA does not read it.
     event_store_label:
       item.binding_readiness === "upgrade_required"
         ? "Cloud project (update the local daemon)"

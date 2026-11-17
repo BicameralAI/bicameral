@@ -268,7 +268,6 @@ describe("cloud discovery eligibility mapping", () => {
     display_name: "X",
     pairing_status: "paired",
     binding_readiness: "ready",
-    daemon_compatible: true,
   };
 
   it("maps domain/team/membership eligibility through to the UI entry", () => {
