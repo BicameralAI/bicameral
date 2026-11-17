@@ -53,6 +53,32 @@ impl AtomicEventBatchV1 {
     }
 }
 
+/// Decode a replay record without mistaking an unsupported event for metadata.
+pub(crate) fn decode_json_replay_record(
+    filename: &str,
+    bytes: &[u8],
+) -> Result<Option<Vec<EventStoreEntry>>, EventStoreError> {
+    if let Ok(batch) = serde_json::from_slice::<AtomicEventBatchV1>(bytes) {
+        batch.validate()?;
+        return Ok(Some(batch.entries));
+    }
+    if let Ok(entry) = serde_json::from_slice::<EventStoreEntry>(bytes) {
+        return Ok(Some(vec![entry]));
+    }
+    // Canonical filenames still identify records when their JSON is truncated.
+    let has_record_name = filename
+        .strip_suffix(".json")
+        .is_some_and(|stem| Uuid::parse_str(stem.strip_prefix("batch-").unwrap_or(stem)).is_ok());
+    let has_record_fields = serde_json::from_slice::<serde_json::Value>(bytes)
+        .is_ok_and(|value| value.get("event_type").is_some() || value.get("batch_id").is_some());
+    if has_record_name || has_record_fields {
+        return Err(EventStoreError::Serialization {
+            reason: "event-store JSON record is unsupported or malformed".to_string(),
+        });
+    }
+    Ok(None)
+}
+
 /// Event-store capability required by `candidate_selection.commit`.
 ///
 /// Implementations must either materialize every entry in `batch` or

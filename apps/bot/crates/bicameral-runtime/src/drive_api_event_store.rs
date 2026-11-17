@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use crate::atomic_event_store::AtomicEventBatchV1;
+use crate::atomic_event_store::decode_json_replay_record;
 
 /// Safe metadata for one Google Drive object.
 ///
@@ -274,18 +274,11 @@ impl EventStoreAdapter for DriveApiAdapter {
                 .download_file(&object.file_id)
                 .map_err(map_transport_error)?;
 
-            if let Ok(batch) = serde_json::from_slice::<AtomicEventBatchV1>(&bytes) {
-                batch.validate()?;
-                entries.extend(batch.entries);
-                continue;
-            }
-
-            match serde_json::from_slice::<EventStoreEntry>(&bytes) {
-                Ok(entry) => entries.push(entry),
-                Err(error) => {
+            match decode_json_replay_record(&object.name, &bytes)? {
+                Some(decoded) => entries.extend(decoded),
+                None => {
                     tracing::warn!(
                         provider_file_id = %object.file_id,
-                        error = %error,
                         "Skipping non-event JSON provider object during replay"
                     );
                     skipped += 1;
@@ -582,12 +575,25 @@ mod tests {
         );
         transport.insert_named("notes", "notes.json", br#"{"not":"an event"}"#.to_vec());
         transport.insert_named("text", "readme.txt", b"ignore me".to_vec());
+        transport.insert_named("temp", ".tmp-interrupted.json", b"{".to_vec());
+        let batch_entry = event("00000000-0000-0000-0000-000000000011", 3);
+        let batch = crate::atomic_event_store::AtomicEventBatchV1::new(
+            Uuid::from_u128(20),
+            vec![batch_entry.clone()],
+        )
+        .unwrap();
+        transport.insert_named(
+            "batch",
+            &format!("batch-{}.json", batch.batch_id),
+            serde_json::to_vec(&batch).unwrap(),
+        );
         let adapter = DriveApiAdapter::new("folder-alpha", transport).unwrap();
 
         let replayed = adapter.replay().unwrap();
-        assert_eq!(replayed.len(), 2);
+        assert_eq!(replayed.len(), 3);
         assert_eq!(replayed[0].id, earlier.id);
         assert_eq!(replayed[1].id, later.id);
+        assert_eq!(replayed[2], batch_entry);
     }
 
     #[test]
@@ -598,6 +604,106 @@ mod tests {
 
         let error = adapter.health_check().unwrap_err();
         assert!(matches!(error, EventStoreError::Unreachable { .. }));
+    }
+
+    #[test]
+    fn replay_refuses_unknown_events_and_batches() {
+        use crate::event_store_adapters::{DriveFolderAdapter, GitAdapter};
+
+        let known = event("00000000-0000-0000-0000-000000000021", 1);
+        let mut unknown =
+            serde_json::to_value(event("00000000-0000-0000-0000-000000000022", 2)).unwrap();
+        unknown["event_type"] = serde_json::json!("test_only_unsupported_event");
+        let batch = |version, entry| {
+            serde_json::json!({
+                "version": version,
+                "batch_id": "00000000-0000-0000-0000-000000000023",
+                "entries": [known.clone(), entry],
+            })
+        };
+        let cases = [
+            ("unknown event", unknown.clone()),
+            ("v1 batch with unknown event", batch(1, unknown.clone())),
+            ("v2 batch with unknown event", batch(2, unknown)),
+            (
+                "v2 batch with known events",
+                batch(
+                    2,
+                    serde_json::to_value(event("00000000-0000-0000-0000-000000000024", 2)).unwrap(),
+                ),
+            ),
+        ];
+
+        for (name, record) in cases {
+            let drive_dir = tempfile::tempdir().unwrap();
+            let git_dir = tempfile::tempdir().unwrap();
+            let drive = DriveFolderAdapter::new(drive_dir.path());
+            let git = GitAdapter::new(git_dir.path());
+            drive.append(known.clone()).unwrap();
+            git.append(known.clone()).unwrap();
+            let bytes = serde_json::to_vec(&record).unwrap();
+            std::fs::write(drive_dir.path().join("probe.json"), &bytes).unwrap();
+            std::fs::write(
+                git_dir.path().join("probe.yaml"),
+                serde_yaml::to_string(&record).unwrap(),
+            )
+            .unwrap();
+            let transport = Arc::new(FakeDriveTransport::default());
+            transport.insert_named("known", "known.json", serialize_event(&known).unwrap());
+            transport.insert_named("probe", "probe.json", bytes);
+            let provider = DriveApiAdapter::new("test-folder", transport).unwrap();
+
+            for (adapter, result) in [
+                ("local Drive", drive.replay()),
+                ("provider Drive", provider.replay()),
+            ] {
+                assert!(
+                    matches!(
+                        result,
+                        Err(EventStoreError::Serialization { .. }
+                            | EventStoreError::Conflict { .. })
+                    ),
+                    "{name}: {adapter} must refuse incomplete replay: {result:?}"
+                );
+            }
+            assert!(git.replay().is_err(), "{name}: Git must refuse");
+        }
+    }
+
+    #[test]
+    fn replay_refuses_malformed_canonical_files_but_not_unrelated_metadata() {
+        use crate::event_store_adapters::DriveFolderAdapter;
+
+        let known = event("00000000-0000-0000-0000-000000000031", 1);
+        for name in [
+            "00000000-0000-0000-0000-000000000032.json",
+            "batch-00000000-0000-0000-0000-000000000032.json",
+            "notes.json",
+        ] {
+            for bytes in [
+                b"{}".as_slice(),
+                br#"{"unparsed":"sensitive-test-value"#.as_slice(),
+            ] {
+                let dir = tempfile::tempdir().unwrap();
+                let local = DriveFolderAdapter::new(dir.path());
+                local.append(known.clone()).unwrap();
+                std::fs::write(dir.path().join(name), bytes).unwrap();
+                let transport = Arc::new(FakeDriveTransport::default());
+                transport.insert_named("known", "known.json", serialize_event(&known).unwrap());
+                transport.insert_named("malformed", name, bytes.to_vec());
+                let provider = DriveApiAdapter::new("test-folder", transport).unwrap();
+                for result in [local.replay(), provider.replay()] {
+                    if name == "notes.json" {
+                        assert_eq!(result.unwrap(), vec![known.clone()]);
+                    } else {
+                        let error =
+                            result.expect_err("canonical file must not be silently omitted");
+                        assert!(matches!(error, EventStoreError::Serialization { .. }));
+                        assert!(!error.to_string().contains("sensitive-test-value"));
+                    }
+                }
+            }
+        }
     }
 
     #[test]
