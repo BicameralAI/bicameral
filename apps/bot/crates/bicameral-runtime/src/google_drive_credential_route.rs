@@ -64,11 +64,44 @@ pub fn open_google_drive_api_adapter(
     Arc<crate::drive_api_event_store::DriveApiAdapter>,
     bicameral_api::event_store::EventStoreError,
 > {
+    #[cfg(test)]
+    assert!(
+        !PRODUCTION_OPENER_FORBIDDEN.with(std::cell::Cell::get),
+        "test reached the production Google Drive opener (OS keyring credentials)"
+    );
     let store = Arc::new(OsKeyringSecretsStore::new());
     let oauth_config =
         GoogleOAuthConfig::from_env().or_else(|| credential_config_from_store(store.as_ref()));
     crate::drive_api_transport_base::production_drive_event_store(folder_id, store, oauth_config)
         .map(Arc::new)
+}
+
+#[cfg(test)]
+thread_local! {
+    static PRODUCTION_OPENER_FORBIDDEN: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
+}
+
+/// Test guard: while alive, [`open_google_drive_api_adapter`] panics on this
+/// thread instead of reading OS-keyring credentials. Tests that inject a
+/// synthetic Drive transport hold one so a production opener reached through
+/// any path (refresh, health check, routing) fails the test.
+#[cfg(test)]
+pub(crate) struct ForbidProductionDriveOpener(());
+
+#[cfg(test)]
+impl ForbidProductionDriveOpener {
+    pub(crate) fn new() -> Self {
+        PRODUCTION_OPENER_FORBIDDEN.with(|forbidden| forbidden.set(true));
+        Self(())
+    }
+}
+
+#[cfg(test)]
+impl Drop for ForbidProductionDriveOpener {
+    fn drop(&mut self) {
+        PRODUCTION_OPENER_FORBIDDEN.with(|forbidden| forbidden.set(false));
+    }
 }
 
 #[cfg(test)]
