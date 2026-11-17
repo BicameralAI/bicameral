@@ -2045,6 +2045,75 @@ mod continue_setup_769 {
         assert_eq!(meta["setup_descriptor_validation"], "valid");
     }
 
+    /// ARCH-0007 / #70 review: Connected registry metadata over a Google
+    /// credential that records only `drive.file` is not provider access.
+    /// The gateway derives `absent` (so setup continues to ConnectProvider)
+    /// from the same scope-aware status as `GET /connections`, instead of
+    /// `authorized` with a valid descriptor.
+    #[tokio::test]
+    async fn google_connected_without_drive_grant_derives_absent_provider_access() {
+        let (state, captured) = with_stub(ProductContinueSetupResult::advanced(
+            "req".into(),
+            "prd_test".into(),
+            "acct-test-alice".into(),
+            SetupReadiness::ContinueSetup {
+                step: ContinueSetupStep::ConnectProvider,
+            },
+            None,
+            now(),
+        ));
+        let dir = tempfile::tempdir().unwrap();
+        let mut registry = bicameral_config::ConnectionRegistry::default();
+        registry.upsert(
+            "google",
+            bicameral_config::ConnectionMetadata {
+                status: bicameral_config::ConnectionStatus::Connected,
+                account_label: Some("owner@example.com".into()),
+                capabilities: vec![],
+                updated_at: None,
+                auth_method: None,
+            },
+        );
+        registry
+            .save_to_file(&dir.path().join(".bicameral").join("connections.yaml"))
+            .unwrap();
+        *state.workspace_root.write().await = Some(dir.path().to_path_buf());
+        let envelope = bicameral_config::OAuthTokenEnvelopeV1::from_token_exchange(
+            "drive-file-access-token".into(),
+            Some("drive-file-refresh-token".into()),
+            Some(3599),
+            Some("Bearer".into()),
+            Some("https://www.googleapis.com/auth/drive.file".into()),
+            Utc::now(),
+        );
+        state
+            .secrets_store
+            .write_secret(
+                bicameral_config::connections::connection_keys::GOOGLE_SOURCE_ID,
+                bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+                &envelope.to_secret_string().unwrap(),
+            )
+            .unwrap();
+
+        let token = pair_session(&state).await;
+        let app = build_bridge_app(state);
+        let mut payload = body();
+        payload["provider_hint"] = serde_json::json!("google");
+        let (status, raw) = post_json_with_token(
+            app,
+            "/api/v1/hosted-bridge/product-continue-setup",
+            payload,
+            &token,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{}", String::from_utf8_lossy(&raw));
+        assert!(!String::from_utf8_lossy(&raw).contains("drive-file-access-token"));
+
+        let meta = captured.lock().unwrap().clone().unwrap();
+        assert_eq!(meta["setup_provider_access"], "absent");
+        assert_ne!(meta["setup_descriptor_validation"], "valid");
+    }
+
     #[tokio::test]
     async fn replay_failure_projects_repair() {
         let (state, _captured) = with_stub(ProductContinueSetupResult::advanced(

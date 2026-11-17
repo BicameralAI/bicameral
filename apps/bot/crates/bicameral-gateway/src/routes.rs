@@ -4948,6 +4948,7 @@ async fn google_start_oauth_flow(
                 state_token: state_token.clone(),
                 pkce_verifier: Some(pkce_verifier),
                 google_oauth_config: Some(cfg),
+                terminal_outcome: None,
             },
         );
     }
@@ -5121,6 +5122,12 @@ async fn google_handle_callback(
         }
     }
 
+    // 2a. An attempt already refused with a recorded terminal outcome stays
+    // refused: its authorization code was spent, so never exchange again.
+    if let Some(outcome) = session.terminal_outcome.clone() {
+        return (StatusCode::OK, Json(outcome));
+    }
+
     // 2b. Provider-terminal error bound to the exact validated session:
     // denied/cancelled consent is one-shot. The session is consumed so the
     // attempt cannot linger as a completable authorization (#1133).
@@ -5237,13 +5244,23 @@ async fn google_handle_callback(
                 message: "Token exchange returned an unusable token bundle.".into(),
             }),
         ),
-        Err(GoogleTokenPersistError::InsufficientScope) => (
-            StatusCode::OK,
-            Json(ConnectionCompletionOutcome::ActionNeeded {
+        Err(GoogleTokenPersistError::InsufficientScope) => {
+            let outcome = ConnectionCompletionOutcome::ActionNeeded {
                 provider: provider.to_string(),
                 message: GOOGLE_DRIVE_SCOPE_NOT_GRANTED_MESSAGE.into(),
-            }),
-        ),
+            };
+            // Record the refusal on the session instead of removing it, so
+            // the dashboard's status poll reports this outcome rather than
+            // `pending`, or `connected` from registry metadata of an
+            // earlier connection.
+            {
+                let mut sessions = state.auth_sessions.write().await;
+                if let Some(session) = sessions.get_mut(&body.auth_session_id) {
+                    session.terminal_outcome = Some(outcome.clone());
+                }
+            }
+            (StatusCode::OK, Json(outcome))
+        }
         Err(GoogleTokenPersistError::Persist(message)) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ConnectionCompletionOutcome::ProviderUnavailable {
@@ -5456,9 +5473,13 @@ async fn exchange_google_token(
 ///
 /// Returns a `ConnectionCompletionOutcome`:
 /// - `Pending` while the auth session is still active.
+/// - The recorded terminal outcome (e.g. `ActionNeeded` when Google did not
+///   grant `drive`) if the callback refused the attempt.
 /// - `Expired` if the session does not exist (consumed or timed out).
-/// - `Connected` once the flow completes (device-flow only; Google
-///   completes via callback, not polling).
+/// - `Connected` once the flow completes and the effective connection
+///   status agrees (scope-aware for Google, as in `GET /connections`).
+/// - `ActionNeeded` if the session is gone and the registry says connected
+///   but the effective status does not.
 /// - `ProviderUnavailable` if GitHub returned an unexpected error.
 async fn connection_status(
     State(state): State<AppState>,
@@ -5519,27 +5540,54 @@ async fn connection_status(
     // For local-loopback providers (e.g. Google): check the pending
     // auth-session store, falling back to the registry to distinguish a
     // completed connection from an expired/unknown session.
-    let session_exists = {
+    let session = {
         let sessions = state.auth_sessions.read().await;
-        sessions.contains_key(&session_id)
+        sessions
+            .get(&session_id)
+            .map(|session| session.terminal_outcome.clone())
     };
 
-    if !session_exists {
-        let registry = load_connection_registry_from_state(&state).await;
+    // The callback refused this attempt and recorded why (e.g. Google did
+    // not grant `drive`); report that instead of `pending`.
+    if let Some(Some(outcome)) = session {
+        return (StatusCode::OK, Json(outcome));
+    }
 
-        if registry.status(&provider_lower) == bicameral_config::ConnectionStatus::Connected {
-            let meta = registry.get(&provider_lower);
-            return (
-                StatusCode::OK,
-                Json(ConnectionCompletionOutcome::Connected {
-                    provider: provider_lower,
-                    account_label: meta.and_then(|m| m.account_label.clone()),
-                    auth_method: meta
-                        .and_then(|m| m.auth_method.as_ref())
-                        .map(|a| format!("{a:?}").to_lowercase()),
-                    capabilities: meta.map(|m| m.capabilities.clone()).unwrap_or_default(),
-                }),
-            );
+    if session.is_none() {
+        let registry = load_connection_registry_from_state(&state).await;
+        let registry_connected =
+            registry.status(&provider_lower) == bicameral_config::ConnectionStatus::Connected;
+
+        // #1083 / ARCH-0007: the same effective truth as GET /connections.
+        // Registry metadata alone never reports `connected` over a
+        // credential that is missing, lacks the `drive` grant, or is revoked.
+        match effective_connection_status(&state, &provider_lower, registry.status(&provider_lower))
+            .await
+        {
+            bicameral_config::ConnectionStatus::Connected => {
+                let meta = registry.get(&provider_lower);
+                return (
+                    StatusCode::OK,
+                    Json(ConnectionCompletionOutcome::Connected {
+                        provider: provider_lower,
+                        account_label: meta.and_then(|m| m.account_label.clone()),
+                        auth_method: meta
+                            .and_then(|m| m.auth_method.as_ref())
+                            .map(|a| format!("{a:?}").to_lowercase()),
+                        capabilities: meta.map(|m| m.capabilities.clone()).unwrap_or_default(),
+                    }),
+                );
+            }
+            bicameral_config::ConnectionStatus::ActionNeeded if registry_connected => {
+                return (
+                    StatusCode::OK,
+                    Json(ConnectionCompletionOutcome::ActionNeeded {
+                        provider: provider_lower,
+                        message: "This connection needs attention. Please reconnect.".into(),
+                    }),
+                );
+            }
+            _ => {}
         }
 
         return (
@@ -7776,12 +7824,19 @@ struct ProductContinueSetupBridgeRequest {
     account_label: Option<String>,
 }
 
-/// Map the operator's local connection registry status into the daemon-derived
+/// Map the operator's effective connection status into the daemon-derived
 /// provider-access fact. `Connected` ⇒ `Authorized`; everything else (absent,
 /// action-needed) ⇒ `Absent` so the Product surfaces `Continue setup` until a
 /// usable connection exists. Provider *denial* is a typed daemon fact carried
 /// explicitly by the provider callback; it is never inferred from the SPA.
-fn provider_access_from_registry(
+///
+/// Uses the same scope-aware projection as `GET /connections`
+/// ([`effective_connection_status`]): registry metadata that says `Connected`
+/// over a Google credential without a recorded `drive` grant (ARCH-0007) is
+/// `Absent`, so setup continues to `ConnectProvider` instead of writing a
+/// registration the runtime would then refuse.
+async fn provider_access_from_registry(
+    state: &AppState,
     registry: &bicameral_config::ConnectionRegistry,
     provider_hint: Option<bicameral_api::product_registration::RegisteredProvider>,
 ) -> bicameral_api::product_registration::ProviderAccessState {
@@ -7791,7 +7846,7 @@ fn provider_access_from_registry(
         Some(RegisteredProvider::Google) => "google",
         Some(RegisteredProvider::None) | None => return ProviderAccessState::Absent,
     };
-    match registry.status(provider_id) {
+    match effective_connection_status(state, provider_id, registry.status(provider_id)).await {
         bicameral_config::ConnectionStatus::Connected => ProviderAccessState::Authorized,
         _ => ProviderAccessState::Absent,
     }
@@ -7857,7 +7912,8 @@ async fn hosted_bridge_product_continue_setup(
     //    provider is authorized; richer invalid/unreachable descriptor typing
     //    binds with the signed-ticket descriptor shape from cloud#126.
     let registry = load_connection_registry_from_state(&state).await;
-    let provider_access = provider_access_from_registry(&registry, body.provider_hint);
+    let provider_access =
+        provider_access_from_registry(&state, &registry, body.provider_hint).await;
     let descriptor = match provider_access {
         reg::ProviderAccessState::Authorized => reg::DescriptorValidation::Valid,
         _ => reg::DescriptorValidation::NotAttempted,
@@ -11373,6 +11429,159 @@ mod tests {
         );
     }
 
+    /// Store a canonical Google credential whose recorded grant is `scope`.
+    fn store_google_credential_with_scope(state: &AppState, scope: &str) {
+        let envelope = bicameral_config::OAuthTokenEnvelopeV1::from_token_exchange(
+            "stored-access-token".into(),
+            Some("stored-refresh-token".into()),
+            Some(3599),
+            Some("Bearer".into()),
+            Some(scope.into()),
+            chrono::Utc::now(),
+        );
+        state
+            .secrets_store
+            .write_secret(
+                bicameral_config::connections::connection_keys::GOOGLE_SOURCE_ID,
+                bicameral_config::connections::connection_keys::OAUTH_TOKEN_KEY,
+                &envelope.to_secret_string().unwrap(),
+            )
+            .unwrap();
+    }
+
+    async fn poll_google_status_json(app: &Router, session_id: &str) -> serde_json::Value {
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/api/v1/connections/google/status/{session_id}"))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), 4096).await.unwrap();
+        serde_json::from_slice(&body).unwrap()
+    }
+
+    /// ARCH-0007 / #70 review: when Google does not grant `drive`, the
+    /// refusal is terminal for the auth session. Status polling reports
+    /// `action_needed` instead of `pending`, even while registry metadata
+    /// from the earlier connection still says `connected`, and a repeated
+    /// callback returns the same refusal without exchanging again.
+    #[tokio::test]
+    async fn google_callback_without_drive_grant_is_terminal_for_status_polling() {
+        let mut token = stub_token_response();
+        token["scope"] = serde_json::json!("https://www.googleapis.com/auth/drive.file");
+        let (app, state, recorded) =
+            connection_app_with_google_and_token_stub(StatusCode::OK, token).await;
+        // A connection minted under `drive.file`: the registry says
+        // connected, so only the scope gate sends Start into re-consent.
+        {
+            let mut registry = load_connection_registry_from_state(&state).await;
+            registry.upsert(
+                "google",
+                bicameral_config::ConnectionMetadata {
+                    status: bicameral_config::ConnectionStatus::Connected,
+                    account_label: Some("test@example.com".into()),
+                    capabilities: vec!["drive".into()],
+                    updated_at: Some(chrono::Utc::now()),
+                    auth_method: Some(bicameral_config::AuthMethod::Oauth),
+                },
+            );
+            save_connection_registry(&state, &registry).await;
+        }
+        store_google_credential_with_scope(&state, "https://www.googleapis.com/auth/drive.file");
+
+        let req = Request::builder()
+            .method("POST")
+            .uri("/api/v1/connections/google/start")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), 4096).await.unwrap();
+        let start_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(start_json["outcome"], "start_url");
+        let session_id = start_json["auth_session_id"].as_str().unwrap().to_string();
+        let state_param = start_json["url"]
+            .as_str()
+            .unwrap()
+            .split("state=")
+            .nth(1)
+            .unwrap()
+            .split('&')
+            .next()
+            .unwrap()
+            .to_string();
+
+        assert_eq!(
+            poll_google_status_json(&app, &session_id).await["outcome"],
+            "pending"
+        );
+
+        let callback = |app: Router| {
+            let body = serde_json::json!({
+                "auth_session_id": session_id,
+                "code": "auth-code-xyz",
+                "state": state_param,
+            });
+            async move {
+                let req = Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/connections/google/callback")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap();
+                let resp = app.oneshot(req).await.unwrap();
+                let body = axum::body::to_bytes(resp.into_body(), 4096).await.unwrap();
+                serde_json::from_slice::<serde_json::Value>(&body).unwrap()
+            }
+        };
+        let first = callback(app.clone()).await;
+        assert_eq!(first["outcome"], "action_needed");
+
+        let polled = poll_google_status_json(&app, &session_id).await;
+        assert_eq!(polled["outcome"], "action_needed");
+        assert_eq!(polled["message"], GOOGLE_DRIVE_SCOPE_NOT_GRANTED_MESSAGE);
+        let raw = polled.to_string();
+        assert!(!raw.contains("stub-access-token"));
+        assert!(!raw.contains("stored-access-token"));
+
+        let repeated = callback(app.clone()).await;
+        assert_eq!(repeated, first);
+        assert_eq!(
+            recorded.lock().unwrap().len(),
+            1,
+            "a refused attempt must never exchange its code again"
+        );
+    }
+
+    /// ARCH-0007 / #70 review: once the auth session is gone, polling uses
+    /// the same scope-aware status as `GET /connections`. Registry metadata
+    /// that says `connected` over a `drive.file`-only credential reports
+    /// `action_needed`, never `connected`; a `drive` credential the live
+    /// probe accepts still reports `connected`.
+    #[tokio::test]
+    async fn connection_status_without_session_uses_effective_scope_aware_status() {
+        let (_app, mut state, _ws) = app_with_connected_google_registry().await;
+        store_google_credential_with_scope(&state, "https://www.googleapis.com/auth/drive.file");
+        let (about_endpoint, about_calls) = spawn_drive_about_stub(StatusCode::OK).await;
+        state.google_drive_about_endpoint_override = Some(about_endpoint);
+        let app = Router::new()
+            .merge(connection_routes())
+            .with_state(state.clone());
+
+        let json = poll_google_status_json(&app, "gsess-consumed").await;
+        assert_eq!(json["outcome"], "action_needed");
+        assert!(
+            about_calls.lock().unwrap().is_empty(),
+            "the scope gate decides before any live Drive call"
+        );
+        assert!(!json.to_string().contains("stored-access-token"));
+
+        store_google_credential_with_scope(&state, bicameral_config::GOOGLE_DRIVE_SCOPE);
+        let json = poll_google_status_json(&app, "gsess-consumed").await;
+        assert_eq!(json["outcome"], "connected");
+        assert_eq!(json["account_label"], "workspace-scoped-label@example.com");
+    }
+
     /// #1084 migration: a successful reconnect writes the canonical
     /// envelope and retires the legacy `google_drive` alias value.
     #[tokio::test]
@@ -11961,6 +12170,7 @@ mod tests {
                     state_token: "csrf-token".to_string(),
                     pkce_verifier: None,
                     google_oauth_config: None,
+                    terminal_outcome: None,
                 },
             );
         }
