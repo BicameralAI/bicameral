@@ -227,6 +227,12 @@ pub struct AuthSession {
     /// Exact Google application config bound when the authorization URL was created.
     /// Daemon-memory only; never returned to the browser or Cloud.
     pub google_oauth_config: Option<bicameral_config::GoogleOAuthConfig>,
+    /// Terminal refusal recorded by the callback when it ends the attempt
+    /// but keeps the session (Google did not grant `drive`, ARCH-0007).
+    /// Status polling returns it instead of `pending`, and a repeated
+    /// callback returns it instead of exchanging again. Non-secret; the
+    /// session TTL still bounds it.
+    pub terminal_outcome: Option<bicameral_api::dashboard::ConnectionCompletionOutcome>,
 }
 
 impl AuthSession {
