@@ -1580,8 +1580,17 @@ fn build_decision_detail(
     }
 }
 
-fn replay_read_error(_error: bicameral_api::event_store::EventStoreError) -> Response {
-    // Storage errors may contain private paths or event contents.
+fn replay_read_error(error: bicameral_api::event_store::EventStoreError) -> Response {
+    use bicameral_api::event_store::EventStoreError;
+
+    // Storage error details may contain private paths or event contents.
+    let error_kind = match error {
+        EventStoreError::Unreachable { .. } => "unreachable",
+        EventStoreError::Serialization { .. } => "serialization",
+        EventStoreError::Io { .. } => "io",
+        EventStoreError::Conflict { .. } => "conflict",
+    };
+    tracing::warn!(error_kind, "Canonical ledger could not be replayed.");
     (
         StatusCode::SERVICE_UNAVAILABLE,
         Json(serde_json::json!({
@@ -8198,6 +8207,73 @@ mod tests {
     use axum::http::Request;
     use bicameral_audit::AuditStore;
     use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn replay_read_error_logs_only_a_fixed_error_category() {
+        use bicameral_api::event_store::EventStoreError;
+
+        let private_detail = "/private/ledger.yaml operator@example.invalid private-payload";
+        for (error, kind) in [
+            (
+                EventStoreError::Unreachable {
+                    reason: private_detail.into(),
+                },
+                "unreachable",
+            ),
+            (
+                EventStoreError::Serialization {
+                    reason: private_detail.into(),
+                },
+                "serialization",
+            ),
+            (
+                EventStoreError::Io {
+                    reason: private_detail.into(),
+                },
+                "io",
+            ),
+            (
+                EventStoreError::Conflict {
+                    reason: private_detail.into(),
+                },
+                "conflict",
+            ),
+        ] {
+            let log = tempfile::NamedTempFile::new().unwrap();
+            let subscriber = tracing_subscriber::fmt()
+                .without_time()
+                .with_ansi(false)
+                .with_target(false)
+                .with_max_level(tracing::Level::WARN)
+                .with_writer(log.reopen().unwrap())
+                .finish();
+            let response =
+                tracing::subscriber::with_default(subscriber, || replay_read_error(error));
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+            let body = axum::body::to_bytes(response.into_body(), 4096)
+                .await
+                .unwrap();
+            let body = String::from_utf8(body.to_vec()).unwrap();
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&body).unwrap(),
+                serde_json::json!({
+                    "error": "ledger_projection_unavailable",
+                    "kind": "ProjectionUnavailable",
+                    "message": "Canonical ledger could not be replayed.",
+                })
+            );
+            let logged = std::fs::read_to_string(log.path()).unwrap();
+            assert!(
+                logged.contains(&format!("error_kind=\"{kind}\"")),
+                "{logged}"
+            );
+            assert!(logged.contains("WARN"), "{logged}");
+            for detail in private_detail.split_whitespace() {
+                assert!(!logged.contains(detail), "private detail in log");
+                assert!(!body.contains(detail), "private detail in response");
+            }
+        }
+    }
 
     fn test_audit() -> AuditStore {
         let dir = tempfile::tempdir().unwrap();
