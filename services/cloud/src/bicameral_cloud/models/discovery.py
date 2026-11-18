@@ -193,6 +193,11 @@ class ProjectListItem(BaseModel):
     membership_role: TeamRole | None = None
     pairing_status: ProjectPairingStatus
     binding_readiness: BindingReadiness = BindingReadiness.UNKNOWN
+    # Deprecated (bicameral#53). Kept only because the pinned dashboard bundle
+    # under static/dashboard (Bot 4deb004) still reads it for the "update the
+    # local daemon" label. It is False for rows that were never evaluated, so
+    # clients must use `binding_readiness == upgrade_required` instead. Remove it
+    # once that bundle is re-vendored from the current dashboard.
     daemon_compatible: bool = False
     is_member: bool | None = None
     verified_domain: str | None = None

@@ -4,7 +4,8 @@
  * The hosted header must not present a version the SPA cannot verify, and the
  * "update the local daemon" guidance must appear only for Cloud's evaluated
  * `upgrade_required` verdict, never for a discoverable row whose compatibility
- * Cloud has not evaluated (`daemon_compatible: false` with no paired daemon).
+ * Cloud has not evaluated. The fixtures keep the deprecated `daemon_compatible`
+ * field because Cloud still sends it; the SPA ignores it (bicameral#53).
  */
 
 import { test, expect } from "./support/harness";

@@ -33,9 +33,17 @@ function item(
     display_name: "Cloud Project One",
     pairing_status: "paired",
     binding_readiness: "ready",
-    daemon_compatible: true,
     ...overrides,
   };
+}
+
+/**
+ * The payload as Cloud sends it today: it still carries the deprecated
+ * `daemon_compatible` field (false for rows it never evaluated). The SPA must
+ * ignore it (bicameral#53).
+ */
+function withDeprecatedFlag(entry: CloudProjectListItem): CloudProjectListItem {
+  return { ...entry, daemon_compatible: false } as CloudProjectListItem;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -174,14 +182,15 @@ describe("mapCloudProjectItem", () => {
       "./lib/cloud-project-discovery"
     );
     // Cloud directory rows are not yet bound to a paired daemon, so Cloud
-    // reports `daemon_compatible: false` as "unknown", not "incompatible".
+    // reports the deprecated `daemon_compatible: false` meaning "unknown".
     const entry = mapCloudProjectItem(
-      item({
-        pairing_status: "unpaired",
-        binding_readiness: "unbound",
-        daemon_compatible: false,
-        is_member: false,
-      }),
+      withDeprecatedFlag(
+        item({
+          pairing_status: "unpaired",
+          binding_readiness: "unbound",
+          is_member: false,
+        }),
+      ),
     );
     expect(entry.event_store_label).toBe("Cloud project");
     expect(entry.event_store_label).not.toContain("update");
@@ -194,7 +203,7 @@ describe("mapCloudProjectItem", () => {
         "./lib/cloud-project-discovery"
       );
       const entry = mapCloudProjectItem(
-        item({ binding_readiness, daemon_compatible: false }),
+        withDeprecatedFlag(item({ binding_readiness })),
       );
       expect(entry.event_store_label).toBe("Cloud project");
     },
@@ -205,7 +214,7 @@ describe("mapCloudProjectItem", () => {
       "./lib/cloud-project-discovery"
     );
     const entry = mapCloudProjectItem(
-      item({ binding_readiness: "upgrade_required", daemon_compatible: false }),
+      withDeprecatedFlag(item({ binding_readiness: "upgrade_required" })),
     );
     expect(entry.event_store_label).toContain("update the local daemon");
   });

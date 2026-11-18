@@ -64,7 +64,7 @@ A non-canonical coordination/projection record describing a daemon-exposed proje
 | `display_name` | string | Human label exposed by the daemon; no path/remote leakage. |
 | `pairing_status` | enum `unpaired` \| `unavailable` \| `paired` | Mirrors dashboard pairing state (CONTEXT.md). |
 | `binding_readiness` | enum (see below) | Coarse readiness; not a compliance/signoff state. |
-| `daemon_compatible` | boolean | From the compatibility envelope (ADR-0007). |
+| `daemon_compatible` | boolean | **Deprecated.** False for rows Cloud never evaluated, so it does not mean "incompatible". Clients must use `binding_readiness: upgrade_required`. Kept only for the pinned Cloud dashboard bundle; removed after that bundle is re-vendored (bicameral#53). |
 | `created_at` | ISO-8601 | Coordination record creation time (adapter/DB), not project creation authority. |
 
 Forbidden fields (must never appear, reusing `FORBIDDEN_DISCOVERY_FIELDS` from `models/discovery.py`): file/local/filesystem paths, branch names, repository remotes, provider names/secrets, `SourceEvidence` bodies, Decision Ledger payloads, actor/member lists, issue titles, signoff/compliance/authority fields.
@@ -176,7 +176,7 @@ All project routes require a valid Supabase access token and pass the design-par
 - Response `ProjectListResponse`:
   - `projects`: array of `ProjectListItem`.
   - `selected_project_id`: string or null (session hint if the SPA supplies one; otherwise null).
-- `ProjectListItem` fields: `project_id`, `team_id`, `display_name`, `pairing_status`, `binding_readiness`, `daemon_compatible`. (Subset of the Cloud project record; forbidden fields excluded.)
+- `ProjectListItem` fields: `project_id`, `team_id`, `display_name`, `pairing_status`, `binding_readiness`, `daemon_compatible` (deprecated, see above). (Subset of the Cloud project record; forbidden fields excluded.)
 
 ### `GET /api/v1/teams/{team_id}/projects`
 
