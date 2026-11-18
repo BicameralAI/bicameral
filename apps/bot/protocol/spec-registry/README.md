@@ -20,15 +20,15 @@ implementation already agree.
 |---|---|---|
 | `SpecSource` | `bicameral_api::source::Source` | `source_kind` is required and only `file` or `tracker`. `uri`, `source_type`, and `label` are unchanged. |
 | `SourceSnapshot` | `bicameral_api::source::SourceSnapshot` | Same fields, plus required `source_uri`. No snapshot list on `Source`. No previous-snapshot pointer. |
-| `GovernedDomain` | `NormalizedClaimSetV1` fields, not `atom_ids` | `claims`, `atoms`, `claim_assertions`, `relations`. Completion writes `source_digest`, `route`, `model_id`, `prompt_id`, and `prompt_digest` together, including an empty claim set. `extract_error` is the other finished receipt and excludes those fields. |
-| `Signoff` | none | The approved state only. Tracked, rejected, and superseded are the other states and are not this payload. Records the cranking daemon, `manual` or `policy`, and the check records submitted with the approval. |
+| `GovernedDomain` | `bicameral_api::spec_registry::GovernedDomain` (payload decoding only; fields follow `NormalizedClaimSetV1`, not `atom_ids`) | `claims`, `atoms`, `claim_assertions`, `relations`. Completion writes `source_digest`, `route`, `model_id`, `prompt_id`, and `prompt_digest` together, including an empty claim set. `extract_error` is the other finished receipt and excludes those fields. |
+| `Signoff` | `bicameral_api::spec_registry::Signoff` (payload decoding only) | The approved state only. Tracked, rejected, and superseded are the other states and are not this payload. Records the cranking daemon, `manual` or `policy`, and the check records submitted with the approval. |
 | `TrackSource` | `bicameral_api::spec_registry::TrackSource` | Payload decoding only. A person places a Source in the maintenance set. Records that person and the cranking daemon. Monorepo #40. |
 | `UntrackSource` | `bicameral_api::spec_registry::UntrackSource` | Payload decoding only. That same person removes it while the snapshot is still tracked. Writes no authorization state. Monorepo #40. |
 | `RejectSnapshot` | `bicameral_api::spec_registry::RejectSnapshot` | Payload decoding only. The owner rejects one tracked snapshot outside a conflict set. Monorepo #40. |
 | `SupersedeSnapshot` | `bicameral_api::spec_registry::SupersedeSnapshot` | Payload decoding only. The owner names the successor snapshot. The approval event stays in the log. Monorepo #40. |
 | `ResolveConflict` | `bicameral_api::spec_registry::ResolveConflict` | Payload decoding only. The owner resolves one whole conflict set. The owner and the daemon are on the command, not on a member row. Monorepo #40. |
-| `ApprovePolicy` | none | Configuration for the signoff entity, not a fourth entity. |
-| `CheckRecord` | none | Subentity. One unordered digest pair, `conflict`, and the daemon that ran the check. The daemon is not part of the pair. |
+| `ApprovePolicy` | `bicameral_api::spec_registry::ApprovePolicy` (payload decoding only) | Configuration for the signoff entity, not a fourth entity. |
+| `CheckRecord` | `bicameral_api::spec_registry::CheckRecord` (payload decoding only) | Subentity. One unordered digest pair, `conflict`, and the daemon that ran the check. The daemon is not part of the pair. |
 | `PromptVersion` | none | Immutable hosted prompt row. Not an entity. |
 | `PromptAssignment` | none | One current `prompt_id` per hosted route. Not an entity. |
 
@@ -46,3 +46,12 @@ successor if any member is superseded (ARCH-0004). These are payload checks only
 authenticated authority, current-state eligibility, complete conflict-set coverage,
 required CheckRecords, and atomic persistence remain runtime obligations. Member
 order and identities are preserved; decoding does not normalize or infer them.
+
+The same holds for `GovernedDomain`, `CheckRecord`, `Signoff` and `ApprovePolicy`.
+Decoding applies the schema rules in this directory: all-or-none completion
+metadata, `extract_error` exclusivity, one lexicographically ordered digest pair,
+actor-bound signoff identity, and one permission cell per `(role, in_conflict)`
+with no approval in conflict. `GovernedDomain::claim_set_digest` computes the
+ARCH-0003 digest. Decoding does not compare it with a stored `source_digest`, and
+does not establish that a signoff's check records are the ones its approval
+requires. No lease, model call, pairwise check, event or replay change is added.
