@@ -1298,11 +1298,11 @@ pub fn projection_api_routes() -> Router<AppState> {
 /// enforcement, or readiness-to-ship claims.
 ///
 /// Per `v1-reviewable-context-projection` spec and ADR-0022.
-async fn projection_ledger(
-    State(state): State<AppState>,
-) -> Json<bicameral_api::projection::ProjectionState> {
-    let proj = build_projection_from_state(&state).await;
-    Json(proj)
+async fn projection_ledger(State(state): State<AppState>) -> Response {
+    match build_projection_from_state(&state).await {
+        Ok(projection) => Json(projection).into_response(),
+        Err(error) => replay_read_error(error),
+    }
 }
 
 /// Rebuilds the V1 reviewable-context projection from event-store replay.
@@ -1310,11 +1310,11 @@ async fn projection_ledger(
 /// Clears and rebuilds all projection rows. Returns the fresh projection.
 /// This endpoint proves that deleting and rebuilding the projection
 /// preserves the same read output — the event store remains canonical.
-async fn projection_rebuild(
-    State(state): State<AppState>,
-) -> Json<bicameral_api::projection::ProjectionState> {
-    let proj = build_projection_from_state(&state).await;
-    Json(proj)
+async fn projection_rebuild(State(state): State<AppState>) -> Response {
+    match build_projection_from_state(&state).await {
+        Ok(projection) => Json(projection).into_response(),
+        Err(error) => replay_read_error(error),
+    }
 }
 
 // ── Decision detail handlers ─────────────────────────────────────
@@ -1580,6 +1580,28 @@ fn build_decision_detail(
     }
 }
 
+fn replay_read_error(error: bicameral_api::event_store::EventStoreError) -> Response {
+    use bicameral_api::event_store::EventStoreError;
+
+    // Storage error details may contain private paths or event contents.
+    let error_kind = match error {
+        EventStoreError::Unreachable { .. } => "unreachable",
+        EventStoreError::Serialization { .. } => "serialization",
+        EventStoreError::Io { .. } => "io",
+        EventStoreError::Conflict { .. } => "conflict",
+    };
+    tracing::warn!(error_kind, "Canonical ledger could not be replayed.");
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        Json(serde_json::json!({
+            "error": "ledger_projection_unavailable",
+            "kind": "ProjectionUnavailable",
+            "message": "Canonical ledger could not be replayed.",
+        })),
+    )
+        .into_response()
+}
+
 /// Build a ProjectionState from the gateway's in-memory materialized state.
 ///
 /// This mirrors `bicameral_runtime::projection::build_projection` but
@@ -1587,7 +1609,8 @@ fn build_decision_detail(
 /// crate dependency (gateway ↔ runtime).
 async fn build_projection_from_state(
     state: &AppState,
-) -> bicameral_api::projection::ProjectionState {
+) -> Result<bicameral_api::projection::ProjectionState, bicameral_api::event_store::EventStoreError>
+{
     use bicameral_api::projection::*;
 
     let mut proj = ProjectionState::default();
@@ -1596,7 +1619,7 @@ async fn build_projection_from_state(
     let stored_evidence = state.evidence.read().await;
     let stored_snapshots = state.snapshots.read().await;
     let bindings = state.bindings.read().await;
-    let event_store_entries = state.event_store.replay().unwrap_or_default();
+    let event_store_entries = state.event_store.replay()?;
 
     for (id, d) in decisions.iter() {
         let source_freshness = if d.review_state == ReviewLifecycleState::StaleSourcePending {
@@ -1702,7 +1725,7 @@ async fn build_projection_from_state(
         });
     }
 
-    proj
+    Ok(proj)
 }
 
 /// Build the network-origin renderable ledger projection from gateway state.
@@ -1716,7 +1739,10 @@ async fn build_projection_from_state(
 /// (ADR-0020 / ADR-0025). It is a non-authoritative read model.
 async fn build_renderable_ledger_from_state(
     state: &AppState,
-) -> bicameral_api::hosted_bridge::HostedLedgerProjection {
+) -> Result<
+    bicameral_api::hosted_bridge::HostedLedgerProjection,
+    bicameral_api::event_store::EventStoreError,
+> {
     use bicameral_api::candidate::ReviewLifecycleState;
     use bicameral_api::evidence::GraphEvidenceState;
     use bicameral_api::hosted_bridge::{
@@ -1785,7 +1811,7 @@ async fn build_renderable_ledger_from_state(
 
     // Events: opaque id, lifecycle type, timestamp only — no actor, no
     // human-readable summary (actor identity is authority material).
-    let event_store_entries = state.event_store.replay().unwrap_or_default();
+    let event_store_entries = state.event_store.replay()?;
     let events = event_store_entries
         .iter()
         .map(|e| RenderableLedgerEvent {
@@ -1795,7 +1821,7 @@ async fn build_renderable_ledger_from_state(
         })
         .collect();
 
-    HostedLedgerProjection {
+    Ok(HostedLedgerProjection {
         summary: HostedLedgerSummary {
             decision_count,
             candidate_count,
@@ -1807,7 +1833,7 @@ async fn build_renderable_ledger_from_state(
         decisions: entries,
         events,
         projection_only: true,
-    }
+    })
 }
 
 fn parse_projection_binding_target(target: &str) -> (String, u32, u32) {
@@ -3150,7 +3176,7 @@ struct HistoryResponseBody {
 async fn query_history_handler(
     State(state): State<AppState>,
     axum::extract::Query(params): axum::extract::Query<HistoryParams>,
-) -> Json<HistoryResponseBody> {
+) -> Response {
     let decisions = state.decisions.read().await;
     let mut entries: Vec<HistoryDecisionEntry> = decisions
         .values()
@@ -3207,7 +3233,10 @@ async fn query_history_handler(
     };
 
     let events = if params.include_events.unwrap_or(false) {
-        let mut evts = state.event_store.replay().unwrap_or_default();
+        let mut evts = match state.event_store.replay() {
+            Ok(events) => events,
+            Err(error) => return replay_read_error(error),
+        };
         if let Some(since) = params.since {
             evts.retain(|e| e.timestamp >= since);
         }
@@ -3221,6 +3250,7 @@ async fn query_history_handler(
         candidates,
         events,
     })
+    .into_response()
 }
 
 /// Search request body aligned with spec §2.2 `bicameral.search`.
@@ -7403,12 +7433,13 @@ async fn hosted_bridge_projection_ledger(
     headers: axum::http::HeaderMap,
 ) -> Response {
     let _session = match validate_bridge_session(&state, &headers).await {
-        Ok(s) => s,
-        Err(resp) => return resp,
+        Ok(session) => session,
+        Err(response) => return response,
     };
-
-    let proj = build_renderable_ledger_from_state(&state).await;
-    Json(proj).into_response()
+    match build_renderable_ledger_from_state(&state).await {
+        Ok(projection) => Json(projection).into_response(),
+        Err(error) => replay_read_error(error),
+    }
 }
 
 /// POST /api/v1/hosted-bridge/command — bridge-gated governed command.
@@ -8176,6 +8207,73 @@ mod tests {
     use axum::http::Request;
     use bicameral_audit::AuditStore;
     use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn replay_read_error_logs_only_a_fixed_error_category() {
+        use bicameral_api::event_store::EventStoreError;
+
+        let private_detail = "/private/ledger.yaml operator@example.invalid private-payload";
+        for (error, kind) in [
+            (
+                EventStoreError::Unreachable {
+                    reason: private_detail.into(),
+                },
+                "unreachable",
+            ),
+            (
+                EventStoreError::Serialization {
+                    reason: private_detail.into(),
+                },
+                "serialization",
+            ),
+            (
+                EventStoreError::Io {
+                    reason: private_detail.into(),
+                },
+                "io",
+            ),
+            (
+                EventStoreError::Conflict {
+                    reason: private_detail.into(),
+                },
+                "conflict",
+            ),
+        ] {
+            let log = tempfile::NamedTempFile::new().unwrap();
+            let subscriber = tracing_subscriber::fmt()
+                .without_time()
+                .with_ansi(false)
+                .with_target(false)
+                .with_max_level(tracing::Level::WARN)
+                .with_writer(log.reopen().unwrap())
+                .finish();
+            let response =
+                tracing::subscriber::with_default(subscriber, || replay_read_error(error));
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+            let body = axum::body::to_bytes(response.into_body(), 4096)
+                .await
+                .unwrap();
+            let body = String::from_utf8(body.to_vec()).unwrap();
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&body).unwrap(),
+                serde_json::json!({
+                    "error": "ledger_projection_unavailable",
+                    "kind": "ProjectionUnavailable",
+                    "message": "Canonical ledger could not be replayed.",
+                })
+            );
+            let logged = std::fs::read_to_string(log.path()).unwrap();
+            assert!(
+                logged.contains(&format!("error_kind=\"{kind}\"")),
+                "{logged}"
+            );
+            assert!(logged.contains("WARN"), "{logged}");
+            for detail in private_detail.split_whitespace() {
+                assert!(!logged.contains(detail), "private detail in log");
+                assert!(!body.contains(detail), "private detail in response");
+            }
+        }
+    }
 
     fn test_audit() -> AuditStore {
         let dir = tempfile::tempdir().unwrap();
@@ -11953,7 +12051,7 @@ mod tests {
         // 2. Projection path: populate state.projection via the gateway-local
         //    builder, then the projection detail endpoint must surface the SAME
         //    provenance (true surface parity, not just non-None).
-        let proj = build_projection_from_state(&state).await;
+        let proj = build_projection_from_state(&state).await.unwrap();
         *state.projection.write().await = Some(proj);
         let resp = app
             .clone()

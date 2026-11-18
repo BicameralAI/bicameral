@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { tick } from "svelte";
 import {
   fetchFromHostedDaemon,
   onHostedDaemonDisconnected,
@@ -100,6 +101,46 @@ describe("Hosted daemon connection boundary", () => {
     unsubscribe();
   });
 
+  it("preserves a typed unavailable projection without disconnecting the daemon", async () => {
+    const disconnected = vi.fn();
+    const unsubscribe = onHostedDaemonDisconnected(disconnected);
+    const body = {
+      error: "ledger_projection_unavailable",
+      kind: "ProjectionUnavailable",
+      message: "Canonical ledger could not be replayed.",
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(body, { status: 503 }));
+
+    try {
+      const response = await fetchFromHostedDaemon(
+        "http://localhost:37373/api/v1/hosted-bridge/projection/ledger",
+      );
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual(body);
+      expect(disconnected).not.toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it.each([
+    [503, null],
+    [503, { kind: "UnknownFailure" }],
+    [500, { kind: "ProjectionUnavailable" }],
+    [502, { kind: "ProjectionUnavailable" }],
+  ])("keeps the disconnect behavior for an unrecognized %i response (%j)", async (status, body) => {
+    const disconnected = vi.fn();
+    const unsubscribe = onHostedDaemonDisconnected(disconnected);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(body, { status }));
+    try {
+      const response = await fetchFromHostedDaemon("http://localhost:37373/api/v1/hosted-bridge/projection/ledger");
+      expect(await response.json()).toEqual(body);
+      expect(disconnected).toHaveBeenCalledWith({ kind: "daemon_unavailable", status });
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it("routes an invalid hosted session back through pairing recovery", async () => {
     const disconnected = vi.fn();
     const unsubscribe = onHostedDaemonDisconnected(disconnected);
@@ -164,7 +205,7 @@ describe("Hosted daemon connection boundary", () => {
 });
 
 describe("Hosted dashboard disconnect recovery", () => {
-  it("preserves the paired screen and handoff beneath one blocking dialog", async () => {
+  it.each(["transport", "projection"])("preserves the paired screen and handoff after a %s failure", async (failure) => {
     window.sessionStorage.setItem(
       "bicameral_hosted_bridge",
       JSON.stringify({
@@ -184,27 +225,35 @@ describe("Hosted dashboard disconnect recovery", () => {
     const view = render(App);
     expect(view.getByTestId("hosted-dashboard")).toBeTruthy();
 
-    vi.mocked(globalThis.fetch).mockRejectedValue(
-      new TypeError("Failed to fetch"),
+    if (failure === "transport") {
+      vi.mocked(globalThis.fetch).mockRejectedValue(new TypeError("Failed to fetch"));
+    } else {
+      vi.mocked(globalThis.fetch).mockImplementation(async () => Response.json({
+        error: "ledger_projection_unavailable",
+        kind: "ProjectionUnavailable",
+        message: "Canonical ledger could not be replayed.",
+      }, { status: 503 }));
+    }
+    const expectedError = failure === "transport" ? "Failed to fetch" : "projection/ledger: 503";
+    await expect(fetchHostedLedgerProjection("bridge-session")).rejects.toThrow(
+      expectedError,
     );
     await expect(fetchHostedLedgerProjection("bridge-session")).rejects.toThrow(
-      "Failed to fetch",
-    );
-    await expect(fetchHostedLedgerProjection("bridge-session")).rejects.toThrow(
-      "Failed to fetch",
+      expectedError,
     );
 
+    await tick();
     await waitFor(() =>
       expect(
-        view.getByRole("dialog", { name: "Local daemon disconnected" }),
-      ).toBeTruthy(),
+        view.queryByRole("dialog", { name: "Local daemon disconnected" }) !== null,
+      ).toBe(failure === "transport"),
     );
     expect(view.getByTestId("hosted-dashboard")).toBeTruthy();
     expect(view.container.querySelector(".app-shell")?.hasAttribute("inert")).toBe(
-      true,
+      failure === "transport",
     );
     expect(window.sessionStorage.getItem("bicameral_hosted_bridge")).toBeTruthy();
-    expect(view.getAllByRole("dialog")).toHaveLength(1);
+    expect(view.queryAllByRole("dialog")).toHaveLength(failure === "transport" ? 1 : 0);
 
   });
 

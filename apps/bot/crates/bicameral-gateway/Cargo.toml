@@ -37,3 +37,4 @@ schemars.workspace = true
 serde_json.workspace = true
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
+tracing-subscriber.workspace = true
