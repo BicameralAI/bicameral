@@ -10,7 +10,11 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-_DEFAULT_GOOGLE_DRIVE_SCOPES = ("https://www.googleapis.com/auth/drive.file",)
+# ARCH-0007 / #50: the Drive connector requests the restricted `drive` scope in
+# place of `drive.file` so Shared Drive membership is effective for each
+# operator's daemon. Daemons reject an app config that omits it.
+_DEFAULT_GOOGLE_DRIVE_SCOPES = ("https://www.googleapis.com/auth/drive",)
+_DEFAULT_GOOGLE_DRIVE_SCOPE_SET_VERSION = "drive-v1"
 
 
 @dataclass(frozen=True)
@@ -39,7 +43,7 @@ class CloudSettings:
     # material, never part of the public provider-app-config response. In
     # production it must arrive through the Cloud secret-management boundary.
     google_oauth_native_client_secret: str | None = None
-    google_oauth_scope_set_version: str = "drive-file-v1"
+    google_oauth_scope_set_version: str = _DEFAULT_GOOGLE_DRIVE_SCOPE_SET_VERSION
     google_oauth_scopes: tuple[str, ...] = _DEFAULT_GOOGLE_DRIVE_SCOPES
     google_oauth_app_config_ttl_seconds: int = 3600
     google_oauth_app_config_enabled: bool = True
@@ -139,7 +143,8 @@ def load_settings() -> CloudSettings:
             "BICAMERAL_GOOGLE_OAUTH_CLIENT_SECRET"
         ),
         google_oauth_scope_set_version=os.environ.get(
-            "BICAMERAL_GOOGLE_OAUTH_SCOPE_SET_VERSION", "drive-file-v1"
+            "BICAMERAL_GOOGLE_OAUTH_SCOPE_SET_VERSION",
+            _DEFAULT_GOOGLE_DRIVE_SCOPE_SET_VERSION,
         ),
         google_oauth_scopes=_csv_env(
             "BICAMERAL_GOOGLE_OAUTH_SCOPES", _DEFAULT_GOOGLE_DRIVE_SCOPES

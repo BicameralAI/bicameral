@@ -34,7 +34,8 @@ pub mod product_creation_proof;
 pub mod drive_api_transport {
     pub use super::drive_api_transport_base::{
         production_drive_event_store, DriveAccessTokenProvider, HttpDriveApiTransport,
-        KeyringGoogleAccessTokenProvider, CANONICAL_EVENT_MARKER_KEY, REFRESH_SKEW_SECONDS,
+        KeyringGoogleAccessTokenProvider, CANONICAL_EVENT_MARKER_KEY,
+        DRIVE_SCOPE_NOT_GRANTED_MESSAGE, REFRESH_SKEW_SECONDS,
     };
     pub use super::google_drive_credential_route::open_google_drive_api_route;
 }

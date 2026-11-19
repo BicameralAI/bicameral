@@ -113,7 +113,7 @@ export const SAMPLE_CONNECTIONS: Connection[] = [
     provider_id: "google",
     status: "action_needed",
     account_label: "user@example.com",
-    capabilities: ["drive.file", "drive.docs.read"],
+    capabilities: ["drive", "drive.docs.read"],
     updated_at: "2026-06-10T00:00:00Z",
     auth_method: "oauth",
   },
