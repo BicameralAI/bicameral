@@ -92,16 +92,6 @@
       ]
     },
     {
-      "path": ".claude",
-      "purpose": "Claude Code project settings: the npm install vetting hook from tools/npm-guard.",
-      "children": "open",
-      "readme": false,
-      "owners": [
-        "@jinhongkuan",
-        "@Knapp-Kevin"
-      ]
-    },
-    {
       "path": "apps",
       "purpose": "End-user applications.",
       "children": "declared"
@@ -188,7 +178,7 @@
     },
     {
       "path": "tools/npm-guard",
-      "purpose": "npm supply-chain guard: malware scan, dependency-change checks, git hooks and the Claude Code install hook (#92).",
+      "purpose": "npm supply-chain guard: malware scan, dependency-change checks and git hooks (#92).",
       "children": "open",
       "owners": [
         "@jinhongkuan",

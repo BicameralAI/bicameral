@@ -108,3 +108,52 @@ jobs:
             const found = Object.entries(lock.packages || {}).filter(([, p]) => p.hasInstallScript).map(([k]) => k);
             if (found.length) console.log("::notice::Install scripts are not run for: " + found.join(", "));
           '
+
+  # Windows contributors run the same scripts through cmd.exe, Git Bash and a python.org interpreter.
+  npm-guard-windows:
+    name: npm-guard-windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/bot/dashboard
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Node.js and npm toolchain
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 26.13.0
+          cache: npm
+          cache-dependency-path: apps/bot/dashboard/package-lock.json
+
+      - name: Install without running dependency scripts
+        run: |
+          echo "node $(node --version), npm $(npm --version), $(sh ../../../tools/npm-guard/py.sh --version)"
+          npm ci --ignore-scripts
+
+      - name: Set up and check the git hooks
+        run: npm run security:setup && npm run security:check
+
+      - name: Build the dashboard through the gate (Vite and esbuild without install scripts)
+        run: npm run build
+
+      - name: The gate refuses to build an infected tree
+        run: |
+          printf 'module.exports = {};\nglob''al.o = 1;\n' > npm-guard-ci-infected.config.js
+          if npm run build > build.log 2>&1; then cat build.log; echo "::error::the build ran on an infected tree"; exit 1; fi
+          cat build.log
+          grep -q 'npm-guard-ci-infected.config.js' build.log || { echo "::error::the build failed, but not on the gate"; exit 1; }
+
+      - name: The installed pre-commit hook refuses the infected file
+        run: |
+          git add npm-guard-ci-infected.config.js
+          if git -c user.name=ci -c user.email=ci@example.invalid commit -q -m infected > commit.log 2>&1; then
+            cat commit.log; echo "::error::the pre-commit hook accepted an infected file"; exit 1
+          fi
+          cat commit.log
+          grep -q 'npm-guard-ci-infected.config.js' commit.log || { echo "::error::the commit failed, but not on the hook"; exit 1; }

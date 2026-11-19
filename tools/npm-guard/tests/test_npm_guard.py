@@ -33,7 +33,9 @@ REPO = GUARD.parents[1]
 DASHBOARD = REPO / 'apps' / 'bot' / 'dashboard'
 GATE = GUARD / 'gate.cjs'
 NPM = shutil.which('npm')
-# A harmless file that matches the scanner's `global.o=` signature.
+NODE = shutil.which('node')
+SH = shutil.which('sh')
+# A harmless file that matches the scanner's main signature (the global `o` assignment).
 INFECTED = 'module.exports = {};\n' + 'glob' + "al.o='npm-guard-test';\n"
 FOUND = 'MALWARE SIGNATURE FOUND'
 
@@ -145,37 +147,6 @@ class DashboardScripts(unittest.TestCase):
                 self.assertIn(FOUND, result.stderr + result.stdout)
 
 
-class ClaudeHook(unittest.TestCase):
-    """The Claude Code PreToolUse hook (guard_npm_install.py)."""
-
-    def decide(self, command, cwd):
-        event = json.dumps({'tool_name': 'Bash', 'tool_input': {'command': command}, 'cwd': str(cwd)})
-        result = subprocess.run(['python3', str(GUARD / 'guard_npm_install.py')], input=event, cwd=REPO,
-                                capture_output=True, text=True, timeout=60,
-                                env={**os.environ, 'CLAUDE_PROJECT_DIR': str(REPO)})
-        out = result.stdout.strip()
-        return json.loads(out)['hookSpecificOutput'] if out else None
-
-    def test_install_uses_the_npmrc_of_the_project_it_runs_in(self):
-        self.assertIsNone(self.decide('npm install', DASHBOARD / 'src'))
-        bare = Path(tempfile.mkdtemp(prefix='npm-guard-hook-'))
-        self.addCleanup(shutil.rmtree, bare, True)
-        (bare / 'package.json').write_text('{}')
-        self.assertEqual(self.decide('npm install', bare)['permissionDecision'], 'ask')
-
-    def test_node_commands_are_denied_while_the_tree_is_infected(self):
-        self.assertIsNone(self.decide('npm run dev', DASHBOARD))
-        planted = DASHBOARD / 'npm-guard-test-infected.config.js'
-        planted.write_text(INFECTED)
-        self.addCleanup(planted.unlink)
-        self.assertEqual(self.decide('npm run dev', DASHBOARD)['permissionDecision'], 'deny')
-
-    @unittest.skipUnless(ONLINE, 'npm registry is unreachable')
-    def test_package_missing_from_registry_is_denied(self):
-        decision = self.decide('npm install npm-guard-test-package-that-does-not-exist-7c1f', DASHBOARD)
-        self.assertEqual(decision['permissionDecision'], 'deny')
-
-
 class Verify(unittest.TestCase):
     """gate.cjs --verify fails when the guard is removed or the dashboard .npmrc is weakened."""
 
@@ -183,7 +154,7 @@ class Verify(unittest.TestCase):
                 'tools/npm-guard/hooks/pre-merge-commit', 'tools/npm-guard/hooks/post-merge',
                 'tools/npm-guard/hooks/post-rewrite', 'tools/npm-guard/hooks/post-checkout',
                 'tools/npm-guard/scan_incoming.py', 'tools/npm-guard/check_dependency_changes.py',
-                'tools/npm-guard/guard_npm_install.py', '.claude/settings.json',
+                'tools/npm-guard/registry_check.py',
                 'apps/bot/dashboard/.npmrc']
 
     def setUp(self):
@@ -303,6 +274,12 @@ class GitHooks(unittest.TestCase):
         self.write('tools/npm-guard/allow.txt', f'{name}  # reviewed in the test\n')
         self.assertEqual(self.commit('allowed').returncode, 0)
 
+    def test_commit_of_a_file_without_a_suffix_is_blocked(self):
+        self.write('scripts/deploy', '#!/usr/bin/env node\n' + INFECTED)
+        result = self.commit('infected script')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('scripts/deploy', result.stderr)
+
     def test_commit_made_with_no_verify_is_blocked_at_push(self):
         self.write('app/vite.config.js', INFECTED)
         self.assertEqual(self.commit('infected', '--no-verify').returncode, 0)
@@ -381,7 +358,7 @@ class DependencyCheck(unittest.TestCase):
 
     def check(self):
         self.git('add', '-A')
-        guard = load('guard_npm_install')
+        guard = load('registry_check')
         checker = load('check_dependency_changes')
         stderr = io.StringIO()
         cwd = os.getcwd()
@@ -438,63 +415,94 @@ class DependencyCheck(unittest.TestCase):
         self.assertIn('warning:', out)
 
 
-class ClaudeHookDecisions(unittest.TestCase):
-    """guard_npm_install.py decisions against a fake registry."""
+class GateFailsClosed(unittest.TestCase):
+    """gate.cjs --gate stops the npm script when the scan cannot run, so the build after `&&` never starts."""
 
     def setUp(self):
-        self.registry = FakeRegistry()
-        self.registry.add('lowuse', {'1.0.0': 300}, latest='1.0.0', weekly=10)
-        self.registry.add('vite', {'8.3.6': 10, '8.3.8': 2}, latest='8.3.8')
+        self.tmp = Path(tempfile.mkdtemp(prefix='npm-guard-gate-'))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.marker = self.tmp / 'build-ran'
 
-    def decide(self, command, cwd=DASHBOARD):
-        guard = load('guard_npm_install')
-        event = json.dumps({'tool_name': 'Bash', 'tool_input': {'command': command}, 'cwd': str(cwd)})
-        stdout = io.StringIO()
-        with mock.patch.object(guard, 'fetch_json', self.registry.fetch_json), \
-                mock.patch.object(guard, 'infected_tree', lambda event: None), \
-                mock.patch.object(sys, 'stdin', io.StringIO(event)), contextlib.redirect_stdout(stdout):
-            try:
-                guard.main()
-            except SystemExit:
-                pass
-        out = stdout.getvalue().strip()
-        return json.loads(out)['hookSpecificOutput'] if out else None
+    def guarded_build(self, gate, path):
+        # The shape of every dashboard script: `node gate.cjs --gate && <build>`, run by sh as npm does.
+        command = f'"{NODE}" "{gate}" --gate && : > "{self.marker}"'
+        env = {**os.environ, 'PATH': path, 'NPM_GUARD_ROOT': str(self.tmp)}
+        return run([SH, '-c', command], self.tmp, env)
 
-    def test_a_deny_is_not_hidden_by_an_earlier_ask(self):
-        decision = self.decide('npm install --ignore-scripts lowuse missing-pkg')
-        self.assertEqual(decision['permissionDecision'], 'deny')
-        self.assertIn('"missing-pkg" does not exist', decision['permissionDecisionReason'])
+    @unittest.skipUnless(NODE and SH, 'needs node and sh')
+    def test_build_does_not_run_without_python(self):
+        empty_path = self.tmp / 'bin'
+        empty_path.mkdir()
+        self.assertEqual(self.guarded_build(GATE, os.environ['PATH']).returncode, 0)
+        self.marker.unlink()
+        result = self.guarded_build(GATE, str(empty_path))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('Python 3.6+ not found', result.stderr)
+        self.assertFalse(self.marker.exists(), 'the build ran without a malware scan')
 
-    def test_install_spellings_and_package_runners_are_vetted(self):
-        for command in ('npm --prefix apps/bot/dashboard install missing-pkg', 'npm in missing-pkg',
-                        'npm -D install missing-pkg', 'pnpm --dir apps/bot/dashboard add missing-pkg',
-                        'npx missing-pkg', 'npm exec -- missing-pkg', 'pnpm dlx missing-pkg', 'bunx missing-pkg'):
-            with self.subTest(command=command):
-                decision = self.decide(command, cwd=REPO)
-                self.assertIsNotNone(decision)
-                self.assertEqual(decision['permissionDecision'], 'deny')
-
-    def test_latest_tag_is_switched_to_the_settled_version(self):
-        decision = self.decide('npm install --ignore-scripts vite@latest')
-        self.assertEqual(decision['permissionDecision'], 'ask')
-        self.assertIn('vite@8.3.6', decision['updatedInput']['command'])
-
-    def test_a_later_npmrc_line_that_enables_scripts_wins(self):
-        project = Path(tempfile.mkdtemp(prefix='npm-guard-npmrc-'))
-        self.addCleanup(shutil.rmtree, project, True)
-        (project / 'package.json').write_text('{}')
-        (project / '.npmrc').write_text('ignore-scripts=true\nignore-scripts=false\n')
-        self.assertEqual(self.decide('npm install', cwd=project)['permissionDecision'], 'ask')
+    @unittest.skipUnless(NODE and SH, 'needs node and sh')
+    def test_build_does_not_run_without_the_scanner(self):
+        lone = self.tmp / 'guard'
+        lone.mkdir()
+        shutil.copy(GATE, lone / 'gate.cjs')
+        result = self.guarded_build(lone / 'gate.cjs', os.environ['PATH'])
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('scan_incoming.py is missing', result.stderr)
+        self.assertFalse(self.marker.exists(), 'the build ran without a malware scan')
 
 
 class Scanner(unittest.TestCase):
-    def test_a_source_file_over_the_size_limit_is_reported(self):
-        tree = Path(tempfile.mkdtemp(prefix='npm-guard-scan-'))
-        self.addCleanup(shutil.rmtree, tree, True)
-        (tree / 'vite.config.js').write_text('//' + ' ' * (6 * 1024 * 1024) + '\n' + INFECTED)
-        result = run(['python3', str(GUARD / 'scan_incoming.py'), '--worktree'], tree)
+    """scan_incoming.py --worktree in a git repository, the way the gate runs it."""
+
+    def setUp(self):
+        self.tree = Path(tempfile.mkdtemp(prefix='npm-guard-scan-'))
+        self.addCleanup(shutil.rmtree, self.tree, True)
+        run(['git', 'init', '-q'], self.tree)
+
+    def write(self, rel, text):
+        path = self.tree / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        return path
+
+    def scan(self):
+        return run(['python3', str(GUARD / 'scan_incoming.py'), '--worktree'], self.tree)
+
+    def test_signature_is_found_in_every_file_type(self):
+        for rel in ('setup.py', 'index.html', 'styles.css', '.github/ci.yml', 'install.ps1', 'bin/run',
+                    'assets/logo.png'):
+            with self.subTest(file=rel):
+                planted = self.write(rel, INFECTED)
+                result = self.scan()
+                planted.unlink()
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(rel, result.stderr)
+
+    def test_a_file_over_the_size_limit_is_reported(self):
+        self.write('assets/blob.dat', '//' + ' ' * (6 * 1024 * 1024) + '\n' + INFECTED)
+        result = self.scan()
         self.assertEqual(result.returncode, 1)
         self.assertIn('over 5 MiB', result.stderr)
+
+    @unittest.skipUnless(hasattr(os, 'symlink') and os.name != 'nt', 'needs POSIX symbolic links')
+    def test_a_symbolic_link_to_an_infected_file_outside_the_tree_is_found(self):
+        outside = Path(tempfile.mkdtemp(prefix='npm-guard-outside-'))
+        self.addCleanup(shutil.rmtree, outside, True)
+        (outside / 'payload.js').write_text(INFECTED)
+        os.symlink(outside / 'payload.js', self.tree / 'vite.config.js')
+        result = self.scan()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('vite.config.js', result.stderr)
+
+    @unittest.skipUnless(hasattr(os, 'symlink') and os.name != 'nt', 'needs POSIX symbolic links')
+    def test_a_symbolic_link_to_a_directory_is_reported(self):
+        outside = Path(tempfile.mkdtemp(prefix='npm-guard-outside-'))
+        self.addCleanup(shutil.rmtree, outside, True)
+        (outside / 'index.js').write_text('module.exports = {};\n')
+        os.symlink(outside, self.tree / 'lib')
+        result = self.scan()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('symbolic link to a directory', result.stderr)
 
 
 if __name__ == '__main__':

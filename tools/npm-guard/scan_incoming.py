@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """Detect known injected-loader code in git history before it can run on this machine.
 
-The malware is JavaScript (usually appended to a *.config.js file) that starts with
-`global.o=...` / `global['_V']=...`. It only does damage once somebody runs `npm run dev`,
-`npm run build` or any tool that loads the config. This scanner reads git objects and files
-as bytes; it never executes or imports anything from the repository.
+The malware is JavaScript (usually appended to a *.config.js file) that assigns the global
+`o` or `_V` property. It only does damage once somebody runs `npm run dev`, `npm run build`
+or any tool that loads the config. This scanner reads git objects and files as bytes; it
+never executes or imports anything from the repository.
+
+Every file is scanned, whatever its name or type. A file over 5 MiB, a file that cannot be read,
+and a symbolic link to a directory are reported, never treated as clean. A symbolic link to a file
+is scanned through to its target, because Node follows it.
 
   --range OLD NEW   files changed between two revisions (post-merge, post-checkout, pre-push)
   --ref REF         what merging/pulling REF would bring in (pre-merge, safe-pull)
   --staged          what is about to be committed (pre-commit); strict, any hit blocks
-  --worktree        every tracked source file as it is on disk right now (gate before dev/build)
+  --worktree        every tracked and untracked, not-ignored file as it is on disk (gate before dev/build)
 
 Pull-side scans (--ref, --range) flag a file only when the signature or an IOC appears in NEW and not
 in OLD (so an old, already-reviewed hit is not re-reported on every pull). Scans of code leaving this
@@ -26,9 +30,6 @@ import sys
 
 EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 MAX_BYTES = 5 * 1024 * 1024
-SOURCE_SUFFIXES = ('.js', '.cjs', '.mjs', '.jsx', '.ts', '.tsx', '.cts', '.mts',
-                   '.json', '.woff', '.woff2', '.ttf', '.otf', '.bat', '.sh')
-SOURCE_NAMES = ('.postcssrc', '.babelrc', '.eslintrc', '.gitignore')
 
 MALICIOUS_SIGNATURE = re.compile(
     rb"(?<![\w$.])global(?:This)?\s*"
@@ -36,16 +37,16 @@ MALICIOUS_SIGNATURE = re.compile(
     rb"(?![\w$])\s*=(?!=)"
 )
 CAMPAIGN_IOC = re.compile(
-    rb"(?:global\s*\[\s*['\"](?:!|_V|r)['\"]\s*\]|_\$_1e42|rmcej%otb%|Cot%3t=shtP|"
+    rb"(?:global\s*\[\s*['\"](?:!|_V|r)['\"]\s*\]|_\$_1e42|rmcej%ot[b]%|Cot%3t=sht[P]|"
     rb"A(?:4-1928|10-(?:010|2340|83-10))|"
     rb"api\.trongrid\.io|bsc-dataseed\.binance\.org|bsc-rpc\.publicnode\.com|"
-    rb"TMfKQEd7TJJa5xNZJZ2Lep838vrzrs7mAP|TXfxHUet9pJVU1BgVkBAbrES4YUc1nGzcG|"
+    rb"TMfKQEd7TJJa5xNZJZ2Lep838vrzrs7m[A]P|TXfxHUet9pJVU1BgVkBAbrES4YUc1nGz[c]G|"
     rb"166\.88\.(?:54\.158|4\.2|134\.82)|198\.105\.127\.210|"
     rb"23\.27\.(?:202\.27|120\.142)|154\.91\.0\.103|136\.0\.9\.8|"
     rb"202\.155\.8\.173|188\.43\.33\.249)",
     re.I,
 )
-HIDDEN_SUFFIX = re.compile(rb"[^\n]{0,500};[ \t]{200,}\S")  # payload pushed off-screen after 200+ spaces
+HIDDEN_SUFFIX = re.compile(rb";[ \t]{200,}\S")  # payload pushed off-screen after 200+ spaces
 CHECKS = (('global.o signature', MALICIOUS_SIGNATURE), ('campaign IOC', CAMPAIGN_IOC),
           ('code hidden after 200+ spaces', HIDDEN_SUFFIX))
 
@@ -60,16 +61,11 @@ def git(*args, raw=False):
     return result.stdout if raw else result.stdout.decode('utf-8', 'replace')
 
 
-def is_source(path):
-    base = os.path.basename(path)
-    return path.lower().endswith(SOURCE_SUFFIXES) or base in SOURCE_NAMES or base.startswith('.postcssrc')
-
-
 def hits(data):
     if data is None:
         return {}
     if len(data) > MAX_BYTES:  # too big to scan: never treat it as clean
-        return {'source file over 5 MiB, not scanned (review it)': 1}
+        return {'file over 5 MiB, not scanned (review it)': 1}
     return {name: len(rx.findall(data)) for name, rx in CHECKS if rx.search(data)}
 
 
@@ -95,8 +91,6 @@ def scan_diff(old, new, cached=False, strict=False):
         raise SystemExit('npm-guard: could not diff the revisions; refusing to assume they are clean')
     found = []
     for path in filter(None, names.split('\0')):
-        if not is_source(path):
-            continue
         after = hits(blob(None if cached else new, path))
         if not after:
             continue
@@ -111,8 +105,22 @@ def walk_files(root):
     """No git (Docker image, release tarball): every file except dependencies and build caches."""
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in ('node_modules', '.git', '.next')]
+        filenames += [d for d in dirnames if os.path.islink(os.path.join(dirpath, d))]  # reported, not followed
         for name in filenames:
             yield os.path.relpath(os.path.join(dirpath, name), root).replace(os.sep, '/')
+
+
+def scan_file(full):
+    """Hits for one file on disk. Symbolic links are followed, as Node follows them."""
+    if os.path.isdir(full):
+        return {'symbolic link to a directory, not scanned (review it)': 1} if os.path.islink(full) else {}
+    if not os.path.isfile(full):  # deleted since listing, dangling link, socket or device
+        return {}
+    try:
+        with open(full, 'rb') as f:
+            return hits(f.read(MAX_BYTES + 1))
+    except OSError as exc:
+        return {f'could not read ({exc.strerror}), not scanned (review it)': 1}
 
 
 def scan_worktree():
@@ -124,15 +132,7 @@ def scan_worktree():
         paths = filter(None, (git('ls-files', '-z', '--cached', '--others', '--exclude-standard') or '').split('\0'))
     found = []
     for path in paths:
-        full = os.path.join(root, path)
-        if not is_source(path) or os.path.islink(full) or not os.path.isfile(full):
-            continue
-        try:
-            with open(full, 'rb') as f:
-                data = f.read(MAX_BYTES + 1)
-        except OSError:
-            continue
-        found_here = hits(data)
+        found_here = scan_file(os.path.join(root, path))
         if found_here:
             found.append((path, found_here))
     return found

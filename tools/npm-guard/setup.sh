@@ -16,7 +16,7 @@ cd "$root" || exit 1
 source_dir=tools/npm-guard
 dest=$(cd "$(git rev-parse --git-common-dir)" && pwd)/npm-guard
 dashboard=apps/bot/dashboard
-installed="py.sh scan_incoming.py check_dependency_changes.py guard_npm_install.py safe-pull.sh"
+installed="py.sh scan_incoming.py check_dependency_changes.py registry_check.py safe-pull.sh"
 hooks="pre-commit pre-push pre-merge-commit post-merge post-rewrite post-checkout"
 alias_value="!sh \"$dest/safe-pull.sh\""
 

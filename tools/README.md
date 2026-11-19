@@ -5,4 +5,4 @@ Repository tooling. Each tool family is a declared child directory in [`governan
 | Directory | Purpose |
 | --- | --- |
 | [`governance/`](governance/) | Standard-library validators for layout, ownership and architecture records |
-| [`npm-guard/`](npm-guard/) | npm supply-chain guard: malware scan, dependency-change checks, git hooks and the Claude Code install hook |
+| [`npm-guard/`](npm-guard/) | npm supply-chain guard: malware scan, dependency-change checks and git hooks |

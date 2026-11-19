@@ -10,7 +10,6 @@
 /SECURITY.md @jinhongkuan @Knapp-Kevin
 
 # Directories (parents precede children; the last match wins)
-/.claude/ @jinhongkuan @Knapp-Kevin
 /.github/ @jinhongkuan @Knapp-Kevin
 /docs/architecture/ @jinhongkuan @Knapp-Kevin
 /governance/ @jinhongkuan @Knapp-Kevin

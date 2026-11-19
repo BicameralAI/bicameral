@@ -83,10 +83,10 @@ def requested_version(spec):
 
 
 def load_registry_check():
-    """Reuse the Claude hook's registry vetting so the logic lives in one place."""
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'guard_npm_install.py')
+    """check_package from registry_check.py next to this file, or None when it cannot be loaded."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'registry_check.py')
     try:
-        spec = importlib.util.spec_from_file_location('guard_npm_install', path)
+        spec = importlib.util.spec_from_file_location('registry_check', path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module.check_package
@@ -201,7 +201,7 @@ def main():
     if to_vet or lock_vet:
         check_package = load_registry_check()
         if check_package is None:
-            warnings.append('Registry checks skipped (tools/npm-guard/guard_npm_install.py not found).')
+            errors.append('Registry checks could not run (tools/npm-guard/registry_check.py is missing or broken).')
         else:
             # Manifest entries: the requested version or range, plus download count.
             # Lockfile entries: the exact version only (transitive packages are often little used).

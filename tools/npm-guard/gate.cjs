@@ -10,8 +10,8 @@
 // The checked tree defaults to the repository that contains this file. NPM_GUARD_ROOT points the checks
 // at another tree, so CI can run the reviewed base-branch copy of the guard against a pull request.
 //
-// Locally, a missing Python skips the scan instead of blocking work (same as py.sh exit 127). Required CI
-// does not rely on this file for the scan: it calls the scanner with python3 directly and fails closed.
+// --gate and --verify fail closed: when Python 3 or the scanner is missing, they exit 1 and the npm script
+// that called them does not run.
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -26,7 +26,7 @@ const REQUIRED_FILES = [
   'tools/npm-guard/hooks/pre-commit', 'tools/npm-guard/hooks/pre-push', 'tools/npm-guard/hooks/pre-merge-commit',
   'tools/npm-guard/hooks/post-merge', 'tools/npm-guard/hooks/post-rewrite', 'tools/npm-guard/hooks/post-checkout',
   'tools/npm-guard/scan_incoming.py', 'tools/npm-guard/check_dependency_changes.py',
-  'tools/npm-guard/guard_npm_install.py', '.claude/settings.json',
+  'tools/npm-guard/registry_check.py',
 ];
 const MIN_RELEASE_AGE_DAYS = 7;
 
@@ -67,11 +67,16 @@ function python() {
 
 function scan() {
   const scanner = path.join(guardDir, 'scan_incoming.py');
-  if (!fs.existsSync(scanner)) return 0;
+  if (!fs.existsSync(scanner)) {
+    console.error(`npm-guard: ${scanner} is missing, so the malware scan cannot run. Not starting.\n` +
+      'Restore tools/npm-guard from a reviewed main (git checkout origin/main -- tools/npm-guard).');
+    return 1;
+  }
   const py = python();
   if (!py) {
-    console.error('npm-guard: Python 3 not found; the malware scan was skipped.');
-    return 0;
+    console.error('npm-guard: Python 3.6+ not found (tried python3, python, py -3), so the malware scan cannot ' +
+      'run. Not starting.\nInstall Python 3 (https://www.python.org/downloads/) and make sure it is on PATH.');
+    return 1;
   }
   const r = spawnSync(py[0], [...py[1], scanner, '--worktree'], { cwd: root, stdio: 'inherit' });
   return r.status === 0 ? 0 : 1;
