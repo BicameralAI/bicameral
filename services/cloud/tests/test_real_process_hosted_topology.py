@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 import zipfile
 from pathlib import Path
@@ -30,6 +31,21 @@ def test_allocated_ports_are_unique_loopback_ports() -> None:
     assert set(ports) == {"a", "b", "c"}
     assert len(set(ports.values())) == 3
     assert all(0 < port < 65536 for port in ports.values())
+
+
+def test_full_run_requires_disposable_credential_store_confirmation(
+    monkeypatch, capsys
+):
+    module = _load_script()
+    monkeypatch.setattr(
+        module,
+        "_parse_args",
+        lambda: SimpleNamespace(
+            disposable_host_confirmed=False,
+        ),
+    )
+    assert module.main() == 2
+    assert "credential store" in capsys.readouterr().err
 
 
 def test_tree_digest_is_stable_and_path_sensitive(tmp_path: Path) -> None:
@@ -284,6 +300,7 @@ def test_pair_daemon_uses_pending_local_confirmation_flow(monkeypatch) -> None:
     requests: list[tuple[str, str, dict[str, object]]] = []
     responses = iter(
         (
+            module.HttpResult(200, b'{"user_id":"account-1","team_id":"team-1"}', {}),
             module.HttpResult(
                 202,
                 b'{"status":"pending","request_handle":"handle-1",'
@@ -309,15 +326,31 @@ def test_pair_daemon_uses_pending_local_confirmation_flow(monkeypatch) -> None:
         return next(responses)
 
     monkeypatch.setattr(module, "_http", fake_http)
+    enrollments = []
+    monkeypatch.setattr(
+        module, "_verify_pairing_enrollment", lambda **kw: enrollments.append(kw)
+    )
 
-    token, evidence = module._pair_daemon(37373, "account-1")
+    token, evidence = module._pair_daemon(
+        37373,
+        "account-1",
+        access_token="user-token",
+        cloud_port=8000,
+        home=Path("/isolated"),
+        audit_token="owner-token",
+    )
 
     assert token == "session-1"
     assert evidence == b'{"status":"approved","session_token":"session-1"}'
+    tenancy, *requests = requests
+    assert tenancy[1] == "http://127.0.0.1:8000/api/v1/auth/pairing-tenancy"
+    assert tenancy[2]["headers"] == {"authorization": "Bearer user-token"}
     assert [request[0] for request in requests] == ["POST", "GET", "POST", "GET"]
     assert requests[0][2]["payload"] == {
         "origin": module.TRUSTED_BRIDGE_ORIGIN,
         "cloud_account_id": "account-1",
+        "team_id": "team-1",
+        "cloud_access_token": "user-token",
         "csrf_token": requests[0][2]["payload"]["csrf_token"],
         "client_protocol_version": module.HOSTED_BRIDGE_PROTOCOL_VERSION,
     }
@@ -331,6 +364,65 @@ def test_pair_daemon_uses_pending_local_confirmation_flow(monkeypatch) -> None:
     assert "poll_proof=proof-1" in requests[3][1]
     assert "cloud_account_id=account-1" in requests[3][1]
     assert requests[3][2]["headers"] == {"origin": module.TRUSTED_BRIDGE_ORIGIN}
+    assert enrollments[0]["request_handle"] == "handle-1"
+    assert enrollments[0]["cloud_account_id"] == "account-1"
+    assert enrollments[0]["team_id"] == "team-1"
+
+
+@pytest.mark.parametrize(
+    "status,payload",
+    [
+        (401, {}),
+        (409, {"detail": {"kind": "PairingTenancyAmbiguous"}}),
+        (200, {"user_id": "other", "team_id": "team-1"}),
+        (200, {"user_id": "account-1"}),
+        (200, {"user_id": "account-1", "team_id": " "}),
+    ],
+)
+def test_pairing_tenancy_fails_before_daemon_request(monkeypatch, status, payload):
+    module = _load_script()
+    requests = []
+
+    def request(method, url, **kwargs):
+        requests.append(url)
+        return module.HttpResult(status, json.dumps(payload).encode(), {})
+
+    monkeypatch.setattr(module, "_http", request)
+    with pytest.raises(module.TopologyError):
+        module._start_daemon_pairing(
+            37373, "account-1", access_token="token", cloud_port=8000
+        )
+    assert requests == ["http://127.0.0.1:8000/api/v1/auth/pairing-tenancy"]
+
+
+def test_missing_pairing_token_never_reaches_cloud(monkeypatch):
+    module = _load_script()
+    monkeypatch.setattr(module, "_http", lambda *a, **kw: pytest.fail("HTTP attempted"))
+    with pytest.raises(module.TopologyError, match="credential"):
+        module._start_daemon_pairing(
+            37373, "account-1", access_token=" ", cloud_port=8000
+        )
+
+
+def test_daemon_overrides_host_cloud_and_proxy_environment(monkeypatch, tmp_path):
+    module = _load_script()
+    monkeypatch.setenv("BICAMERAL_CLOUD_ORIGIN", "https://app.bicameral-ai.com")
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy.invalid:8080")
+    starts = []
+    monkeypatch.setattr(module, "_start_process", lambda *a, **kw: starts.append(kw))
+    monkeypatch.setattr(module, "_wait_http", lambda *a, **kw: None)
+    module._start_daemon(
+        binary=tmp_path / "bot",
+        workspace=tmp_path,
+        home=tmp_path,
+        name="daemon-a",
+        port=37373,
+        log_dir=tmp_path,
+        cloud_port=8000,
+    )
+    assert starts[0]["env"]["BICAMERAL_CLOUD_ORIGIN"] == "http://127.0.0.1:8000"
+    assert "HTTP_PROXY" not in starts[0]["env"]
+    assert starts[0]["env"]["NO_PROXY"] == "127.0.0.1,localhost"
 
 
 def test_browser_pairing_approves_the_pending_request_locally(monkeypatch) -> None:
@@ -367,6 +459,7 @@ def test_browser_pairing_approves_the_pending_request_locally(monkeypatch) -> No
             return None
 
         def goto(self, *_args: object, **_kwargs: object) -> None:
+            assert _args[0] == "https://app.bicameral-ai.com:8443/connect"
             interactions.append("goto")
             return None
 
@@ -393,17 +486,182 @@ def test_browser_pairing_approves_the_pending_request_locally(monkeypatch) -> No
         "_approve_daemon_pairing",
         lambda port, handle: approvals.append((port, handle)),
     )
+    monkeypatch.setattr(module, "_pairing_tenancy", lambda *a: ("account-1", "team-1"))
+    enrollments = []
+    monkeypatch.setattr(
+        module, "_verify_pairing_enrollment", lambda **kw: enrollments.append(kw)
+    )
 
     opened = module._open_paired_browser_page(
         context,
         access_token="token",
         hosted_origin="https://app.bicameral-ai.com:8443",
         daemon_port=37373,
+        cloud_port=8000,
+        home=Path("/isolated"),
+        audit_token="owner-token",
     )
 
     assert opened is page
     assert approvals == [(37373, "browser-handle")]
+    assert enrollments[0]["request_handle"] == "browser-handle"
+    assert enrollments[0]["cloud_account_id"] == "account-1"
     assert interactions == ["goto"]
+
+
+@pytest.mark.parametrize(
+    "target,key,value",
+    [
+        (None, None, None),
+        ("record", "enrollment_status", "failed:unauthorized"),
+        ("record", "cloud_account_id", "wrong-user"),
+        ("record", "team_id", "wrong-team"),
+        ("record", "revoked", True),
+        ("record", "pairing_id", None),
+        ("event", "actor_id", "wrong-user"),
+        ("event", "team_id", "wrong-team"),
+        ("event", "action", "pairing.created"),
+        ("detail", "pairing_id", "older-pairing"),
+        ("detail", "daemon_instance_id", "other-daemon"),
+        ("detail", "identity_key_id", None),
+    ],
+)
+def test_enrollment_requires_matching_local_record_and_cloud_audit(
+    monkeypatch,
+    tmp_path,
+    target,
+    key,
+    value,
+):
+    module = _load_script()
+    record = {
+        "restore_request_handle": "handle-1",
+        "pairing_id": "pairing-1",
+        "cloud_account_id": "account-1",
+        "team_id": "team-1",
+        "daemon_instance_id": "daemon-1",
+        "revoked": False,
+        "approved_origin": module.TRUSTED_BRIDGE_ORIGIN,
+        "enrollment_status": "enrolled:200",
+    }
+    event = {
+        "action": "pairing.identity_enrolled",
+        "actor_id": "account-1",
+        "team_id": "team-1",
+        "detail": {
+            "pairing_id": "pairing-1",
+            "daemon_instance_id": "daemon-1",
+            "identity_key_id": "sha256:" + "a" * 64,
+        },
+    }
+    if target:
+        {"record": record, "event": event, "detail": event["detail"]}[target][key] = (
+            value
+        )
+    path = tmp_path / ".bicameral/pairings/pairings.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"pairings": {"pairing-1": record}}))
+    monkeypatch.setattr(
+        module,
+        "_http",
+        lambda *a, **kw: module.HttpResult(
+            200,
+            json.dumps({"events": [event]}).encode(),
+            {},
+        ),
+    )
+
+    def verify():
+        module._verify_pairing_enrollment(
+            home=tmp_path,
+            request_handle="handle-1",
+            cloud_account_id="account-1",
+            team_id="team-1",
+            cloud_port=8000,
+            audit_token="owner-token",
+        )
+
+    if target:
+        with pytest.raises(module.TopologyError):
+            verify()
+    else:
+        verify()
+
+
+def test_cloud_http_and_tls_share_authenticated_coordination_state(
+    tmp_path, monkeypatch
+):
+    module = _load_script()
+    ports = module._allocate_ports(("http", "tls"))
+    key, certificate = module._generate_tls_material(tmp_path)
+    # Unit-test identities only: no Supabase, real provider or daemon/keyring.
+    code = """
+import asyncio, sys
+from bicameral_cloud.config import CloudSettings, reset_settings
+from bicameral_cloud.store import get_store
+from bicameral_cloud.models.tenancy import AuthenticatedUser
+from serve_topology_cloud import serve
+reset_settings(CloudSettings(supabase_url=None, supabase_jwt_secret=None,
+    supabase_anon_key=None, supabase_service_key=None))
+get_store().add_user('test-token', AuthenticatedUser(
+    user_id='test-user', email='test@example.com', email_verified=True))
+asyncio.run(serve(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3], sys.argv[4]))
+"""
+    env = {
+        **os.environ,
+        "PYTHONPATH": os.pathsep.join(
+            [
+                str(SCRIPT.parents[1] / "src"),
+                str(SCRIPT.parent),
+            ]
+        ),
+    }
+    process = module._start_process(
+        "shared-cloud",
+        [
+            sys.executable,
+            "-c",
+            code,
+            str(ports["http"]),
+            str(ports["tls"]),
+            str(key),
+            str(certificate),
+        ],
+        cwd=tmp_path,
+        env=env,
+        log_dir=tmp_path,
+    )
+    try:
+        monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:1")
+        monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:1")
+        monkeypatch.setenv("NO_PROXY", "")
+        module._wait_http(
+            f"http://127.0.0.1:{ports['http']}/health", timeout=10, label="Cloud"
+        )
+        user, team = module._pairing_tenancy(ports["http"], "test-token")
+        assert user == "test-user"
+        result = module._http(
+            "GET",
+            f"https://127.0.0.1:{ports['tls']}/api/v1/teams/{team}/audit",
+            headers={"authorization": "Bearer test-token"},
+            verify_tls=False,
+        )
+        assert result.status == 200
+        assert result.json()["team_id"] == team
+        denied = module._http(
+            "GET",
+            f"https://127.0.0.1:{ports['tls']}/api/v1/teams/{team}/audit",
+            headers={"authorization": "Bearer wrong-token"},
+            verify_tls=False,
+        )
+        assert denied.status == 401
+        redirect = module._http("GET", f"http://127.0.0.1:{ports['http']}/")
+        assert redirect.status in (302, 307)
+    finally:
+        module._stop_process(process)
+    assert process.process.returncode == 0
+    assert module._wait_port_closed(ports["http"])
+    assert module._wait_port_closed(ports["tls"])
 
 
 def test_wait_for_selector_preserves_the_boundary_label() -> None:
@@ -458,7 +716,7 @@ def test_acceptance_surface_covers_daemon_disconnect_recovery() -> None:
     for token in (
         'data-testid="daemon-disconnect-scrim"',
         "Local daemon disconnected",
-        "Go to pairing",
+        "Reconnect device",
         "/api/v1/hosted-bridge/projects",
     ):
         assert token in module.TERMINAL_ACCEPTANCE_SURFACE
