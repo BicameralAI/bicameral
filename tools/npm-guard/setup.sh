@@ -19,11 +19,14 @@ dashboard=apps/bot/dashboard
 installed="py.sh scan_incoming.py check_dependency_changes.py registry_check.py safe-pull.sh"
 hooks="pre-commit pre-push pre-merge-commit post-merge post-rewrite post-checkout"
 alias_value="!sh \"$dest/safe-pull.sh\""
+# core.hooksPath as a directory, so another spelling of $dest matches it. Git for Windows stores the
+# /d/a/... path that Git Bash passes as D:/a/...
+current=$(git config --get core.hooksPath)
+current_dir=$( [ -n "$current" ] && cd "$current" 2>/dev/null && pwd ) || current_dir=$current
 
 if [ "$1" = "--check" ]; then
   ok=0
-  current=$(git config --get core.hooksPath)
-  [ "$current" = "$dest" ] && echo "ok:   git hooks enabled ($dest)" \
+  [ "$current_dir" = "$dest" ] && echo "ok:   git hooks enabled ($dest)" \
     || { echo "MISSING: git hooks (core.hooksPath is '${current:-unset}'; run npm run security:setup)"; ok=1; }
   stale=
   for f in $installed; do cmp -s "$source_dir/$f" "$dest/$f" || stale="$stale $f"; done
@@ -57,9 +60,9 @@ if [ "$1" = "--check" ]; then
   exit $ok
 fi
 
-current=$(git config --get core.hooksPath)
+[ "$current_dir" = "$dest" ] && current=
 case "$current" in
-  ''|"$dest"|"$source_dir/hooks") ;;
+  ''|"$source_dir/hooks") ;;
   *) echo "core.hooksPath is already '$current'; not overwriting."
      echo "Run 'sh $source_dir/setup.sh' after you remove it, or call the hooks in $dest from your own hooks."
      exit 1;;

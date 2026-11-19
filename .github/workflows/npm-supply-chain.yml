@@ -136,8 +136,8 @@ jobs:
           echo "node $(node --version), npm $(npm --version), $(sh ../../../tools/npm-guard/py.sh --version)"
           npm ci --ignore-scripts
 
-      - name: Set up and check the git hooks
-        run: npm run security:setup && npm run security:check
+      - name: Set up, set up again, and check the git hooks
+        run: npm run security:setup && npm run security:setup && npm run security:check
 
       - name: Build the dashboard through the gate (Vite and esbuild without install scripts)
         run: npm run build

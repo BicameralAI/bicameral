@@ -223,6 +223,15 @@ class GitHooks(unittest.TestCase):
         self.git(self.work, 'remote', 'add', 'origin', str(self.remote))
         self.git(self.work, 'push', '-q', '-u', 'origin', 'main')
 
+    def test_setup_accepts_another_spelling_of_its_hooks_path(self):
+        # Git for Windows stores the path that Git Bash passes as /d/a/... in the form D:/a/...
+        dest = self.git(self.work, 'config', '--get', 'core.hooksPath').stdout.strip()
+        self.git(self.work, 'config', 'core.hooksPath', f'{dest}/../npm-guard')
+        check = run(['sh', 'tools/npm-guard/setup.sh', '--check'], self.work, self.env)
+        self.assertIn('ok:   git hooks enabled', check.stdout)
+        again = run(['sh', 'tools/npm-guard/setup.sh'], self.work, self.env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+
     def git(self, cwd, *args, check=True):
         result = run(['git', *args], cwd, self.env)
         if check and result.returncode != 0:
