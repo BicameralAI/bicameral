@@ -1,0 +1,51 @@
+# Root-only workflow (no apps/bot mirror): model-based test of the daemon's Product
+# registration cache against apps/bot/crates/bicameral-runtime/spec/product_registry.qnt.
+# Runs only when the spec or the Rust code it models changes, so other PRs never need Quint.
+name: 'bot: Registry Model'
+'on':
+  pull_request:
+    paths:
+    - apps/bot/crates/bicameral-runtime/spec/**
+    - apps/bot/crates/bicameral-runtime/src/daemon.rs
+    - apps/bot/crates/bicameral-runtime/src/daemon/**
+    - apps/bot/crates/bicameral-runtime/src/project_registry.rs
+    - apps/bot/crates/bicameral-runtime/src/workspace_binding.rs
+    - .github/workflows/bot-registry-model.yml
+  push:
+    branches:
+    - main
+    paths:
+    - apps/bot/crates/bicameral-runtime/spec/**
+    - apps/bot/crates/bicameral-runtime/src/daemon.rs
+    - apps/bot/crates/bicameral-runtime/src/daemon/**
+    - apps/bot/crates/bicameral-runtime/src/project_registry.rs
+    - apps/bot/crates/bicameral-runtime/src/workspace_binding.rs
+    - .github/workflows/bot-registry-model.yml
+  workflow_dispatch: null
+permissions:
+  contents: read
+defaults:
+  run:
+    working-directory: apps/bot
+jobs:
+  registry-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+      with:
+        node-version: 22
+    - name: Install Quint
+      run: npm install -g @informalsystems/quint@0.33.0
+    - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+      with:
+        workspaces: apps/bot -> target
+    - name: Check spec invariants
+      working-directory: apps/bot/crates/bicameral-runtime/spec
+      run: quint run product_registry.qnt --main=product_registry_2 --invariant=safety --max-steps=12 --max-samples=3000
+    - name: Replay model traces against the daemon
+      run: cargo test -p bicameral-runtime --lib --locked registry_mbt -- --ignored --nocapture
