@@ -20,7 +20,7 @@ jobs:
     - name: Build exact release artifacts
       run: |
         cargo build --release --locked --bin bicameral
-        npm ci --prefix dashboard
+        npm ci --ignore-scripts --prefix dashboard
         npm run build --prefix dashboard
     - name: Emit and verify immutable descriptor
       run: |

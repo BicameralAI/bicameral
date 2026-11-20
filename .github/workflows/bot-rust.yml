@@ -89,7 +89,7 @@ jobs:
         cache-dependency-path: apps/bot/dashboard/package-lock.json
     - name: Install dashboard dependencies
       working-directory: apps/bot/dashboard
-      run: npm ci
+      run: npm ci --ignore-scripts
     - name: Check dashboard types and Svelte contracts
       working-directory: apps/bot/dashboard
       run: npm run check

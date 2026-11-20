@@ -1,0 +1,4 @@
+# Packages that code owners reviewed and accepted although the dependency check flags them
+# (a new package, few weekly downloads, or a very new latest version).
+# One package name per line. Give the reason and the review after a #, for example:
+#   some-package  # only 400 weekly downloads; reviewed in #123

@@ -177,6 +177,15 @@
       "status": "active"
     },
     {
+      "path": "tools/npm-guard",
+      "purpose": "npm supply-chain guard: malware scan, dependency-change checks and git hooks (#92).",
+      "children": "open",
+      "owners": [
+        "@jinhongkuan",
+        "@Knapp-Kevin"
+      ]
+    },
+    {
       "path": "docs",
       "purpose": "Project documentation.",
       "children": "declared"

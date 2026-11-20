@@ -1,0 +1,24 @@
+#!/bin/sh
+# Block risky npm dependency changes and known malware signatures before they leave the machine.
+# git feeds: <local ref> <local sha> <remote ref> <remote sha> per pushed ref.
+# Runs from the copy that `npm run security:setup` installs in the git directory, never from the
+# working tree, so a branch you check out or pull cannot change what runs here.
+here=$(cd "$(dirname "$0")" && pwd)
+zero=0000000000000000000000000000000000000000
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue            # branch deletion
+  base="$remote_sha"
+  if [ "$base" = "$zero" ]; then                    # new branch: compare to the default branch
+    base=""
+    for ref in origin/main origin/master; do
+      if git rev-parse --verify -q "$ref" >/dev/null; then
+        base=$(git merge-base "$ref" "$local_sha"); break
+      fi
+    done
+    [ -z "$base" ] && base=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+  fi
+  sh "$here/py.sh" "$here/check_dependency_changes.py" --base "$base" --head "$local_sha" || status=1
+  sh "$here/py.sh" "$here/scan_incoming.py" --strict --range "$base" "$local_sha" || status=1
+done
+exit $status

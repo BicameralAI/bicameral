@@ -1,0 +1,8 @@
+#!/bin/sh
+# After `git pull --rebase` / rebase / amend: scan what the rewrite brought in.
+[ "$1" = rebase ] || exit 0
+# Runs from the copy that `npm run security:setup` installs in the git directory, never from the
+# working tree, so a branch you check out or pull cannot change what runs here.
+here=$(cd "$(dirname "$0")" && pwd)
+sh "$here/py.sh" "$here/scan_incoming.py" --warn-only --range ORIG_HEAD HEAD
+exit 0
