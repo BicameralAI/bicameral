@@ -16,7 +16,14 @@
     "signoff": "ARCH-0004",
     "source-snapshot": "ARCH-0003"
   },
-  "proposed_claims": {},
+  "proposed_claims": {
+    "google-drive-oauth-scope": [
+      "ARCH-0007"
+    ],
+    "shared-drive-product-join": [
+      "ARCH-0007"
+    ]
+  },
   "accepted": [
     "ARCH-0001",
     "ARCH-0002",
@@ -24,7 +31,9 @@
     "ARCH-0004",
     "ARCH-0005"
   ],
-  "proposed": [],
+  "proposed": [
+    "ARCH-0007"
+  ],
   "historical": [
     "ARCH-0006"
   ],
@@ -50,7 +59,8 @@
         "https://github.com/BicameralAI/bicameral-factory/issues/969"
       ],
       "required_by": [
-        "ARCH-0002"
+        "ARCH-0002",
+        "ARCH-0007"
       ],
       "superseded_by": [],
       "proposed_replacements": []
@@ -190,6 +200,34 @@
       ],
       "supersedes": [],
       "references": [],
+      "required_by": [],
+      "superseded_by": [],
+      "proposed_replacements": []
+    },
+    {
+      "id": "ARCH-0007",
+      "title": "Google Drive scope for multi-operator Product Join",
+      "kind": "decision",
+      "status": "proposed",
+      "date": "2026-10-26",
+      "path": "docs/architecture/records/ARCH-0007-google-drive-scope-for-multi-operator-product-join.md",
+      "owners": [
+        "@Knapp-Kevin",
+        "@jinhongkuan"
+      ],
+      "governs": [
+        "google-drive-oauth-scope",
+        "shared-drive-product-join"
+      ],
+      "depends_on": [
+        "ARCH-0001"
+      ],
+      "supersedes": [],
+      "references": [
+        "https://github.com/BicameralAI/bicameral-bot/issues/1262",
+        "https://github.com/BicameralAI/bicameral/issues/50",
+        "https://github.com/BicameralAI/bicameral/issues/51"
+      ],
       "required_by": [],
       "superseded_by": [],
       "proposed_replacements": []
