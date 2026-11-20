@@ -204,7 +204,10 @@ fn registry_untrack_does_not_reinterpret_legacy_decision_events() {
 }
 
 mod domain_payloads {
-    use bicameral_api::spec_registry::{ApprovePolicy, CheckRecord, GovernedDomain, Signoff};
+    use bicameral_api::spec_registry::{
+        encode_checked, ApprovePolicy, CheckRecord, GovernedDomain, Signoff, SourceSnapshot,
+        SpecSource,
+    };
     use serde::{de::DeserializeOwned, Serialize};
     use serde_json::{json, Value};
 
@@ -599,5 +602,138 @@ mod domain_payloads {
             .clone();
         five.push(cell("member", false, false));
         assert!(!round_trips::<ApprovePolicy>(&policy(five)));
+    }
+
+    fn spec_source() -> Value {
+        json!({"uri": "file:spec.md", "source_type": "", "label": "Spec", "source_kind": "file"})
+    }
+
+    #[test]
+    fn spec_source_is_a_file_or_a_tracker() {
+        assert_schema_fields::<SpecSource>(
+            include_str!("../../../protocol/spec-registry/spec-source.schema.json"),
+            &spec_source(),
+        );
+        assert!(round_trips::<SpecSource>(&without(spec_source(), "label")));
+        assert!(round_trips::<SpecSource>(&with(
+            spec_source(),
+            "source_kind",
+            json!("tracker")
+        )));
+        for kind in [
+            json!("text"),
+            json!("mcp_session"),
+            json!("code_snapshot"),
+            Value::Null,
+        ] {
+            assert!(!round_trips::<SpecSource>(&with(
+                spec_source(),
+                "source_kind",
+                kind
+            )));
+        }
+        assert!(!round_trips::<SpecSource>(&with(
+            spec_source(),
+            "uri",
+            json!("")
+        )));
+        assert!(!round_trips::<SpecSource>(&with(
+            spec_source(),
+            "label",
+            Value::Null
+        )));
+    }
+
+    fn source_snapshot() -> Value {
+        json!({
+            "snapshot_addr": "sha256:snapshot",
+            "snapshot_ref": "",
+            "captured_at": "2026-11-18T12:00:00Z",
+            "content": "The spec text.",
+            "content_hash": "hash",
+            "capture_method": "manual",
+            "source_uri": "file:spec.md"
+        })
+    }
+
+    #[test]
+    fn source_snapshot_requires_its_source_uri() {
+        assert_schema_fields::<SourceSnapshot>(
+            include_str!("../../../protocol/spec-registry/source-snapshot.schema.json"),
+            &source_snapshot(),
+        );
+        let mut minimal = source_snapshot();
+        for optional in ["content", "content_hash", "capture_method"] {
+            minimal = without(minimal, optional);
+            assert!(!round_trips::<SourceSnapshot>(&with(
+                source_snapshot(),
+                optional,
+                Value::Null
+            )));
+        }
+        assert!(round_trips::<SourceSnapshot>(&minimal));
+        for field in ["snapshot_addr", "source_uri"] {
+            assert!(!round_trips::<SourceSnapshot>(&with(
+                source_snapshot(),
+                field,
+                json!("")
+            )));
+        }
+        for bad in [json!("yesterday"), json!("2026-11-18"), json!(0)] {
+            assert!(!round_trips::<SourceSnapshot>(&with(
+                source_snapshot(),
+                "captured_at",
+                bad
+            )));
+        }
+        let unknown_method = with(source_snapshot(), "capture_method", json!("scrape"));
+        assert!(!round_trips::<SourceSnapshot>(&unknown_method));
+        // A legacy snapshot has no source_uri and is not guessed into the registry form.
+        assert!(!round_trips::<SourceSnapshot>(&without(
+            source_snapshot(),
+            "source_uri"
+        )));
+    }
+
+    #[test]
+    fn capture_creates_an_empty_domain() {
+        let domain = GovernedDomain::captured("product-1".into(), "sha256:snapshot".into());
+        assert_eq!(serde_json::to_value(&domain).unwrap(), captured_domain());
+        assert_eq!(
+            domain.source_digest, None,
+            "a capture is not a completed extract"
+        );
+        assert_eq!(
+            domain.claim_set_digest(),
+            "db4cd0ee0b2a1dbdbe2e0aea7ae0d7564d8ca2fb47d5b5ab458eb22c1114cbd9"
+        );
+    }
+
+    #[test]
+    fn a_payload_that_would_not_decode_is_not_encoded() {
+        // Cross-field rules run on every serialization of a checked payload.
+        let mut partial: GovernedDomain = serde_json::from_value(completed_domain()).unwrap();
+        partial.route = None;
+        assert!(serde_json::to_value(&partial).is_err());
+        assert!(encode_checked(&partial).is_err());
+        let mut unordered: CheckRecord = serde_json::from_value(check_record()).unwrap();
+        std::mem::swap(
+            &mut unordered.domain_digest,
+            &mut unordered.other_domain_digest,
+        );
+        assert!(serde_json::to_string(&unordered).is_err());
+
+        // Field rules run only at decode, so plain serialization lets these through.
+        let unnamed = GovernedDomain::captured(String::new(), "sha256:snapshot".into());
+        assert!(serde_json::to_value(&unnamed).is_ok());
+        assert!(encode_checked(&unnamed).is_err());
+        let mut orphan: SourceSnapshot = serde_json::from_value(source_snapshot()).unwrap();
+        orphan.source_uri.clear();
+        assert!(encode_checked(&orphan).is_err());
+
+        let captured = GovernedDomain::captured("product-1".into(), "sha256:snapshot".into());
+        assert_eq!(encode_checked(&captured).unwrap(), captured_domain());
+        let snapshot: SourceSnapshot = serde_json::from_value(source_snapshot()).unwrap();
+        assert_eq!(encode_checked(&snapshot).unwrap(), source_snapshot());
     }
 }
