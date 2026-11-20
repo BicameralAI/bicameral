@@ -47,6 +47,14 @@ authenticated authority, current-state eligibility, complete conflict-set covera
 required CheckRecords, and atomic persistence remain runtime obligations. Member
 order and identities are preserved; decoding does not normalize or infer them.
 
+`bicameral_api::spec_registry::SpecSource` and `SourceSnapshot` decode the registry
+forms beside the existing `bicameral_api::source` types, which are unchanged. A
+legacy snapshot without `source_uri` does not decode as the registry form.
+Decoding does not derive or verify `snapshot_addr` or `content_hash`.
+`GovernedDomain::captured` builds the empty domain a capture creates.
+`encode_checked` encodes a payload for writing and proves the result decodes;
+serializing a checked payload that breaks a cross-field rule is an error.
+
 The same holds for `GovernedDomain`, `CheckRecord`, `Signoff` and `ApprovePolicy`.
 Decoding applies the schema rules in this directory: all-or-none completion
 metadata, `extract_error` exclusivity, one lexicographically ordered digest pair,
