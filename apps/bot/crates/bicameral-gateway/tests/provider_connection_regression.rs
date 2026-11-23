@@ -61,7 +61,7 @@ fn connection_app_with_google() -> (Router, AppState) {
         client_id: "test-client-id".into(),
         client_secret: "test-client-secret".into(),
         redirect_uri: "http://localhost:3000/api/v1/connections/google/callback".into(),
-        scopes: vec!["https://www.googleapis.com/auth/drive.file".into()],
+        scopes: vec!["https://www.googleapis.com/auth/drive".into()],
     });
     state.google_oauth_allow_env_override = true;
     let app = Router::new()

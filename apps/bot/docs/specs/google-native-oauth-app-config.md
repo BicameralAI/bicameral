@@ -69,9 +69,9 @@ Example:
   "client_id": "123456.apps.googleusercontent.com",
   "environment": "alpha",
   "config_version": "google-alpha-7",
-  "scope_set_version": "drive-alpha-v1",
+  "scope_set_version": "drive-v1",
   "scopes": [
-    "https://www.googleapis.com/auth/drive.file"
+    "https://www.googleapis.com/auth/drive"
   ],
   "issued_at": "2026-08-12T20:00:00Z",
   "expires_at": "2026-08-13T20:00:00Z",
@@ -92,6 +92,7 @@ A daemon must reject app configuration when any of the following is true:
 - payload environment does not exactly match the daemon's expected Bicameral environment;
 - config version or scope-set version is empty;
 - scope list is empty, contains blank entries, or contains duplicate entries;
+- scope list does not include `https://www.googleapis.com/auth/drive` (ARCH-0007; the former `drive.file` scope no longer satisfies the Drive connector);
 - `expires_at <= issued_at`;
 - config is disabled;
 - config is expired;
@@ -123,6 +124,8 @@ After obtaining and validating V1 config, the daemon:
 4. exchanges the authorization code with Google locally;
 5. writes Google token material only to the approved daemon-local secret store/keyring envelope;
 6. updates `ConnectionRegistry` only after durable secret storage and existing terminal provider-auth checks succeed.
+
+Granted-scope check (ARCH-0007 Decision 1): the daemon stores and uses a Google credential only when the token response's granted `scope` includes `https://www.googleapis.com/auth/drive`. A narrower grant (for example the user deselected Drive on the consent screen) is refused before persistence with a typed `action_needed` outcome. A previously stored credential whose recorded scope lacks `drive` (including credentials minted under `drive.file`, legacy plain tokens, and envelopes with no recorded scope) is never assumed to carry it: `GET /connections` projects `action_needed`, Start re-enters OAuth with fresh consent, and the Drive transport fails closed with an authentication error asking the operator to reconnect. Refresh never broadens a grant.
 
 The Cloud app-config payload never becomes proof of provider authorization.
 

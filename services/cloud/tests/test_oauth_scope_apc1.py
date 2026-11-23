@@ -12,7 +12,7 @@ def test_connect_requests_google_email_scope_explicitly(client, store):
     assert EMAIL_SCOPE in response.text
     assert "provider:'google'" in response.text
     assert "scopes:'https://www.googleapis.com/auth/userinfo.email'" in response.text
-    assert "drive.file" not in response.text
+    assert "googleapis.com/auth/drive" not in response.text
 
 
 def test_signup_and_login_request_google_email_scope_explicitly(client, store):
@@ -21,7 +21,7 @@ def test_signup_and_login_request_google_email_scope_explicitly(client, store):
         assert response.status_code == 200
         assert EMAIL_SCOPE in response.text
         assert "scopes: 'https://www.googleapis.com/auth/userinfo.email'" in response.text
-        assert "drive.file" not in response.text
+        assert "googleapis.com/auth/drive" not in response.text
 
 
 def test_callback_surfaces_provider_error_before_session_check(client, store):
@@ -41,5 +41,5 @@ def test_oauth_identity_scope_remains_separate_from_drive_provider_scope(client,
 
     assert response.status_code == 200
     assert EMAIL_SCOPE in response.text
-    assert "https://www.googleapis.com/auth/drive.file" not in response.text
+    assert "https://www.googleapis.com/auth/drive" not in response.text
     assert "Authorize Drive after this device is connected." in response.text

@@ -125,6 +125,31 @@ pub mod connection_keys {
     pub const OAUTH_TOKEN_KEY: &str = "oauth_token";
 }
 
+// ── Google Drive scope policy (ARCH-0007) ─────────────────────────
+
+/// Google OAuth scope the Drive connector requests (ARCH-0007 Decision 1).
+///
+/// Replaces the former `drive.file` grant so Shared Drive membership is
+/// effective for the daemon's own app token. The connector still reads and
+/// writes only the Product ledger folder the owner selected; the broader
+/// grant is not a licence to browse other Drive content.
+pub const GOOGLE_DRIVE_SCOPE: &str = "https://www.googleapis.com/auth/drive";
+
+/// Capability label recorded on a Google connection whose credential was
+/// granted [`GOOGLE_DRIVE_SCOPE`].
+pub const GOOGLE_DRIVE_CAPABILITY: &str = "drive";
+
+/// Whether a space-delimited OAuth `scope` value (as returned by Google's
+/// token endpoint) includes [`GOOGLE_DRIVE_SCOPE`].
+///
+/// Exact token match only: `drive.file`, `drive.readonly`, or any other
+/// narrower Drive scope never satisfies it. A missing value is treated as
+/// not granted, so a credential is never assumed to carry the scope
+/// (ARCH-0007 Decision 1: no silent privilege escalation).
+pub fn scope_grants_google_drive(scope: Option<&str>) -> bool {
+    scope.is_some_and(|value| value.split_whitespace().any(|s| s == GOOGLE_DRIVE_SCOPE))
+}
+
 // ── URL encoding helper ───────────────────────────────────────────
 
 fn percent_encode(input: &str) -> String {
@@ -228,11 +253,7 @@ impl GoogleOAuthConfig {
         let client_secret = std::env::var("BICAMERAL_GOOGLE_CLIENT_SECRET").unwrap_or_default();
         let redirect_uri = std::env::var("BICAMERAL_GOOGLE_REDIRECT_URI")
             .unwrap_or_else(|_| "http://localhost:3000/api/v1/connections/google/callback".into());
-        let scopes = std::env::var("BICAMERAL_GOOGLE_SCOPES")
-            .unwrap_or_else(|_| "https://www.googleapis.com/auth/drive.file".into())
-            .split(' ')
-            .map(String::from)
-            .collect();
+        let scopes = scopes_from_env_value(std::env::var("BICAMERAL_GOOGLE_SCOPES").ok());
         Some(Self {
             client_id,
             client_secret,
@@ -240,6 +261,16 @@ impl GoogleOAuthConfig {
             scopes,
         })
     }
+}
+
+/// Resolve the `BICAMERAL_GOOGLE_SCOPES` override, defaulting to
+/// [`GOOGLE_DRIVE_SCOPE`] when it is unset.
+fn scopes_from_env_value(value: Option<String>) -> Vec<String> {
+    value
+        .unwrap_or_else(|| GOOGLE_DRIVE_SCOPE.into())
+        .split(' ')
+        .map(String::from)
+        .collect()
 }
 
 // ── Secrets store trait ───────────────────────────────────────────
@@ -456,6 +487,18 @@ impl StoredOAuthToken {
     pub fn is_usable(&self) -> bool {
         self.access_token().is_some() || self.refresh_token().is_some()
     }
+
+    /// Whether the recorded granted scopes include [`GOOGLE_DRIVE_SCOPE`].
+    ///
+    /// Legacy plain tokens and envelopes without a recorded `scope` predate
+    /// the `drive` grant and carry no evidence of it, so they report `false`
+    /// and the connection must be reconnected (ARCH-0007 Decision 1).
+    pub fn grants_google_drive_scope(&self) -> bool {
+        match self {
+            Self::Envelope(env) => scope_grants_google_drive(env.scope.as_deref()),
+            Self::LegacyPlain { .. } => false,
+        }
+    }
 }
 
 /// Parse a stored `oauth_token` secret value without ever panicking.
@@ -508,7 +551,7 @@ mod tests {
         ConnectionMetadata {
             status: ConnectionStatus::ActionNeeded,
             account_label: Some("testuser@example.com".into()),
-            capabilities: vec!["drive.file".into()],
+            capabilities: vec![GOOGLE_DRIVE_CAPABILITY.into()],
             updated_at: Some(Utc::now()),
             auth_method: Some(AuthMethod::Oauth),
         }
@@ -629,7 +672,7 @@ mod tests {
             Some("test-refresh-token-value".into()),
             Some(3599),
             Some("Bearer".into()),
-            Some("https://www.googleapis.com/auth/drive.file".into()),
+            Some(GOOGLE_DRIVE_SCOPE.into()),
             Utc::now(),
         )
     }
@@ -750,11 +793,74 @@ mod tests {
             client_id: "client-id".into(),
             client_secret: String::new(),
             redirect_uri: "http://localhost:3000/cb".into(),
-            scopes: vec!["https://www.googleapis.com/auth/drive.file".into()],
+            scopes: vec![GOOGLE_DRIVE_SCOPE.into()],
         };
         let url = config.authorization_url("state-token");
         assert!(url.contains("access_type=offline"));
         assert!(url.contains("prompt=consent"));
+    }
+
+    // ── Drive scope policy (ARCH-0007 / #50) ─────────────────────
+
+    #[test]
+    fn default_google_scope_is_drive_not_drive_file() {
+        assert_eq!(GOOGLE_DRIVE_SCOPE, "https://www.googleapis.com/auth/drive");
+        assert_eq!(scopes_from_env_value(None), vec![GOOGLE_DRIVE_SCOPE]);
+        let config = GoogleOAuthConfig {
+            client_id: "client-id".into(),
+            client_secret: String::new(),
+            redirect_uri: "http://localhost:3000/cb".into(),
+            scopes: scopes_from_env_value(None),
+        };
+        let url = config.authorization_url("state-token");
+        assert!(url.contains("scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&"));
+        assert!(!url.contains("drive.file"));
+    }
+
+    #[test]
+    fn drive_scope_check_requires_exact_drive_token() {
+        assert!(scope_grants_google_drive(Some(GOOGLE_DRIVE_SCOPE)));
+        assert!(scope_grants_google_drive(Some(
+            "openid https://www.googleapis.com/auth/drive email"
+        )));
+        assert!(!scope_grants_google_drive(None));
+        assert!(!scope_grants_google_drive(Some("")));
+        assert!(!scope_grants_google_drive(Some(
+            "https://www.googleapis.com/auth/drive.file"
+        )));
+        assert!(!scope_grants_google_drive(Some(
+            "https://www.googleapis.com/auth/drive.readonly"
+        )));
+    }
+
+    #[test]
+    fn stored_credential_without_drive_grant_is_never_assumed_to_have_it() {
+        let drive_file_only = OAuthTokenEnvelopeV1::from_token_exchange(
+            "access".into(),
+            Some("refresh".into()),
+            Some(3599),
+            Some("Bearer".into()),
+            Some("https://www.googleapis.com/auth/drive.file".into()),
+            Utc::now(),
+        );
+        assert!(!StoredOAuthToken::Envelope(drive_file_only).grants_google_drive_scope());
+
+        let unrecorded = OAuthTokenEnvelopeV1::from_token_exchange(
+            "access".into(),
+            None,
+            None,
+            None,
+            None,
+            Utc::now(),
+        );
+        assert!(!StoredOAuthToken::Envelope(unrecorded).grants_google_drive_scope());
+
+        let legacy = StoredOAuthToken::LegacyPlain {
+            access_token: "legacy".into(),
+        };
+        assert!(!legacy.grants_google_drive_scope());
+
+        assert!(StoredOAuthToken::Envelope(sample_envelope()).grants_google_drive_scope());
     }
 
     #[test]

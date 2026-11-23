@@ -117,6 +117,14 @@ impl GoogleNativeAppConfigV1 {
             }
         }
 
+        // ARCH-0007 Decision 1: the Drive connector requests `drive`. A
+        // config that would have the daemon request a narrower grant (e.g.
+        // a Cloud still serving `drive.file`) fails closed here instead of
+        // minting credentials the daemon then refuses to use.
+        if !distinct_scopes.contains(crate::connections::GOOGLE_DRIVE_SCOPE) {
+            return Err(GoogleNativeAppConfigError::MissingDriveScope);
+        }
+
         if self.expires_at <= self.issued_at {
             return Err(GoogleNativeAppConfigError::InvalidValidityWindow);
         }
@@ -160,6 +168,8 @@ pub enum GoogleNativeAppConfigError {
     BlankScope { index: usize },
     #[error("Google app config contains duplicate OAuth scope: {scope}")]
     DuplicateScope { scope: String },
+    #[error("Google app config does not request the required Drive scope")]
+    MissingDriveScope,
     #[error("Google app-config expiry must be later than its issue time")]
     InvalidValidityWindow,
     #[error("Google app config has been disabled by Cloud")]
@@ -182,7 +192,7 @@ mod tests {
             environment: "alpha".into(),
             config_version: "google-alpha-7".into(),
             scope_set_version: "drive-alpha-v1".into(),
-            scopes: vec!["https://www.googleapis.com/auth/drive.file".into()],
+            scopes: vec![crate::connections::GOOGLE_DRIVE_SCOPE.into()],
             issued_at: Utc.with_ymd_and_hms(2026, 8, 12, 20, 0, 0).unwrap(),
             expires_at: Utc.with_ymd_and_hms(2026, 8, 13, 20, 0, 0).unwrap(),
             enabled: true,
@@ -244,6 +254,17 @@ mod tests {
     }
 
     #[test]
+    fn rejects_config_without_drive_scope() {
+        let now = Utc.with_ymd_and_hms(2026, 8, 12, 22, 0, 0).unwrap();
+        let mut config = valid_config();
+        config.scopes = vec!["https://www.googleapis.com/auth/drive.file".into()];
+        assert_eq!(
+            config.validate_for("alpha", now),
+            Err(GoogleNativeAppConfigError::MissingDriveScope)
+        );
+    }
+
+    #[test]
     fn rejects_credential_bearing_unknown_fields() {
         let raw = r#"{
             "schema_version":1,
@@ -253,7 +274,7 @@ mod tests {
             "environment":"alpha",
             "config_version":"google-alpha-7",
             "scope_set_version":"drive-alpha-v1",
-            "scopes":["https://www.googleapis.com/auth/drive.file"],
+            "scopes":["https://www.googleapis.com/auth/drive"],
             "issued_at":"2026-08-12T20:00:00Z",
             "expires_at":"2026-08-13T20:00:00Z",
             "enabled":true,

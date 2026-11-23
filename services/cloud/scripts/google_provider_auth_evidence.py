@@ -46,18 +46,14 @@ LEGACY_ENV_OVERRIDE_ENABLING_VALUES = ("1", "true", "yes")
 # preflight. The switch is removed from Bot by bicameral-bot#1132; this
 # preflight also protects runs against older daemon builds.
 TOKEN_EXCHANGE_MOCK_VAR = "BICAMERAL_GOOGLE_TOKEN_EXCHANGE_MOCK"
-# Cloud-owned least-privilege policy: drive.file must be present and no
-# broader Drive scope may appear (#283).
-DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
-FORBIDDEN_BROAD_DRIVE_SCOPES = {
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/drive.readonly",
-    "https://www.googleapis.com/auth/drive.metadata",
-    "https://www.googleapis.com/auth/drive.metadata.readonly",
-    "https://www.googleapis.com/auth/drive.appdata",
-    "https://www.googleapis.com/auth/drive.scripts",
-    "https://www.googleapis.com/auth/drive.photos.readonly",
-}
+# Cloud-owned least-privilege policy (ARCH-0007, #50; formerly drive.file
+# per #283): the Drive connector requests exactly the `drive` scope. It must be
+# present, and no other scope may appear: anything broader (for example
+# cloud-platform or Gmail), unrelated (userinfo, Docs), or redundant/narrower
+# (drive.file, drive.readonly, drive.metadata) is rejected so the approved set
+# stays the minimum the Shared Drive Product path needs.
+REQUIRED_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
+APPROVED_GOOGLE_SCOPES = frozenset({REQUIRED_DRIVE_SCOPE})
 FORBIDDEN_APP_CONFIG_FIELDS = {
     "client_secret",
     "authorization_code",
@@ -237,15 +233,16 @@ def validate_app_config(
     scope_list = [str(scope) for scope in scopes]
     if len(set(scope_list)) != len(scope_list):
         raise EvidenceError("Google app-config scopes must not contain duplicates")
-    if DRIVE_FILE_SCOPE not in scope_list:
+    if REQUIRED_DRIVE_SCOPE not in scope_list:
         raise EvidenceError(
-            "Google app-config scopes must include the drive.file least-privilege scope"
+            "Google app-config scopes must include the required drive scope "
+            f"({REQUIRED_DRIVE_SCOPE})"
         )
-    broad = sorted(FORBIDDEN_BROAD_DRIVE_SCOPES.intersection(scope_list))
-    if broad:
+    unapproved = sorted(set(scope_list) - APPROVED_GOOGLE_SCOPES)
+    if unapproved:
         raise EvidenceError(
-            "Google app-config scopes exceed the drive.file least-privilege policy: "
-            + ", ".join(broad)
+            "Google app-config scopes exceed the drive least-privilege policy: "
+            + ", ".join(unapproved)
         )
 
     issued_at = _parse_timestamp(payload["issued_at"], "issued_at")
@@ -267,7 +264,7 @@ def validate_app_config(
         "scope_count": len(scope_list),
         "scopes_sorted": scopes_sorted,
         "scope_set_sha256": scope_set_sha256,
-        "drive_file_least_privilege": True,
+        "drive_scope_least_privilege": True,
         "client_id_sha256": _sha256_text(client_id),
         "issued_at": issued_at.isoformat().replace("+00:00", "Z"),
         "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
