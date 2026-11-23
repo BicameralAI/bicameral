@@ -3,9 +3,12 @@
   "case_id": "tracked-is-not-governing",
   "issue": "BicameralAI/bicameral#55",
   "synthetic": true,
-  "status": "BLOCKED (resolver not implemented; ARCH-0005)",
+  "status": "BLOCKED (ARCH-0005 resolver not implemented; governed replay pending #40/#42)",
   "description": "A completed domain that was only tracked, never signed off, must not govern. ARCH-0004 state: tracked.",
   "product_id": "prod_synthetic_alpha",
+  "access_context": {
+    "product_id": "prod_synthetic_alpha"
+  },
   "snapshots": [
     {
       "replayed_state": "tracked",
@@ -55,10 +58,10 @@
   "check_records": [],
   "query": {
     "product_id": "prod_synthetic_alpha",
-    "scope": "synthetic-scope-a",
     "as_of": null
   },
   "expected": {
+    "refusal": null,
     "governing": [],
     "excluded": [
       {
@@ -66,7 +69,6 @@
         "reason": "not_approved"
       }
     ],
-    "unresolved": false,
     "typed_unknown": []
   }
 }

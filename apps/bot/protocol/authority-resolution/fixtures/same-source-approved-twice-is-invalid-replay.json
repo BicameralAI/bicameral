@@ -1,0 +1,131 @@
+{
+  "fixture_version": 1,
+  "case_id": "same-source-approved-twice-is-invalid-replay",
+  "issue": "BicameralAI/bicameral#55",
+  "synthetic": true,
+  "status": "BLOCKED (ARCH-0005 resolver not implemented; governed replay pending #40/#42)",
+  "description": "Two snapshots of one source are both approved. ARCH-0004 supersedes the older approval in the same commit, so this replay is invalid. The read is refused; the newer snapshot is never picked by captured_at. A missing supersede payload is not itself the fault.",
+  "product_id": "prod_synthetic_alpha",
+  "access_context": {
+    "product_id": "prod_synthetic_alpha"
+  },
+  "snapshots": [
+    {
+      "replayed_state": "approved",
+      "source_snapshot": {
+        "snapshot_addr": "snap_a",
+        "snapshot_ref": "synthetic-ref-a",
+        "captured_at": "2026-01-10T00:00:00Z",
+        "source_uri": "synthetic://policies/refunds",
+        "capture_method": "manual"
+      },
+      "governed_domain": {
+        "product_id": "prod_synthetic_alpha",
+        "snapshot_addr": "snap_a",
+        "claims": [
+          {
+            "claim_id": "c1",
+            "revision": 0,
+            "context_statement": "Refunds within 30 days are allowed."
+          }
+        ],
+        "atoms": [
+          {
+            "atom_id": "a1",
+            "atom_kind": "policy_action",
+            "semantic_key": "refund.window_30_days"
+          }
+        ],
+        "claim_assertions": [
+          {
+            "assertion_id": "s1",
+            "claim_id": "c1",
+            "atom_id": "a1",
+            "polarity": "positive"
+          }
+        ],
+        "relations": [],
+        "source_digest": "c54f4ba922229ab8466036cd7110ca0f3706369f95002d303ce0fe177d27875f",
+        "route": "system_one",
+        "model_id": "synthetic-model",
+        "prompt_id": "synthetic-prompt-1",
+        "prompt_digest": "synthetic-prompt-digest-1"
+      },
+      "signoff": {
+        "snapshot_addr": "snap_a",
+        "domain_digest": "c54f4ba922229ab8466036cd7110ca0f3706369f95002d303ce0fe177d27875f",
+        "daemon_id": "daemon_synthetic_1",
+        "actor": "manual",
+        "role": "owner",
+        "person_id": "person_synthetic_owner",
+        "check_records": []
+      },
+      "supersede_snapshot": null
+    },
+    {
+      "replayed_state": "approved",
+      "source_snapshot": {
+        "snapshot_addr": "snap_b",
+        "snapshot_ref": "synthetic-ref-b",
+        "captured_at": "2026-02-10T00:00:00Z",
+        "source_uri": "synthetic://policies/refunds",
+        "capture_method": "manual"
+      },
+      "governed_domain": {
+        "product_id": "prod_synthetic_alpha",
+        "snapshot_addr": "snap_b",
+        "claims": [
+          {
+            "claim_id": "c1",
+            "revision": 0,
+            "context_statement": "Refunds within 14 days are allowed."
+          }
+        ],
+        "atoms": [
+          {
+            "atom_id": "a1",
+            "atom_kind": "policy_action",
+            "semantic_key": "refund.window_14_days"
+          }
+        ],
+        "claim_assertions": [
+          {
+            "assertion_id": "s1",
+            "claim_id": "c1",
+            "atom_id": "a1",
+            "polarity": "positive"
+          }
+        ],
+        "relations": [],
+        "source_digest": "81eb4f271e52408455d5cc90b216f78bc2c89735a9a80f01d190fc9568ab3220",
+        "route": "system_one",
+        "model_id": "synthetic-model",
+        "prompt_id": "synthetic-prompt-1",
+        "prompt_digest": "synthetic-prompt-digest-1"
+      },
+      "signoff": {
+        "snapshot_addr": "snap_b",
+        "domain_digest": "81eb4f271e52408455d5cc90b216f78bc2c89735a9a80f01d190fc9568ab3220",
+        "daemon_id": "daemon_synthetic_1",
+        "actor": "manual",
+        "role": "owner",
+        "person_id": "person_synthetic_owner",
+        "check_records": []
+      },
+      "supersede_snapshot": null
+    }
+  ],
+  "check_records": [],
+  "query": {
+    "product_id": "prod_synthetic_alpha",
+    "as_of": null
+  },
+  "expected": {
+    "refusal": {
+      "reason": "invalid_replay"
+    },
+    "governing": [],
+    "excluded": [],
+    "typed_unknown": []
+  }
+}

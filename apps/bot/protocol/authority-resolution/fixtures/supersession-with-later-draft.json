@@ -3,9 +3,12 @@
   "case_id": "supersession-with-later-draft",
   "issue": "BicameralAI/bicameral#55",
   "synthetic": true,
-  "status": "BLOCKED (resolver not implemented; ARCH-0005)",
+  "status": "BLOCKED (ARCH-0005 resolver not implemented; governed replay pending #40/#42)",
   "description": "Approved A is superseded by approved B. A later tracked draft C exists. A current read resolves to B; C never wins; A is excluded as superseded.",
   "product_id": "prod_synthetic_alpha",
+  "access_context": {
+    "product_id": "prod_synthetic_alpha"
+  },
   "snapshots": [
     {
       "replayed_state": "superseded",
@@ -165,10 +168,10 @@
   "check_records": [],
   "query": {
     "product_id": "prod_synthetic_alpha",
-    "scope": "synthetic-scope-a",
     "as_of": null
   },
   "expected": {
+    "refusal": null,
     "governing": [
       "snap_b"
     ],
@@ -182,7 +185,6 @@
         "reason": "not_approved"
       }
     ],
-    "unresolved": false,
     "typed_unknown": []
   }
 }
