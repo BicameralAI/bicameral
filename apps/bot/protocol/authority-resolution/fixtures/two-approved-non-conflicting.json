@@ -1,0 +1,146 @@
+{
+  "fixture_version": 1,
+  "case_id": "two-approved-non-conflicting",
+  "issue": "BicameralAI/bicameral#55",
+  "synthetic": true,
+  "status": "BLOCKED (ARCH-0005 resolver not implemented; governed replay pending #40/#42)",
+  "description": "Approved A and approved B come from different sources, with a stored CheckRecord conflict:false. Both govern: two valid approved sources are not a tie.",
+  "product_id": "prod_synthetic_alpha",
+  "access_context": {
+    "product_id": "prod_synthetic_alpha"
+  },
+  "snapshots": [
+    {
+      "replayed_state": "approved",
+      "source_snapshot": {
+        "snapshot_addr": "snap_a",
+        "snapshot_ref": "synthetic-ref-a",
+        "captured_at": "2026-01-10T00:00:00Z",
+        "source_uri": "synthetic://policies/refunds",
+        "capture_method": "manual"
+      },
+      "governed_domain": {
+        "product_id": "prod_synthetic_alpha",
+        "snapshot_addr": "snap_a",
+        "claims": [
+          {
+            "claim_id": "c1",
+            "revision": 0,
+            "context_statement": "Refunds within 30 days are allowed."
+          }
+        ],
+        "atoms": [
+          {
+            "atom_id": "a1",
+            "atom_kind": "policy_action",
+            "semantic_key": "refund.window_30_days"
+          }
+        ],
+        "claim_assertions": [
+          {
+            "assertion_id": "s1",
+            "claim_id": "c1",
+            "atom_id": "a1",
+            "polarity": "positive"
+          }
+        ],
+        "relations": [],
+        "source_digest": "c54f4ba922229ab8466036cd7110ca0f3706369f95002d303ce0fe177d27875f",
+        "route": "system_one",
+        "model_id": "synthetic-model",
+        "prompt_id": "synthetic-prompt-1",
+        "prompt_digest": "synthetic-prompt-digest-1"
+      },
+      "signoff": {
+        "snapshot_addr": "snap_a",
+        "domain_digest": "c54f4ba922229ab8466036cd7110ca0f3706369f95002d303ce0fe177d27875f",
+        "daemon_id": "daemon_synthetic_1",
+        "actor": "manual",
+        "role": "owner",
+        "person_id": "person_synthetic_owner",
+        "check_records": []
+      },
+      "supersede_snapshot": null
+    },
+    {
+      "replayed_state": "approved",
+      "source_snapshot": {
+        "snapshot_addr": "snap_b",
+        "snapshot_ref": "synthetic-ref-b",
+        "captured_at": "2026-01-12T00:00:00Z",
+        "source_uri": "synthetic://policies/shipping",
+        "capture_method": "manual"
+      },
+      "governed_domain": {
+        "product_id": "prod_synthetic_alpha",
+        "snapshot_addr": "snap_b",
+        "claims": [
+          {
+            "claim_id": "c1",
+            "revision": 0,
+            "context_statement": "Shipping is free on orders over 50 units."
+          }
+        ],
+        "atoms": [
+          {
+            "atom_id": "a1",
+            "atom_kind": "policy_action",
+            "semantic_key": "shipping.free_over_50"
+          }
+        ],
+        "claim_assertions": [
+          {
+            "assertion_id": "s1",
+            "claim_id": "c1",
+            "atom_id": "a1",
+            "polarity": "positive"
+          }
+        ],
+        "relations": [],
+        "source_digest": "b84b6e206d6a4238fdf1d0d26ca952a381466068f8699d09ffbc2e84387069b0",
+        "route": "system_one",
+        "model_id": "synthetic-model",
+        "prompt_id": "synthetic-prompt-1",
+        "prompt_digest": "synthetic-prompt-digest-1"
+      },
+      "signoff": {
+        "snapshot_addr": "snap_b",
+        "domain_digest": "b84b6e206d6a4238fdf1d0d26ca952a381466068f8699d09ffbc2e84387069b0",
+        "daemon_id": "daemon_synthetic_1",
+        "actor": "manual",
+        "role": "owner",
+        "person_id": "person_synthetic_owner",
+        "check_records": [
+          {
+            "domain_digest": "b84b6e206d6a4238fdf1d0d26ca952a381466068f8699d09ffbc2e84387069b0",
+            "other_domain_digest": "c54f4ba922229ab8466036cd7110ca0f3706369f95002d303ce0fe177d27875f",
+            "conflict": false,
+            "daemon_id": "daemon_synthetic_1"
+          }
+        ]
+      },
+      "supersede_snapshot": null
+    }
+  ],
+  "check_records": [
+    {
+      "domain_digest": "b84b6e206d6a4238fdf1d0d26ca952a381466068f8699d09ffbc2e84387069b0",
+      "other_domain_digest": "c54f4ba922229ab8466036cd7110ca0f3706369f95002d303ce0fe177d27875f",
+      "conflict": false,
+      "daemon_id": "daemon_synthetic_1"
+    }
+  ],
+  "query": {
+    "product_id": "prod_synthetic_alpha",
+    "as_of": null
+  },
+  "expected": {
+    "refusal": null,
+    "governing": [
+      "snap_a",
+      "snap_b"
+    ],
+    "excluded": [],
+    "typed_unknown": []
+  }
+}
