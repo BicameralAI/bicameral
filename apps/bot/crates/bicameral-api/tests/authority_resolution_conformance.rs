@@ -609,10 +609,10 @@ fn check_expected(stem: &str, doc: &Value) -> Check {
             if required.len() == 1 {
                 return Err(format!("{stem}: {why} must expect refusal {reason}"));
             }
-            let listed: Vec<String> = required.iter().map(|(r, w)| format!("{r} ({w})")).collect();
+            let reasons: Vec<String> = required.iter().map(|(r, w)| format!("{r} ({w})")).collect();
             return Err(format!(
                 "{stem}: the read must be refused with one of: {}",
-                listed.join("; ")
+                reasons.join("; ")
             ));
         }
         (None, Some(reason)) if !acceptable.contains(&reason) => {
@@ -660,9 +660,9 @@ fn check_expected(stem: &str, doc: &Value) -> Check {
 
     // Accounting: every snapshot appears exactly once across the three lists,
     // under a label its state allows.
-    let mut accounted: BTreeSet<String> = BTreeSet::new();
-    let mut account = |addr: String| -> Check {
-        if accounted.insert(addr.clone()) {
+    let mut listed: BTreeSet<String> = BTreeSet::new();
+    let mut mark_listed = |addr: String| -> Check {
+        if listed.insert(addr.clone()) {
             Ok(())
         } else {
             Err(format!("{stem}: {addr} is listed more than once"))
@@ -680,7 +680,7 @@ fn check_expected(stem: &str, doc: &Value) -> Check {
                 "{stem}: governing {addr} has no conflict:false check record with approved {other} of another source"
             ));
         }
-        account(addr)?;
+        mark_listed(addr)?;
     }
     for entry in excluded {
         let reason = text(entry, "reason", stem)?;
@@ -695,7 +695,7 @@ fn check_expected(stem: &str, doc: &Value) -> Check {
                 "{stem}: excluded {addr} as {reason} needs replayed_state {required_state}"
             ));
         }
-        account(addr)?;
+        mark_listed(addr)?;
     }
     for unknown in unknowns {
         if !TYPED_UNKNOWNS.contains(&text(unknown, "label", stem)?) {
@@ -717,10 +717,10 @@ fn check_expected(stem: &str, doc: &Value) -> Check {
                     "{stem}: missing_check_record names {addr}, which is not an approved snapshot missing a check record"
                 ));
             }
-            account(addr)?;
+            mark_listed(addr)?;
         }
     }
-    if accounted.len() != all.len() {
+    if listed.len() != all.len() {
         return Err(format!(
             "{stem}: every snapshot is governing, excluded or in a typed unknown"
         ));
