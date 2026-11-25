@@ -43,7 +43,6 @@ TERMINAL_ACCEPTANCE_SURFACE = (
     'data-testid="join-retry"',
     'data-testid="daemon-disconnect-scrim"',
     "Local daemon disconnected",
-    "Go to pairing",
     "bicameral_hosted_product_create_v1:",
     "/api/v1/hosted-bridge/command",
     "/api/v1/hosted-bridge/product-join",
@@ -67,6 +66,10 @@ FORBIDDEN_RECEIPT_TOKENS = (
     "workspace_path",
 )
 GENERATED_DASHBOARD_METADATA = frozenset({"version.json", "release-identity.json"})
+# The disconnect dialog has one action. Select it by structure, not by its label.
+DISCONNECT_RECOVERY_ACTION = (
+    '[data-testid="daemon-disconnect-scrim"] [role="dialog"] button'
+)
 
 
 class TopologyError(RuntimeError):
@@ -392,41 +395,43 @@ def _stop_process(managed: ManagedProcess) -> None:
     managed.log.close()
 
 
-def _clone_or_validate(
-    *,
-    supplied: Path | None,
-    destination: Path,
-    repository: str,
-    ref: str,
-    label: str,
-) -> Path:
-    if supplied is not None:
-        checkout = supplied.resolve()
-        if not (checkout / ".git").is_dir():
-            raise TopologyError(f"{label} checkout is not a Git repository")
-        status = _run(
-            ["git", "status", "--porcelain"],
-            cwd=checkout,
-            label=f"inspect {label} checkout",
-        ).stdout
-        if status.strip():
-            raise TopologyError(f"{label} checkout contains uncommitted changes")
-        return checkout
-    _run(
+@dataclass(frozen=True)
+class MonorepoComponents:
+    bot: Path
+    mcp: Path
+    commits: dict[str, str]
+
+
+def _monorepo_components(cloud_root: Path) -> MonorepoComponents:
+    """Resolve Bot and MCP beside Cloud and pin all three to one clean commit."""
+
+    root = cloud_root.resolve().parents[1]
+    bot = root / "apps" / "bot"
+    mcp = root / "packages" / "mcp"
+    status = _run(
         [
             "git",
-            "clone",
-            "--depth",
-            "1",
-            "--branch",
-            ref,
-            f"https://github.com/{repository}.git",
-            str(destination),
+            "status",
+            "--porcelain",
+            "--",
+            "apps/bot",
+            "packages/mcp",
+            "services/cloud",
         ],
-        timeout=300,
-        label=f"clone {label}",
+        cwd=root,
+        label="inspect monorepo components",
+    ).stdout
+    if status.strip():
+        raise TopologyError(
+            "monorepo components contain uncommitted changes; "
+            "commit them so the receipt names the exact revision"
+        )
+    commit = _git_sha(root)
+    return MonorepoComponents(
+        bot=bot,
+        mcp=mcp,
+        commits={"cloud": commit, "bot": commit, "mcp": commit},
     )
-    return destination
 
 
 def _git_sha(repository: Path) -> str:
@@ -584,8 +589,16 @@ def _start_daemon(
     name: str,
     port: int,
     log_dir: Path,
+    cloud_origin: str,
 ) -> ManagedProcess:
-    env = {**os.environ, "HOME": str(home), "RUST_LOG": "info"}
+    # The daemon enrolls its pairing with Cloud at approval. Without this it
+    # would call the production Cloud origin.
+    env = {
+        **os.environ,
+        "HOME": str(home),
+        "RUST_LOG": "info",
+        "BICAMERAL_CLOUD_ORIGIN": cloud_origin,
+    }
     managed = _start_process(
         name,
         [str(binary), "--workspace", str(workspace), "gateway", "start"],
@@ -1516,17 +1529,86 @@ def _daemon_capabilities(port: int) -> dict[str, object]:
     return {str(key): value for key, value in payload.items()}
 
 
-def _start_daemon_pairing(port: int, cloud_account_id: str) -> tuple[str, str]:
+def _resolve_pairing_team(
+    cloud_url: str, access_token: str, *, verify_tls: bool = True
+) -> str:
+    """Resolve the Cloud team the hosted dashboard pairs under (bot#1290)."""
+
+    result = _http(
+        "POST",
+        f"{cloud_url}/api/v1/auth/pairing-tenancy",
+        headers={"authorization": f"Bearer {access_token}"},
+        verify_tls=verify_tls,
+    )
+    _expect_status(result, [200], "Cloud pairing tenancy")
+    payload = result.json()
+    team_id = payload.get("team_id") if isinstance(payload, dict) else None
+    if not isinstance(team_id, str) or not team_id:
+        raise TopologyError("Cloud pairing tenancy omitted its team")
+    return team_id
+
+
+def _pair_request_payload(
+    cloud_account_id: str, *, team_id: str | None, cloud_access_token: str | None
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "origin": TRUSTED_BRIDGE_ORIGIN,
+        "cloud_account_id": cloud_account_id,
+        "csrf_token": secrets.token_urlsafe(24),
+        "client_protocol_version": HOSTED_BRIDGE_PROTOCOL_VERSION,
+    }
+    if team_id is not None:
+        payload["team_id"] = team_id
+    if cloud_access_token is not None:
+        payload["cloud_access_token"] = cloud_access_token
+    return payload
+
+
+def _check_pairing_requires_team(
+    port: int, cloud_account_id: str, *, team_id: str, cloud_access_token: str
+) -> dict[str, object]:
+    """Prove the daemon refuses a pair request without its team or Cloud token."""
+
+    evidence: dict[str, object] = {}
+    for missing, kind in (
+        ("team_id", "MissingTeamId"),
+        ("cloud_access_token", "MissingCloudAccessToken"),
+    ):
+        result = _http(
+            "POST",
+            f"http://127.0.0.1:{port}/api/v1/hosted-bridge/pair",
+            headers={"origin": TRUSTED_BRIDGE_ORIGIN},
+            payload=_pair_request_payload(
+                cloud_account_id,
+                team_id=None if missing == "team_id" else team_id,
+                cloud_access_token=(
+                    None if missing == "cloud_access_token" else cloud_access_token
+                ),
+            ),
+        )
+        body = result.json() if result.status == 400 else None
+        observed = body.get("kind") if isinstance(body, dict) else None
+        if result.status != 400 or observed != kind:
+            raise TopologyError(
+                f"daemon pairing without {missing} returned HTTP {result.status}"
+            )
+        key = "without_team" if missing == "team_id" else "without_cloud_credential"
+        evidence[key] = {"status": 400, "kind": kind}
+    return evidence
+
+
+def _start_daemon_pairing(
+    port: int, cloud_account_id: str, *, team_id: str, cloud_access_token: str
+) -> tuple[str, str]:
     pending = _http(
         "POST",
         f"http://127.0.0.1:{port}/api/v1/hosted-bridge/pair",
         headers={"origin": TRUSTED_BRIDGE_ORIGIN},
-        payload={
-            "origin": TRUSTED_BRIDGE_ORIGIN,
-            "cloud_account_id": cloud_account_id,
-            "csrf_token": secrets.token_urlsafe(24),
-            "client_protocol_version": HOSTED_BRIDGE_PROTOCOL_VERSION,
-        },
+        payload=_pair_request_payload(
+            cloud_account_id,
+            team_id=team_id,
+            cloud_access_token=cloud_access_token,
+        ),
     )
     _expect_status(pending, [202], "daemon hosted-bridge pairing request")
     pending_payload = pending.json()
@@ -1544,7 +1626,7 @@ def _start_daemon_pairing(port: int, cloud_account_id: str) -> tuple[str, str]:
     return request_handle, poll_proof
 
 
-def _approve_daemon_pairing(port: int, request_handle: str) -> None:
+def _approve_daemon_pairing(port: int, request_handle: str) -> str:
     local_view = _http(
         "GET",
         (
@@ -1578,11 +1660,33 @@ def _approve_daemon_pairing(port: int, request_handle: str) -> None:
         or decision_payload.get("status") != "approved"
     ):
         raise TopologyError("daemon did not approve the local pairing request")
+    message = decision_payload.get("message")
+    return message if isinstance(message, str) else ""
 
 
-def _pair_daemon(port: int, cloud_account_id: str) -> tuple[str, bytes]:
-    request_handle, poll_proof = _start_daemon_pairing(port, cloud_account_id)
-    _approve_daemon_pairing(port, request_handle)
+def _pair_daemon(
+    port: int,
+    cloud_account_id: str,
+    *,
+    team_id: str,
+    cloud_access_token: str,
+    require_enrollment: bool = True,
+) -> tuple[str, bytes]:
+    request_handle, poll_proof = _start_daemon_pairing(
+        port,
+        cloud_account_id,
+        team_id=team_id,
+        cloud_access_token=cloud_access_token,
+    )
+    approval = _approve_daemon_pairing(port, request_handle)
+    # The daemon mints the session even when Cloud enrollment fails, so the
+    # decision message is the only signal that Cloud accepted the pairing.
+    if require_enrollment and "Enrollment: enrolled" not in approval:
+        _, _, reason = approval.partition("Enrollment")
+        raise TopologyError(
+            "daemon pairing did not complete Cloud enrollment: "
+            + (("Enrollment" + reason).strip() if reason else "no enrollment status")
+        )
 
     query = urllib.parse.urlencode(
         {
@@ -1889,6 +1993,7 @@ def _run_terminal_user_journey(
     log_dir: Path,
     signing: dict[str, str],
     hosted_origin: str,
+    cloud_origin: str,
     daemon_a: ManagedProcess,
     daemon_b: ManagedProcess,
     processes: list[ManagedProcess],
@@ -1901,7 +2006,7 @@ def _run_terminal_user_journey(
     rendered, the paired daemon is terminated, a real daemon-bound request then
     fails at the network layer, and the SPA must raise exactly one blocking
     "Local daemon disconnected" dialog over the preserved, inert prior screen
-    before "Go to pairing" clears the stale hosted handoff and loads the
+    before its recovery action clears the stale hosted handoff and loads the
     canonical Cloud /dashboard pairing surface.
     """
 
@@ -2111,6 +2216,7 @@ def _run_terminal_user_journey(
                 name="daemon-b-join-ready",
                 port=ports["daemon_b"],
                 log_dir=log_dir,
+                cloud_origin=cloud_origin,
             )
             processes.append(daemon_b)
 
@@ -2211,7 +2317,7 @@ def _run_terminal_user_journey(
                     "expected exactly one dialog on lost join response, saw "
                     f"{join_dialogs}"
                 )
-            peer_page.get_by_role("button", name="Go to pairing").wait_for(
+            peer_page.locator(DISCONNECT_RECOVERY_ACTION).wait_for(
                 state="visible", timeout=10_000
             )
             if not join_response_lost["observed"]:
@@ -2271,7 +2377,7 @@ def _run_terminal_user_journey(
                 f"http://localhost:{ports['daemon_b']}"
                 "/api/v1/hosted-bridge/product-join"
             )
-            peer_page.get_by_role("button", name="Go to pairing").click()
+            peer_page.locator(DISCONNECT_RECOVERY_ACTION).click()
             peer_page.wait_for_url(f"{hosted_origin}/dashboard", timeout=20_000)
             _wait_for_selector(
                 peer_page,
@@ -2407,7 +2513,7 @@ def _run_terminal_user_journey(
                     "expected exactly one daemon-disconnect dialog, saw "
                     f"{visible_dialogs}"
                 )
-            pairing_action = disconnect_page.get_by_role("button", name="Go to pairing")
+            pairing_action = disconnect_page.locator(DISCONNECT_RECOVERY_ACTION)
             pairing_action.wait_for(state="visible", timeout=10_000)
 
             scrim_visible = disconnect_page.locator(
@@ -2650,10 +2756,6 @@ def _parse_args() -> argparse.Namespace:
             "Boot, validate, restart/replay, and tear down the real hosted topology."
         )
     )
-    parser.add_argument("--bot-ref", default="main")
-    parser.add_argument("--mcp-ref", default="main")
-    parser.add_argument("--bot-repo", type=Path)
-    parser.add_argument("--mcp-repo", type=Path)
     parser.add_argument("--factory-commit")
     parser.add_argument("--receipt", type=Path)
     parser.add_argument(
@@ -2732,25 +2834,10 @@ def main() -> int:
                 raise TopologyError(f"required executable is unavailable: {command}")
         _run(["docker", "info"], timeout=30, label="verify Docker")
 
-        bot_root = _clone_or_validate(
-            supplied=args.bot_repo,
-            destination=work_root / "bicameral-bot",
-            repository="BicameralAI/bicameral-bot",
-            ref=args.bot_ref,
-            label="bot",
-        )
-        mcp_root = _clone_or_validate(
-            supplied=args.mcp_repo,
-            destination=work_root / "bicameral-mcp",
-            repository="BicameralAI/bicameral-mcp",
-            ref=args.mcp_ref,
-            label="MCP",
-        )
-        commits = {
-            "cloud": _git_sha(cloud_root),
-            "bot": _git_sha(bot_root),
-            "mcp": _git_sha(mcp_root),
-        }
+        components = _monorepo_components(cloud_root)
+        bot_root = components.bot
+        mcp_root = components.mcp
+        commits = dict(components.commits)
         if args.factory_commit:
             if not re.fullmatch(r"[0-9a-f]{40}", args.factory_commit):
                 raise TopologyError("factory commit must be a full lowercase SHA")
@@ -2872,15 +2959,16 @@ def main() -> int:
             tls_certificate=tls_certificate,
         )
         processes.append(cloud_process)
+        cloud_url = (
+            f"https://127.0.0.1:{ports['cloud']}"
+            if args.terminal_user_journey
+            else f"http://127.0.0.1:{ports['cloud']}"
+        )
         cloud_behavior, browser_payloads = _validate_cloud(
             cloud_port=ports["cloud"],
             owner_token=owner_token,
             expected_dashboard=dashboard,
-            base_url=(
-                f"https://127.0.0.1:{ports['cloud']}"
-                if args.terminal_user_journey
-                else None
-            ),
+            base_url=cloud_url if args.terminal_user_journey else None,
             verify_tls=not args.terminal_user_journey,
         )
 
@@ -2912,6 +3000,7 @@ def main() -> int:
             name="daemon-a",
             port=ports["daemon_a"],
             log_dir=log_dir,
+            cloud_origin=cloud_url,
         )
         processes.append(daemon_a)
         daemon_b = _start_daemon(
@@ -2921,13 +3010,47 @@ def main() -> int:
             name="daemon-b",
             port=ports["daemon_b"],
             log_dir=log_dir,
+            cloud_origin=cloud_url,
         )
         processes.append(daemon_b)
         capabilities_a = _daemon_capabilities(ports["daemon_a"])
         capabilities_b = _daemon_capabilities(ports["daemon_b"])
 
-        bridge_a, pair_payload_a = _pair_daemon(ports["daemon_a"], owner_id)
-        bridge_b, pair_payload_b = _pair_daemon(ports["daemon_b"], peer_id)
+        verify_cloud_tls = not args.terminal_user_journey
+        owner_team = _resolve_pairing_team(
+            cloud_url, owner_token, verify_tls=verify_cloud_tls
+        )
+        peer_team = _resolve_pairing_team(
+            cloud_url, peer_token, verify_tls=verify_cloud_tls
+        )
+        pairing_contract = _check_pairing_requires_team(
+            ports["daemon_a"],
+            owner_id,
+            team_id=owner_team,
+            cloud_access_token=owner_token,
+        )
+        # The daemon trusts only public TLS roots, so it cannot enroll against
+        # the self-signed Cloud of the terminal journey.
+        require_enrollment = not args.terminal_user_journey
+        pairing_contract["cloud_enrollment"] = (
+            "required"
+            if require_enrollment
+            else "not_run: daemon cannot verify the self-signed disposable Cloud"
+        )
+        bridge_a, pair_payload_a = _pair_daemon(
+            ports["daemon_a"],
+            owner_id,
+            team_id=owner_team,
+            cloud_access_token=owner_token,
+            require_enrollment=require_enrollment,
+        )
+        bridge_b, pair_payload_b = _pair_daemon(
+            ports["daemon_b"],
+            peer_id,
+            team_id=peer_team,
+            cloud_access_token=peer_token,
+            require_enrollment=require_enrollment,
+        )
         if bridge_a == bridge_b:
             raise TopologyError("daemon bridge sessions were not isolated")
 
@@ -2993,6 +3116,7 @@ def main() -> int:
             name="daemon-a-restarted",
             port=ports["daemon_a"],
             log_dir=log_dir,
+            cloud_origin=cloud_url,
         )
         processes.append(daemon_a)
         after_count, after_digest = _event_state(workspaces[0])
@@ -3034,12 +3158,19 @@ def main() -> int:
                 log_dir=log_dir,
                 signing=signing,
                 hosted_origin=(f"https://app.bicameral-ai.com:{ports['cloud']}"),
+                cloud_origin=cloud_url,
                 daemon_a=daemon_a,
                 daemon_b=daemon_b,
                 processes=processes,
                 secret_values=secret_values,
             )
-            bridge_b, pair_payload_b = _pair_daemon(ports["daemon_b"], peer_id)
+            bridge_b, pair_payload_b = _pair_daemon(
+                ports["daemon_b"],
+                peer_id,
+                team_id=peer_team,
+                cloud_access_token=peer_token,
+                require_enrollment=require_enrollment,
+            )
 
         restart_evidence: dict[str, object] = {
             "schema_version": 1,
@@ -3117,6 +3248,7 @@ def main() -> int:
                 "status": "passed",
                 "components": commits,
                 "dashboard": dashboard,
+                "pairing_contract": pairing_contract,
                 "migrations": {
                     "versions": migrations,
                     "behavioral_validation": database_behavior,
