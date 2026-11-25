@@ -279,10 +279,8 @@ def test_event_type_count_reads_durable_git_events(tmp_path: Path) -> None:
     assert module._event_type_count(tmp_path, "create_product") == 1
 
 
-def test_pair_daemon_uses_pending_local_confirmation_flow(monkeypatch) -> None:
-    module = _load_script()
-    requests: list[tuple[str, str, dict[str, object]]] = []
-    responses = iter(
+def _pairing_responses(module, decision_message: str):
+    return iter(
         (
             module.HttpResult(
                 202,
@@ -295,7 +293,13 @@ def test_pair_daemon_uses_pending_local_confirmation_flow(monkeypatch) -> None:
                 b'{"status":"pending","local_confirmation_nonce":"local-nonce-1"}',
                 {},
             ),
-            module.HttpResult(200, b'{"status":"approved"}', {}),
+            module.HttpResult(
+                200,
+                json.dumps(
+                    {"status": "approved", "message": decision_message}
+                ).encode(),
+                {},
+            ),
             module.HttpResult(
                 200,
                 b'{"status":"approved","session_token":"session-1"}',
@@ -304,13 +308,28 @@ def test_pair_daemon_uses_pending_local_confirmation_flow(monkeypatch) -> None:
         )
     )
 
+
+def test_pair_daemon_sends_team_and_token_and_requires_cloud_enrollment(
+    monkeypatch,
+) -> None:
+    module = _load_script()
+    requests: list[tuple[str, str, dict[str, object]]] = []
+    responses = _pairing_responses(
+        module, "Pairing approved (pairing_id=p-1). Enrollment: enrolled:created."
+    )
+
     def fake_http(method: str, url: str, **kwargs: object):
         requests.append((method, url, kwargs))
         return next(responses)
 
     monkeypatch.setattr(module, "_http", fake_http)
 
-    token, evidence = module._pair_daemon(37373, "account-1")
+    token, evidence = module._pair_daemon(
+        37373,
+        "account-1",
+        team_id="team-1",
+        cloud_access_token="cloud-token-1",
+    )
 
     assert token == "session-1"
     assert evidence == b'{"status":"approved","session_token":"session-1"}'
@@ -320,6 +339,8 @@ def test_pair_daemon_uses_pending_local_confirmation_flow(monkeypatch) -> None:
         "cloud_account_id": "account-1",
         "csrf_token": requests[0][2]["payload"]["csrf_token"],
         "client_protocol_version": module.HOSTED_BRIDGE_PROTOCOL_VERSION,
+        "team_id": "team-1",
+        "cloud_access_token": "cloud-token-1",
     }
     assert requests[1][1].endswith("/api/v1/hosted-bridge/pair/pending/handle-1")
     assert requests[2][2]["payload"] == {
@@ -331,6 +352,192 @@ def test_pair_daemon_uses_pending_local_confirmation_flow(monkeypatch) -> None:
     assert "poll_proof=proof-1" in requests[3][1]
     assert "cloud_account_id=account-1" in requests[3][1]
     assert requests[3][2]["headers"] == {"origin": module.TRUSTED_BRIDGE_ORIGIN}
+
+
+def test_pair_daemon_fails_closed_when_cloud_enrollment_fails(monkeypatch) -> None:
+    module = _load_script()
+    responses = _pairing_responses(
+        module,
+        "Pairing approved (pairing_id=p-1). Enrollment failed closed: "
+        "proof signing key unavailable: keychain not found.",
+    )
+    monkeypatch.setattr(module, "_http", lambda *_args, **_kwargs: next(responses))
+
+    with pytest.raises(
+        module.TopologyError, match="proof signing key unavailable"
+    ) as failure:
+        module._pair_daemon(
+            37373,
+            "account-1",
+            team_id="team-1",
+            cloud_access_token="cloud-token-1",
+        )
+    assert "cloud-token-1" not in str(failure.value)
+
+
+def test_pairing_without_team_or_token_is_refused(monkeypatch) -> None:
+    module = _load_script()
+    sent: list[dict[str, object]] = []
+    kinds = {
+        "team_id": "MissingTeamId",
+        "cloud_access_token": "MissingCloudAccessToken",
+    }
+
+    def fake_http(method: str, url: str, **kwargs: object):
+        payload = kwargs["payload"]
+        sent.append(payload)
+        missing = next(field for field in kinds if field not in payload)
+        return module.HttpResult(400, json.dumps({"kind": kinds[missing]}).encode(), {})
+
+    monkeypatch.setattr(module, "_http", fake_http)
+
+    evidence = module._check_pairing_requires_team(
+        37373,
+        "account-1",
+        team_id="team-1",
+        cloud_access_token="cloud-token-1",
+    )
+
+    assert evidence == {
+        "without_team": {"status": 400, "kind": "MissingTeamId"},
+        "without_cloud_credential": {
+            "status": 400,
+            "kind": "MissingCloudAccessToken",
+        },
+    }
+    assert "team_id" not in sent[0] and sent[0]["cloud_access_token"]
+    assert "cloud_access_token" not in sent[1] and sent[1]["team_id"]
+    assert "cloud-token-1" not in json.dumps(evidence)
+    module._assert_receipt_safe({"pairing_contract": evidence})
+
+
+def test_pairing_accepted_without_team_fails_closed(monkeypatch) -> None:
+    module = _load_script()
+    monkeypatch.setattr(
+        module,
+        "_http",
+        lambda *_args, **_kwargs: module.HttpResult(
+            202, b'{"status":"pending","request_handle":"h"}', {}
+        ),
+    )
+
+    with pytest.raises(module.TopologyError, match="without team_id"):
+        module._check_pairing_requires_team(
+            37373,
+            "account-1",
+            team_id="team-1",
+            cloud_access_token="cloud-token-1",
+        )
+
+
+def test_pairing_team_comes_from_cloud_tenancy(monkeypatch) -> None:
+    module = _load_script()
+    calls: list[tuple[str, str, dict[str, object]]] = []
+
+    def fake_http(method: str, url: str, **kwargs: object):
+        calls.append((method, url, kwargs))
+        return module.HttpResult(
+            200, b'{"user_id":"u-1","team_id":"team-9","source":"created"}', {}
+        )
+
+    monkeypatch.setattr(module, "_http", fake_http)
+
+    team = module._resolve_pairing_team("http://127.0.0.1:4000", "owner-token")
+
+    assert team == "team-9"
+    assert calls[0][0] == "POST"
+    assert calls[0][1] == "http://127.0.0.1:4000/api/v1/auth/pairing-tenancy"
+    assert calls[0][2]["headers"]["authorization"] == "Bearer owner-token"
+
+
+def test_pair_daemon_records_enrollment_it_cannot_run(monkeypatch) -> None:
+    module = _load_script()
+    responses = _pairing_responses(
+        module, "Pairing approved (pairing_id=p-1). Enrollment failed closed: tls."
+    )
+    monkeypatch.setattr(module, "_http", lambda *_args, **_kwargs: next(responses))
+
+    token, _evidence = module._pair_daemon(
+        37373,
+        "account-1",
+        team_id="team-1",
+        cloud_access_token="cloud-token-1",
+        require_enrollment=False,
+    )
+
+    assert token == "session-1"
+
+
+def test_unresolved_pairing_team_fails_closed(monkeypatch) -> None:
+    module = _load_script()
+    monkeypatch.setattr(
+        module,
+        "_http",
+        lambda *_args, **_kwargs: module.HttpResult(
+            409, b'{"detail":{"kind":"PairingVerifiedDomainRequired"}}', {}
+        ),
+    )
+
+    with pytest.raises(module.TopologyError, match="tenancy") as failure:
+        module._resolve_pairing_team("http://127.0.0.1:4000", "owner-token")
+    assert "owner-token" not in str(failure.value)
+
+
+def test_daemon_enrolls_against_the_disposable_cloud(monkeypatch, tmp_path) -> None:
+    module = _load_script()
+    started: list[dict[str, str]] = []
+
+    def fake_start(name, command, *, cwd, env, log_dir):
+        started.append(env)
+        return SimpleNamespace(name=name)
+
+    monkeypatch.setattr(module, "_start_process", fake_start)
+    monkeypatch.setattr(module, "_wait_http", lambda *_args, **_kwargs: None)
+
+    module._start_daemon(
+        binary=tmp_path / "bicameral",
+        workspace=tmp_path,
+        home=tmp_path / "home",
+        name="daemon-a",
+        port=37373,
+        log_dir=tmp_path,
+        cloud_origin="http://127.0.0.1:4000",
+    )
+
+    assert started[0]["BICAMERAL_CLOUD_ORIGIN"] == "http://127.0.0.1:4000"
+
+
+def _git(cwd: Path, *arguments: str) -> str:
+    import subprocess
+
+    return subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *arguments],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def test_components_come_from_one_monorepo_commit(tmp_path: Path) -> None:
+    module = _load_script()
+    for component in ("apps/bot", "packages/mcp", "services/cloud"):
+        (tmp_path / component).mkdir(parents=True)
+        (tmp_path / component / "README.md").write_text("x\n", encoding="utf-8")
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-q", "-m", "init")
+    head = _git(tmp_path, "rev-parse", "HEAD")
+
+    components = module._monorepo_components(tmp_path / "services" / "cloud")
+
+    assert components.bot == tmp_path / "apps" / "bot"
+    assert components.mcp == tmp_path / "packages" / "mcp"
+    assert components.commits == {"cloud": head, "bot": head, "mcp": head}
+
+    (tmp_path / "apps" / "bot" / "README.md").write_text("changed\n", encoding="utf-8")
+    with pytest.raises(module.TopologyError, match="uncommitted"):
+        module._monorepo_components(tmp_path / "services" / "cloud")
 
 
 def test_browser_pairing_approves_the_pending_request_locally(monkeypatch) -> None:
@@ -458,10 +665,28 @@ def test_acceptance_surface_covers_daemon_disconnect_recovery() -> None:
     for token in (
         'data-testid="daemon-disconnect-scrim"',
         "Local daemon disconnected",
-        "Go to pairing",
         "/api/v1/hosted-bridge/projects",
     ):
         assert token in module.TERMINAL_ACCEPTANCE_SURFACE
+
+
+def test_acceptance_surface_does_not_depend_on_recovery_button_text(
+    tmp_path: Path,
+) -> None:
+    module = _load_script()
+    assets = tmp_path / "assets"
+    assets.mkdir()
+    surface = "\n".join(module.TERMINAL_ACCEPTANCE_SURFACE)
+    for label in ("Go to pairing", "Reconnect device", "Pair again"):
+        (assets / "index.js").write_text(
+            f"{surface}\n<button>{label}</button>", encoding="utf-8"
+        )
+        module._validate_terminal_acceptance_surface(tmp_path)
+    assert all(
+        label not in token
+        for token in module.TERMINAL_ACCEPTANCE_SURFACE
+        for label in ("Go to pairing", "Reconnect device")
+    )
 
 
 def test_terminal_surface_drift_detects_missing_disconnect_dialog(

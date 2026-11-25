@@ -150,13 +150,21 @@ Run the supporting integration topology used by downstream hosted browser
 journeys:
 
 ```bash
-python scripts/run_real_process_hosted_topology.py \
-  --bot-repo <bicameral-bot checkout> --mcp-repo <bicameral-mcp checkout> \
-  --factory-commit <Factory commit>
+python scripts/run_real_process_hosted_topology.py --factory-commit <Factory commit>
 ```
 
+The harness takes the Bot, MCP and Cloud from this monorepo at its current
+commit. These paths must have no uncommitted changes. Each daemon pairs with a
+team that the harness gets from Cloud, and it enrolls against the disposable
+Cloud, never the production origin.
+
 > [!WARNING]
-> This journey does not currently pass against the pinned Bot release: the harness predates a Bot pairing-contract change. See [#21](https://github.com/BicameralAI/bicameral/issues/21) and the [verification ledger](../../migration/README.md#verification-ledger). The Bot and MCP checkouts must be full Git clones at the pinned commits, which are published only in the original repositories.
+> The full journey does not pass yet. Cloud enrollment needs the daemon
+> proof-signing key from the OS keyring, and a disposable test home has no
+> keyring. The harness stops at pairing and names this cause. In
+> `--terminal-user-journey` mode the daemon cannot trust the self-signed
+> disposable Cloud, so the receipt records enrollment as `not_run`. See
+> [#21](https://github.com/BicameralAI/bicameral/issues/21).
 
 The command requires Docker, Node/npm, recent stable Rust/Cargo (Cargo 1.85+),
 `uv`, Git, and loopback port access. It allocates isolated ports; starts
