@@ -695,6 +695,51 @@ mod domain_payloads {
         )));
     }
 
+    /// The registry snapshot reuses the legacy `CaptureMethod`. The schema freezes its
+    /// values, so a variant added to the legacy enum must fail here instead of being
+    /// accepted by the registry decoder.
+    #[test]
+    fn capture_method_values_are_exactly_the_schema_enum() {
+        use bicameral_api::source::CaptureMethod;
+        fn all() -> Vec<CaptureMethod> {
+            // Exhaustive on purpose: a new variant stops this compiling until it is listed.
+            let listed = |method: CaptureMethod| match method {
+                CaptureMethod::ApiPoll
+                | CaptureMethod::Webhook
+                | CaptureMethod::Manual
+                | CaptureMethod::AgentExtract => method,
+            };
+            vec![
+                listed(CaptureMethod::ApiPoll),
+                listed(CaptureMethod::Webhook),
+                listed(CaptureMethod::Manual),
+                listed(CaptureMethod::AgentExtract),
+            ]
+        }
+        let schema: Value = serde_json::from_str(include_str!(
+            "../../../protocol/spec-registry/source-snapshot.schema.json"
+        ))
+        .unwrap();
+        let mut frozen: Vec<Value> = schema["properties"]["capture_method"]["enum"]
+            .as_array()
+            .unwrap()
+            .clone();
+        let mut decoded: Vec<Value> = all()
+            .into_iter()
+            .map(|method| serde_json::to_value(method).unwrap())
+            .collect();
+        frozen.sort_by_key(|v| v.to_string());
+        decoded.sort_by_key(|v| v.to_string());
+        assert_eq!(decoded, frozen);
+        for value in frozen {
+            assert!(round_trips::<SourceSnapshot>(&with(
+                source_snapshot(),
+                "capture_method",
+                value
+            )));
+        }
+    }
+
     #[test]
     fn capture_creates_an_empty_domain() {
         let domain = GovernedDomain::captured("product-1".into(), "sha256:snapshot".into());

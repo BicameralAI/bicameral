@@ -373,6 +373,10 @@ impl GovernedDomain {
     /// ARCH-0003 digest of this claim set: SHA-256 hex of the compact JSON object holding
     /// exactly `atoms`, `claim_assertions`, `claims` and `relations`, keys sorted, arrays in
     /// stored order. Computed for any domain; only a completed extract stores it.
+    ///
+    /// A captured or failed domain returns the empty-set digest, the same value as a
+    /// completed zero-claim extract. Code that decides whether a domain may be checked or
+    /// signed off must read the stored `source_digest` (`None` until extract), not this.
     pub fn claim_set_digest(&self) -> String {
         use sha2::{Digest, Sha256};
         let claim_set = serde_json::json!({
