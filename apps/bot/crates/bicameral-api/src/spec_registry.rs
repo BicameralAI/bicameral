@@ -118,6 +118,20 @@ fn non_empty_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String
 // GovernedDomain, CheckRecord, Signoff and ApprovePolicy (ARCH-0003, ARCH-0004).
 // Payload decoding only, as above: no lease, model call, check or approval runs here.
 
+/// Encodes a registry payload for writing and proves the result decodes.
+///
+/// Cross-field rules also run whenever a checked payload is serialized, but
+/// field rules (non-empty strings, RFC 3339 times, permission cells) run only at
+/// decode. A writer uses this so that it cannot store a payload a reader refuses.
+pub fn encode_checked<T>(payload: &T) -> Result<serde_json::Value, serde_json::Error>
+where
+    T: Serialize + serde::de::DeserializeOwned,
+{
+    let value = serde_json::to_value(payload)?;
+    T::deserialize(&value)?;
+    Ok(value)
+}
+
 /// Decodes through the derived field rules, then applies the cross-field rules in `check`.
 macro_rules! checked_payload {
     ($name:ident) => {
@@ -130,6 +144,7 @@ macro_rules! checked_payload {
         }
         impl Serialize for $name {
             fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                self.check().map_err(serde::ser::Error::custom)?;
                 $name::serialize(self, serializer)
             }
         }
@@ -193,6 +208,62 @@ pub struct DomainRelation {
         deserialize_with = "optional_non_empty_strings"
     )]
     pub supporting_claim_ids: Option<Vec<String>>,
+}
+
+/// A spec `Source`: a file or a tracker item, looked up by `uri`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SpecSource {
+    #[serde(deserialize_with = "non_empty_string")]
+    pub uri: String,
+    pub source_type: String,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub label: Option<String>,
+    pub source_kind: SpecSourceKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpecSourceKind {
+    File,
+    Tracker,
+}
+
+/// Registry form of one immutable capture. `source_uri` is the `Source` uri, a
+/// back-pointer, not the address of the captured bytes. Decoding does not derive or
+/// verify `snapshot_addr` or `content_hash`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SourceSnapshot {
+    #[serde(deserialize_with = "non_empty_string")]
+    pub snapshot_addr: String,
+    pub snapshot_ref: String,
+    #[serde(deserialize_with = "rfc3339_string")]
+    pub captured_at: String,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub content: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub content_hash: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub capture_method: Option<crate::source::CaptureMethod>,
+    #[serde(deserialize_with = "non_empty_string")]
+    pub source_uri: String,
 }
 
 /// Finished failed extract. An operational receipt, not an authorization state.
@@ -259,6 +330,24 @@ pub struct GovernedDomain {
 checked_payload!(GovernedDomain);
 
 impl GovernedDomain {
+    /// The domain a capture creates: no claim set, no completion, no extract error.
+    pub fn captured(product_id: String, snapshot_addr: String) -> Self {
+        Self {
+            product_id,
+            snapshot_addr,
+            source_digest: None,
+            route: None,
+            model_id: None,
+            prompt_id: None,
+            prompt_digest: None,
+            extract_error: None,
+            claims: Vec::new(),
+            atoms: Vec::new(),
+            claim_assertions: Vec::new(),
+            relations: Vec::new(),
+        }
+    }
+
     fn check(&self) -> Result<(), &'static str> {
         let completion = [
             self.source_digest.is_some(),
@@ -284,6 +373,10 @@ impl GovernedDomain {
     /// ARCH-0003 digest of this claim set: SHA-256 hex of the compact JSON object holding
     /// exactly `atoms`, `claim_assertions`, `claims` and `relations`, keys sorted, arrays in
     /// stored order. Computed for any domain; only a completed extract stores it.
+    ///
+    /// A captured or failed domain returns the empty-set digest, the same value as a
+    /// completed zero-claim extract. Code that decides whether a domain may be checked or
+    /// signed off must read the stored `source_digest` (`None` until extract), not this.
     pub fn claim_set_digest(&self) -> String {
         use sha2::{Digest, Sha256};
         let claim_set = serde_json::json!({
